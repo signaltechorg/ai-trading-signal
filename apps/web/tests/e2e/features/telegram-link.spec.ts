@@ -42,21 +42,21 @@ test.describe('telegram link-token API', () => {
     expect(res.status()).toBe(200);
 
     const body = (await res.json()) as {
-      token: string;
       deepLink: string;
       expiresInSeconds: number;
     };
 
-    // Token shape: <userId>.<issuedAtMs>.<hex-signature>
-    expect(body.token).toMatch(/^[\w-]+\.\d+\.[a-f0-9]{64}$/);
-
-    // Deep link shape: https://t.me/<bot>?start=<encoded-token>
+    // The route intentionally does NOT return the raw token — it would turn
+    // the response body into a one-time credential captured by every dev
+    // tools open and network log. The token is recoverable from the deep
+    // link's `start` param, which is where the bot ultimately reads it.
     expect(body.deepLink).toMatch(/^https:\/\/t\.me\/[A-Za-z0-9_]+\?start=/);
     const linkUrl = new URL(body.deepLink);
     expect(linkUrl.hostname).toBe('t.me');
     const startParam = linkUrl.searchParams.get('start');
     expect(startParam).toBeTruthy();
-    expect(startParam).toBe(body.token);
+    // Token shape: <userId>.<issuedAtMs>.<hex-signature>
+    expect(startParam).toMatch(/^[\w-]+\.\d+\.[a-f0-9]{64}$/);
 
     // TTL is 10 minutes per TELEGRAM_LINK_TOKEN_TTL_SECONDS.
     expect(body.expiresInSeconds).toBe(600);
