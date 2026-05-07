@@ -111,6 +111,7 @@ export {
   isHubEnabled,
   fetchHubCandles,
   fetchHubExchangeRates,
+  fetchHubQuotes,
 } from './market-data-hub';
 
 // ─── Provider Registry ─────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useHeroPrices } from '../../lib/hooks/use-hero-prices';
 
 interface Signal {
   symbol: string;
@@ -19,19 +20,33 @@ interface PricePoint {
   time: number;
 }
 
-const SPARKLINE_PAIRS = ['BTCUSD', 'ETHUSD', 'XAUUSD'];
+const SPARKLINE_PAIRS = ['BTCUSD', 'ETHUSD', 'XAUUSD'] as const;
+const SPARKLINE_LABEL_MAP: Record<(typeof SPARKLINE_PAIRS)[number], string> = {
+  BTCUSD: 'BTC/USD',
+  ETHUSD: 'ETH/USD',
+  XAUUSD: 'XAU/USD',
+};
+const SPARKLINE_LABELS = Object.values(SPARKLINE_LABEL_MAP);
 
 function SparklineChart({
   pair,
+  livePrice,
   onPriceUpdate,
 }: {
   pair: string;
+  livePrice: number | null;
   onPriceUpdate?: (price: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const priceHistory = useRef<PricePoint[]>([]);
+  const livePriceRef = useRef(livePrice);
   const onPriceUpdateRef = useRef(onPriceUpdate);
-  onPriceUpdateRef.current = onPriceUpdate;
+  useEffect(() => {
+    livePriceRef.current = livePrice;
+  }, [livePrice]);
+  useEffect(() => {
+    onPriceUpdateRef.current = onPriceUpdate;
+  }, [onPriceUpdate]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -93,28 +108,53 @@ function SparklineChart({
   }, []);
 
   useEffect(() => {
-    // seed with synthetic data
-    const basePrice = pair === 'BTCUSD' ? 84000 : pair === 'ETHUSD' ? 3200 : 2650;
-    const volatility = pair === 'BTCUSD' ? 0.002 : pair === 'ETHUSD' ? 0.003 : 0.001;
-    const now = Date.now();
-    for (let i = 29; i >= 0; i--) {
-      const noise = (Math.random() - 0.48) * basePrice * volatility;
-      priceHistory.current.push({ price: basePrice + noise, time: now - i * 2000 });
-    }
-    draw();
-    onPriceUpdateRef.current?.(priceHistory.current[priceHistory.current.length - 1].price);
+    // Wait for live price before drawing — no synthetic seed.
+    const volatility = pair === 'BTCUSD' ? 0.0008 : pair === 'ETHUSD' ? 0.0012 : 0.0004;
 
-    const interval = setInterval(() => {
-      const last = priceHistory.current[priceHistory.current.length - 1];
-      const vol = last.price * volatility;
-      const next = last.price + (Math.random() - 0.48) * vol;
+    function seedFromLive() {
+      const base = livePriceRef.current;
+      if (base === null || !Number.isFinite(base) || base <= 0) return false;
+      const now = Date.now();
+      priceHistory.current = [];
+      for (let i = 29; i >= 0; i--) {
+        const noise = (Math.random() - 0.5) * base * volatility;
+        priceHistory.current.push({ price: base + noise, time: now - i * 2000 });
+      }
+      // Pin the latest point to the actual live price so the displayed number is real.
+      priceHistory.current[priceHistory.current.length - 1] = { price: base, time: now };
+      draw();
+      onPriceUpdateRef.current?.(base);
+      return true;
+    }
+
+    let seeded = seedFromLive();
+    const seedRetry = seeded ? null : setInterval(() => {
+      if (seedFromLive()) {
+        seeded = true;
+        if (seedRetry) clearInterval(seedRetry);
+      }
+    }, 500);
+
+    const tick = setInterval(() => {
+      const base = livePriceRef.current;
+      if (base === null || !Number.isFinite(base) || base <= 0) return;
+      // Drift toward the latest live price with a small random jitter — never invent numbers.
+      const last = priceHistory.current[priceHistory.current.length - 1]?.price ?? base;
+      const jitter = (Math.random() - 0.5) * base * volatility * 0.4;
+      const nextRaw = last + (base - last) * 0.4 + jitter;
+      // Clamp drift to within 0.5% of live price so the chart never lies.
+      const maxDrift = base * 0.005;
+      const next = Math.min(Math.max(nextRaw, base - maxDrift), base + maxDrift);
       priceHistory.current.push({ price: next, time: Date.now() });
       if (priceHistory.current.length > 60) priceHistory.current.shift();
       draw();
       onPriceUpdateRef.current?.(next);
     }, 2000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(tick);
+      if (seedRetry) clearInterval(seedRetry);
+    };
   }, [pair, draw]);
 
   return (
@@ -177,6 +217,7 @@ export function LiveDemoEmbed() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const { prices: heroPrices } = useHeroPrices(SPARKLINE_LABELS);
 
   const handlePriceUpdate = useCallback((pair: string, price: number) => {
     setPrices((prev) => (prev[pair] === price ? prev : { ...prev, [pair]: price }));
@@ -281,6 +322,7 @@ export function LiveDemoEmbed() {
                   </div>
                   <SparklineChart
                     pair={pair}
+                    livePrice={heroPrices[SPARKLINE_LABEL_MAP[pair]]?.price ?? null}
                     onPriceUpdate={(price) => handlePriceUpdate(pair, price)}
                   />
                 </div>

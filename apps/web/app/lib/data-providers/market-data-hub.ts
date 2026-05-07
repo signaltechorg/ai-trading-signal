@@ -11,7 +11,7 @@
  *   GET /api/exchange-rates                           → forex rates
  */
 
-import type { OHLCV, ForexRate } from './types';
+import type { OHLCV, ForexRate, PriceQuote } from './types';
 import { safeFetch } from './types';
 
 const HUB_URL = process.env.MARKET_DATA_HUB_URL ?? '';
@@ -113,6 +113,71 @@ export async function fetchHubCandles(
     close: v.close,
     volume: v.volume,
   }));
+}
+
+/** Convert hub symbol back to TradeClaw symbol (BTC/USD → BTCUSD, BNO → BNOUSD) */
+function fromHubSymbol(hubSym: string): string {
+  if (hubSym.includes('/')) return hubSym.replace('/', '');
+  if (STOCK_TICKERS.has(hubSym)) return `${hubSym}USD`;
+  return hubSym;
+}
+
+function asNumber(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+interface HubQuote {
+  symbol: string;
+  price?: number | string;
+  close?: number | string;
+  change?: number | string;
+  percent_change?: number | string;
+  high?: number | string;
+  low?: number | string;
+  volume?: number | string;
+  timestamp?: number;
+  datetime?: string;
+}
+
+interface HubQuotesResponse {
+  data?: HubQuote[];
+  count?: number;
+}
+
+/**
+ * Fetch all latest quotes from the market data hub.
+ * Returns TradeClaw-symbol-keyed PriceQuote[] (BTCUSD, BNOUSD, QQQUSD, EURUSD, ...).
+ * Empty array when hub disabled or unreachable.
+ */
+export async function fetchHubQuotes(): Promise<PriceQuote[]> {
+  if (!HUB_URL) return [];
+
+  const data = await safeFetch<HubQuotesResponse>(`${HUB_URL}/api/quotes`, {
+    timeoutMs: 5000,
+  });
+  if (!data?.data?.length) return [];
+
+  const out: PriceQuote[] = [];
+  for (const q of data.data) {
+    const price = asNumber(q.price) ?? asNumber(q.close);
+    if (price === undefined || price <= 0) continue;
+    out.push({
+      symbol: fromHubSymbol(q.symbol),
+      price,
+      change24h: asNumber(q.percent_change) ?? asNumber(q.change),
+      high24h: asNumber(q.high),
+      low24h: asNumber(q.low),
+      volume24h: asNumber(q.volume),
+      timestamp: q.timestamp ? q.timestamp * 1000 : Date.now(),
+      source: 'market-data-hub',
+    });
+  }
+  return out;
 }
 
 /**

@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { fetchCoinCapPrices, fetchKrakenPrices, fetchFrankfurterRates, fetchFreeGoldPrice, fetchFreeSilverPrice } from '../../lib/data-providers';
+import {
+  fetchCoinCapPrices,
+  fetchKrakenPrices,
+  fetchFrankfurterRates,
+  fetchFreeGoldPrice,
+  fetchFreeSilverPrice,
+  fetchHubQuotes,
+  isHubEnabled,
+} from '../../lib/data-providers';
 
 // Free price APIs - no key needed
 const CRYPTO_SYMBOLS = [
@@ -59,19 +67,32 @@ const FALLBACK_PRICES: Record<string, number> = {
 
 export async function GET() {
   try {
-    // Fetch crypto prices from CoinGecko (free, no key)
+    const prices: Record<string, { price: number; change24h: number; source: string }> = {};
+
+    // Hub goes first — it's a Redis-cached aggregator with stocks (NVDA, QQQ, BNO etc.)
+    // and pre-resolved forex/crypto. Anything it returns is freshest data.
+    if (isHubEnabled()) {
+      const hubQuotes = await fetchHubQuotes();
+      for (const q of hubQuotes) {
+        prices[q.symbol] = {
+          price: q.price,
+          change24h: q.change24h ?? 0,
+          source: q.source,
+        };
+      }
+    }
+
+    // Fetch crypto prices from CoinGecko (free, no key) — fills any gaps the hub didn't cover
     const cgRes = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${CRYPTO_SYMBOLS.join(',')}&vs_currencies=usd&include_24hr_change=true`,
       { next: { revalidate: 30 } }
     );
 
-    const prices: Record<string, { price: number; change24h: number; source: string }> = {};
-
     if (cgRes.ok) {
       const cgData = await cgRes.json();
       for (const [id, data] of Object.entries(cgData)) {
         const symbol = SYMBOL_MAP[id];
-        if (symbol) {
+        if (symbol && !prices[symbol]) {
           prices[symbol] = {
             price: (data as { usd: number; usd_24h_change: number }).usd,
             change24h: +((data as { usd: number; usd_24h_change: number }).usd_24h_change?.toFixed(2) || 0),
