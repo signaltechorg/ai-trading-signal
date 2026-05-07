@@ -1273,6 +1273,7 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
         </div>
 
         {/* Signal grid */}
+        <div data-tour-id="signal-grid">
         {(() => {
           let filteredSignals = signals.filter(s => ASSET_CLASSES[assetClass].includes(s.symbol));
           if (highConfOnly) filteredSignals = filteredSignals.filter(s => s.confidence >= 80);
@@ -1367,7 +1368,7 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
 
               {/* Main signals (70%+) */}
               {mainSignals.length > 0 && (
-                <div data-tour-id="signal-grid" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {mainSignals.map(signal => (
                     <SignalCard key={signal.id} signal={signal} livePrice={prices.get(signal.symbol)?.price ?? null} tfDirections={tfMap.get(signal.symbol)} onSelect={handleSelectSignal} isFavorite={favorites.has(signal.id)} onToggleFavorite={toggleFavorite} />
                   ))}
@@ -1418,6 +1419,7 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
             </>
           );
         })()}
+        </div>
 
         {/* Signal history / track record */}
         <SignalHistory />
