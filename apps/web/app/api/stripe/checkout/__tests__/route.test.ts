@@ -95,6 +95,9 @@ describe('POST /api/stripe/checkout', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const sessionsCreate = jest.fn().mockResolvedValue({
@@ -138,6 +141,9 @@ describe('POST /api/stripe/checkout', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const sessionsCreate = jest.fn().mockResolvedValue({
@@ -168,6 +174,9 @@ describe('POST /api/stripe/checkout', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const sessionsCreate = jest.fn().mockRejectedValue(new Error('Stripe down'));

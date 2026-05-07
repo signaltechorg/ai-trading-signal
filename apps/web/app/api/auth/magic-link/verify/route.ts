@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { consumeMagicLink } from '../../../../../lib/magic-link';
+// TODO(magic-link): swap to upsertUserProfile once magic-link supports a
+// display name on the verify form. Until then magic-link users get
+// displayName/avatarUrl/authProvider all null, which the navbar handles
+// (initials fallback, no provider chip).
 import { upsertUserByEmail } from '../../../../../lib/db';
 import { createSessionToken, sessionCookieOptions, USER_SESSION_COOKIE } from '../../../../../lib/user-session';
 

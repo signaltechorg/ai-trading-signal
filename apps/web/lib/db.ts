@@ -31,6 +31,9 @@ export interface UserRecord {
   tier: 'free' | 'pro' | 'elite' | 'custom';
   tierExpiresAt: Date | null;
   telegramUserId: bigint | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  authProvider: 'google' | 'github' | null;
 }
 
 export interface SubscriptionRecord {
@@ -71,6 +74,9 @@ interface UserRow {
   tier: string;
   tier_expires_at: string | null;
   telegram_user_id: string | null;
+  name: string | null;
+  avatar_url: string | null;
+  auth_provider: string | null;
 }
 
 function toUserRecord(row: UserRow): UserRecord {
@@ -81,8 +87,17 @@ function toUserRecord(row: UserRow): UserRecord {
     tier: row.tier as UserRecord['tier'],
     tierExpiresAt: row.tier_expires_at ? new Date(row.tier_expires_at) : null,
     telegramUserId: row.telegram_user_id ? BigInt(row.telegram_user_id) : null,
+    displayName: row.name,
+    avatarUrl: row.avatar_url,
+    authProvider:
+      row.auth_provider === 'google' || row.auth_provider === 'github'
+        ? row.auth_provider
+        : null,
   };
 }
+
+const USER_COLUMNS = `id, email, stripe_customer_id, tier, tier_expires_at,
+  telegram_user_id, name, avatar_url, auth_provider`;
 
 interface SubscriptionRow {
   id: string;
@@ -135,11 +150,13 @@ export async function getUserById(userId: string): Promise<UserRecord | null> {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: 'E2E Pro User',
+      avatarUrl: null,
+      authProvider: null,
     };
   }
   const row = await queryOne<UserRow>(
-    `SELECT id, email, stripe_customer_id, tier, tier_expires_at, telegram_user_id
-     FROM users WHERE id = $1`,
+    `SELECT ${USER_COLUMNS} FROM users WHERE id = $1`,
     [userId],
   );
   return row ? toUserRecord(row) : null;
@@ -147,8 +164,7 @@ export async function getUserById(userId: string): Promise<UserRecord | null> {
 
 export async function getUserByEmail(email: string): Promise<UserRecord | null> {
   const row = await queryOne<UserRow>(
-    `SELECT id, email, stripe_customer_id, tier, tier_expires_at, telegram_user_id
-     FROM users WHERE email = $1`,
+    `SELECT ${USER_COLUMNS} FROM users WHERE email = $1`,
     [email.toLowerCase()],
   );
   return row ? toUserRecord(row) : null;
@@ -164,10 +180,48 @@ export async function upsertUserByEmail(email: string): Promise<UserRecord> {
     `INSERT INTO users (email)
      VALUES ($1)
      ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
-     RETURNING id, email, stripe_customer_id, tier, tier_expires_at, telegram_user_id`,
+     RETURNING ${USER_COLUMNS}`,
     [normalized],
   );
   if (!row) throw new Error('upsertUserByEmail: insert returned no row');
+  return toUserRecord(row);
+}
+
+export interface UserProfileInput {
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  /**
+   * Provider used for THIS sign-in. Only persisted on the first row insert —
+   * we never overwrite an existing auth_provider so the UI doesn't flip
+   * between Google and GitHub when the same email signs in via both.
+   */
+  authProvider: 'google' | 'github';
+}
+
+/**
+ * Find-or-create a user by email and refresh their profile fields. Display
+ * name and avatar mirror what the provider returned on this sign-in — so a
+ * user who changes their Google photo gets the new one (and a user who
+ * removes it gets a null, which the UserMenu falls back to initials for).
+ *
+ * `auth_provider` is set only when the row is first created; subsequent
+ * sign-ins via a different provider don't overwrite it (avoids confusing
+ * "via google" / "via github" flips when the same email signs in via both).
+ */
+export async function upsertUserProfile(input: UserProfileInput): Promise<UserRecord> {
+  const normalized = input.email.trim().toLowerCase();
+  const row = await queryOne<UserRow>(
+    `INSERT INTO users (email, name, avatar_url, auth_provider)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO UPDATE SET
+       name       = EXCLUDED.name,
+       avatar_url = EXCLUDED.avatar_url,
+       updated_at = NOW()
+     RETURNING ${USER_COLUMNS}`,
+    [normalized, input.displayName, input.avatarUrl, input.authProvider],
+  );
+  if (!row) throw new Error('upsertUserProfile: insert returned no row');
   return toUserRecord(row);
 }
 
@@ -175,8 +229,7 @@ export async function getUserByStripeCustomerId(
   stripeCustomerId: string,
 ): Promise<UserRecord | null> {
   const row = await queryOne<UserRow>(
-    `SELECT id, email, stripe_customer_id, tier, tier_expires_at, telegram_user_id
-     FROM users WHERE stripe_customer_id = $1`,
+    `SELECT ${USER_COLUMNS} FROM users WHERE stripe_customer_id = $1`,
     [stripeCustomerId],
   );
   return row ? toUserRecord(row) : null;
@@ -217,8 +270,7 @@ export async function getUserByTelegramId(
   telegramUserId: bigint,
 ): Promise<UserRecord | null> {
   const row = await queryOne<UserRow>(
-    `SELECT id, email, stripe_customer_id, tier, tier_expires_at, telegram_user_id
-     FROM users WHERE telegram_user_id = $1`,
+    `SELECT ${USER_COLUMNS} FROM users WHERE telegram_user_id = $1`,
     [telegramUserId.toString()],
   );
   return row ? toUserRecord(row) : null;

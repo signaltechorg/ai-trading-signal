@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertUserByEmail } from '../../../../../lib/db';
+import { upsertUserProfile } from '../../../../../lib/db';
+import { safeAvatarUrl } from '../../../../../lib/avatar-url';
 import {
   USER_SESSION_COOKIE,
   createSessionToken,
@@ -62,6 +63,8 @@ export async function GET(request: NextRequest) {
   }
 
   let email: string | null = null;
+  let displayName: string | null = null;
+  let avatarUrl: string | null = null;
   try {
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
@@ -85,18 +88,27 @@ export async function GET(request: NextRequest) {
     const userJson = (await userRes.json()) as {
       email?: string;
       email_verified?: boolean;
+      name?: string;
+      picture?: string;
     };
     if (!userJson.email || userJson.email_verified === false) {
       return errorRedirect(request, 'email_unverified');
     }
     email = userJson.email;
+    displayName = typeof userJson.name === 'string' && userJson.name.trim() ? userJson.name.trim() : null;
+    avatarUrl = safeAvatarUrl(userJson.picture);
   } catch {
     return errorRedirect(request, 'oauth_network_error');
   }
 
   let userId: string;
   try {
-    const user = await upsertUserByEmail(email);
+    const user = await upsertUserProfile({
+      email,
+      displayName,
+      avatarUrl,
+      authProvider: 'google',
+    });
     userId = user.id;
   } catch {
     return errorRedirect(request, 'user_upsert_failed');

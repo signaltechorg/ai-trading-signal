@@ -236,6 +236,9 @@ describe('POST /api/stripe/webhook — invoice.payment_failed dunning', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const res = await POST(makeRequest());
@@ -300,6 +303,9 @@ describe('POST /api/stripe/webhook — invoice.payment_failed dunning', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     mockedSendDunning.mockResolvedValueOnce({ ok: false, reason: 'provider_error' });
 
