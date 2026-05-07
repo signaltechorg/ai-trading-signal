@@ -191,6 +191,21 @@ export async function GET() {
 
     const hasFallback = Object.values(prices).some((p) => p.source === 'fallback');
 
+    // Observability: log distinct provider counts so hub-vs-fallback share is
+    // visible at a glance without needing per-symbol inspection.
+    const sourceCounts: Record<string, number> = {};
+    for (const p of Object.values(prices)) {
+      sourceCounts[p.source] = (sourceCounts[p.source] ?? 0) + 1;
+    }
+    console.info(
+      JSON.stringify({
+        evt: 'api/prices',
+        count: Object.keys(prices).length,
+        sources: sourceCounts,
+        stale: hasFallback,
+      }),
+    );
+
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       count: Object.keys(prices).length,
