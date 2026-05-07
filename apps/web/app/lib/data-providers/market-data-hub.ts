@@ -19,10 +19,14 @@ const HUB_URL = process.env.MARKET_DATA_HUB_URL ?? '';
 // US equity tickers stored on the hub as bare Twelve Data symbols (no slash).
 // TradeClaw uses the `<TICKER>USD` convention internally for consistency, but
 // the hub + Twelve Data want the raw ticker.
+//
+// Note: DIA/SPY/QQQ/IWM/BNO removed in hub PR #40 (RoboForex provider). Index
+// CFDs (NAS100, US500, US30, UK100, GER40, JPY225, FRA40, AUS200, SWI20, SPA35)
+// and BRENT/USD now serve those use cases via R-primary dispatch. Bare index
+// symbols pass through `fromHubSymbol()` unchanged because they're not in this
+// set — that is intentional (the TradeClaw symbol IS the index code).
 const STOCK_TICKERS = new Set([
-  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'SPY', 'QQQ',
-  // Brent oil ETF (Twelve Data has no Brent CFD)
-  'BNO',
+  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
 ]);
 
 /** Convert TradeClaw symbol (BTCUSD) → Hub symbol (BTC/USD) */

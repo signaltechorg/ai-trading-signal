@@ -40,13 +40,20 @@ const HERO_SYMBOL_MAP: Record<string, Mapping> = {
   'AUD/USD': { key: 'AUDUSD' },
   'SOL/USD': { key: 'SOLUSD' },
   'GBP/JPY': { derived: 'GBPJPY' },
-  // Hub-only (Twelve Data via market-data-hub).
-  // Price levels differ from the underlying — BNO is the Brent crude ETF (~$30) not the
-  // CFD (~$80); QQQ is the Nasdaq-100 ETF (~$500) not the NDX index level (~21,000).
-  // Display as the ETF symbol, not under "OIL/USD" or "NAS100" labels.
-  BNO: { key: 'BNOUSD' },
-  QQQ: { key: 'QQQUSD' },
-  SPY: { key: 'SPYUSD' },
+  // RoboForex CFDs via market-data-hub (PR #40, hub seed).
+  // Real Brent crude CFD (~$80) and true index levels — not ETF proxies.
+  'OIL/USD': { key: 'BRENTUSD' },
+  NAS100: { key: 'NAS100' },
+  US500: { key: 'US500' },
+  US30: { key: 'US30' },
+  UK100: { key: 'UK100' },
+  GER40: { key: 'GER40' },
+  JPY225: { key: 'JPY225' },
+  FRA40: { key: 'FRA40' },
+  AUS200: { key: 'AUS200' },
+  SWI20: { key: 'SWI20' },
+  SPA35: { key: 'SPA35' },
+  // Single-stock pass-through (Twelve Data only — not in RoboForex seed).
   NVDA: { key: 'NVDAUSD' },
   TSLA: { key: 'TSLAUSD' },
   AAPL: { key: 'AAPLUSD' },
@@ -69,9 +76,19 @@ export function formatPairPrice(label: string, price: number | null): string {
     case 'USD/JPY':
     case 'GBP/JPY':
       return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-    case 'BNO':
-    case 'QQQ':
-    case 'SPY':
+    case 'OIL/USD':
+      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'NAS100':
+    case 'US500':
+    case 'US30':
+    case 'UK100':
+    case 'GER40':
+    case 'JPY225':
+    case 'FRA40':
+    case 'AUS200':
+    case 'SWI20':
+    case 'SPA35':
+      return price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     case 'NVDA':
     case 'TSLA':
     case 'AAPL':

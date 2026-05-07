@@ -17,7 +17,7 @@ const SIGNAL_TEMPLATE: ReadonlyArray<{
   { symbol: "EUR/USD", direction: "BUY", confidence: 81 },
   { symbol: "GBP/JPY", direction: "SELL", confidence: 68 },
   { symbol: "ETH/USD", direction: "BUY", confidence: 79 },
-  { symbol: "USD/JPY", direction: "SELL", confidence: 72 },
+  { symbol: "OIL/USD", direction: "SELL", confidence: 72 },
 ];
 const HERO_LABELS = SIGNAL_TEMPLATE.map((s) => s.symbol);
 

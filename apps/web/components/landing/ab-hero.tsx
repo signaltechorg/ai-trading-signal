@@ -31,7 +31,7 @@ const SIGNAL_TEMPLATE: ReadonlyArray<Omit<HeroSignal, "price">> = [
   { symbol: "EUR/USD", direction: "BUY", confidence: 81, proStatus: "live", proAge: "5m" },
   { symbol: "GBP/JPY", direction: "SELL", confidence: 68, proStatus: "ended", proAge: "22m" },
   { symbol: "ETH/USD", direction: "BUY", confidence: 79, proStatus: "live", proAge: "1m" },
-  { symbol: "USD/JPY", direction: "SELL", confidence: 72, proStatus: "ended", proAge: "31m" },
+  { symbol: "OIL/USD", direction: "SELL", confidence: 72, proStatus: "ended", proAge: "31m" },
 ];
 
 const HERO_LABELS = SIGNAL_TEMPLATE.map((s) => s.symbol);
