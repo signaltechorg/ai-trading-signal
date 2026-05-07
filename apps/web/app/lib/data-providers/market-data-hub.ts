@@ -14,7 +14,15 @@
 import type { OHLCV, ForexRate, PriceQuote } from './types';
 import { safeFetch } from './types';
 
-const HUB_URL = process.env.MARKET_DATA_HUB_URL ?? '';
+/** Normalize hub URL: prepend https:// if missing, strip trailing slash */
+function normalizeHubUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withProtocol.replace(/\/+$/, '');
+}
+
+const HUB_URL = normalizeHubUrl(process.env.MARKET_DATA_HUB_URL ?? '');
 
 // US equity tickers stored on the hub as bare Twelve Data symbols (no slash).
 // TradeClaw uses the `<TICKER>USD` convention internally for consistency, but
