@@ -249,18 +249,27 @@ export async function getOHLCV(
   // ── 1. market-data-hub (primary) ─────────────────────────
   if (isHubEnabled()) {
     try {
-      candles = await fetchHubCandles(symbol, timeframe);
-      if (candles.length > 0) source = 'market-data-hub';
+      const hubCandles = await fetchHubCandles(symbol, timeframe);
+      if (hubCandles.length > candles.length) {
+        candles = hubCandles;
+        source = 'market-data-hub';
+      }
     } catch {
       /* fall through */
     }
   }
 
   // ── 2. Binance OHLCV (crypto thin survival fallback) ─────
+  // Only replace if Binance returns MORE than we got from hub. Daily candles
+  // legitimately return ~40 rows (40 trading days); we must not destroy that
+  // real data with an empty fallback response.
   if (candles.length < 50 && BINANCE_SYMBOLS[symbol]) {
     try {
-      candles = await fetchBinanceOHLCV(symbol, timeframe);
-      if (candles.length > 0) source = 'binance';
+      const binanceCandles = await fetchBinanceOHLCV(symbol, timeframe);
+      if (binanceCandles.length > candles.length) {
+        candles = binanceCandles;
+        source = 'binance';
+      }
     } catch {
       /* fall through */
     }
@@ -271,15 +280,21 @@ export async function getOHLCV(
     try {
       const lookback =
         timeframe === 'M5' ? 3 : timeframe === 'M15' ? 7 : timeframe === 'D1' ? 365 : 30;
-      candles = await fetchStooqOHLCV(symbol, timeframe, lookback);
-      if (candles.length > 0) source = 'stooq';
+      const stooqCandles = await fetchStooqOHLCV(symbol, timeframe, lookback);
+      if (stooqCandles.length > candles.length) {
+        candles = stooqCandles;
+        source = 'stooq';
+      }
 
       // H4 aggregation: build from H1 when direct H4 returns short.
       if (candles.length < 50 && timeframe === 'H4') {
-        candles = await fetchStooqOHLCV(symbol, 'H1', 60);
-        if (candles.length > 0) {
-          candles = aggregateCandles(candles, 4, 4 * 3600 * 1000);
-          source = 'stooq';
+        const h1Candles = await fetchStooqOHLCV(symbol, 'H1', 60);
+        if (h1Candles.length > 0) {
+          const aggregated = aggregateCandles(h1Candles, 4, 4 * 3600 * 1000);
+          if (aggregated.length > candles.length) {
+            candles = aggregated;
+            source = 'stooq';
+          }
         }
       }
     } catch {
@@ -288,7 +303,11 @@ export async function getOHLCV(
   }
 
   // ── 4. Synthetic (last resort, clearly tagged) ────────────
-  if (candles.length < 50) {
+  // Only generate synthetic when we got NOTHING from real sources. If hub
+  // returned 40 D1 candles for EUR/USD, return those with source='market-
+  // data-hub' — the consumer (signals.ts) already skips symbols with < 50
+  // candles. Generating synthetic to "pad" real data lies about the source.
+  if (candles.length === 0) {
     const config = FALLBACK_CONFIG[symbol];
     if (config) {
       candles = generateSyntheticOHLCV(config.basePrice, config.volatility, 250);
