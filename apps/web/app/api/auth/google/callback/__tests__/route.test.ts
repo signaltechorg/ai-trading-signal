@@ -8,12 +8,17 @@
 import { NextRequest } from 'next/server';
 
 jest.mock('../../../../../../lib/db', () => ({
-  upsertUserByEmail: jest.fn(),
+  upsertUserProfile: jest.fn(),
 }));
 
 jest.mock('../../../../../../lib/oauth-state', () => ({
   OAUTH_STATE_COOKIE: 'tc_oauth_state',
   decodeState: jest.fn(),
+  // Pass-through: the route re-applies safeNext to state.next at read time.
+  // Real implementation is in lib/oauth-state.ts; the unit test only needs a
+  // stable identity function so the redirect-target logic exercises both
+  // branches deterministically.
+  safeNext: jest.fn((next: string | undefined | null) => next ?? null),
 }));
 
 jest.mock('../../../../../../lib/user-session', () => ({
@@ -28,12 +33,12 @@ jest.mock('../../../../../../lib/user-session', () => ({
   }),
 }));
 
-import { upsertUserByEmail } from '../../../../../../lib/db';
+import { upsertUserProfile } from '../../../../../../lib/db';
 import { decodeState } from '../../../../../../lib/oauth-state';
 import { createSessionToken } from '../../../../../../lib/user-session';
 import { GET } from '../route';
 
-const mockedUpsertUser = upsertUserByEmail as jest.MockedFunction<typeof upsertUserByEmail>;
+const mockedUpsertUser = upsertUserProfile as jest.MockedFunction<typeof upsertUserProfile>;
 const mockedDecodeState = decodeState as jest.MockedFunction<typeof decodeState>;
 const mockedCreateToken = createSessionToken as jest.MockedFunction<typeof createSessionToken>;
 
@@ -111,7 +116,15 @@ describe('GET /api/auth/google/callback', () => {
 
     const fetchMock = setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
-      { ok: true, json: async () => ({ email: 'naim@example.com', email_verified: true }) },
+      {
+        ok: true,
+        json: async () => ({
+          email: 'naim@example.com',
+          email_verified: true,
+          name: 'Naim Katiman',
+          picture: 'https://lh3.googleusercontent.com/a/abc=s96-c',
+        }),
+      },
     ]);
 
     const res = await GET(
@@ -139,8 +152,13 @@ describe('GET /api/auth/google/callback', () => {
     expect(userinfoCall[0]).toBe('https://openidconnect.googleapis.com/v1/userinfo');
     expect(userinfoCall[1].headers.authorization).toBe('Bearer gat_xyz');
 
-    // User row written
-    expect(mockedUpsertUser).toHaveBeenCalledWith('naim@example.com');
+    // User row written with full profile
+    expect(mockedUpsertUser).toHaveBeenCalledWith({
+      email: 'naim@example.com',
+      displayName: 'Naim Katiman',
+      avatarUrl: 'https://lh3.googleusercontent.com/a/abc=s96-c',
+      authProvider: 'google',
+    });
     expect(mockedCreateToken).toHaveBeenCalledWith('user-1');
 
     // Session cookie set, state cookie deleted
@@ -332,5 +350,52 @@ describe('GET /api/auth/google/callback', () => {
 
     expect(res.status).toBe(302);
     expect(new URL(res.headers.get('location')!).searchParams.get('error')).toBe('google_access_denied');
+  });
+
+  it('drops a non-https picture URL and a missing name; persists nulls instead', async () => {
+    mockedDecodeState.mockReturnValue({
+      nonce: 'a'.repeat(32),
+      issuedAt: Date.now(),
+    });
+    mockedUpsertUser.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'naim@example.com',
+      stripeCustomerId: null,
+      tier: 'free',
+      tierExpiresAt: null,
+      telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: 'google',
+    });
+    setFetch([
+      { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
+      {
+        ok: true,
+        json: async () => ({
+          email: 'naim@example.com',
+          email_verified: true,
+          // attacker-controlled javascript: URL must NOT survive
+          picture: 'javascript:alert(1)',
+          // empty name → null, not empty string
+          name: '',
+        }),
+      },
+    ]);
+
+    const res = await GET(
+      makeRequest({
+        url: 'http://localhost:3000/api/auth/google/callback?code=auth_code&state=fake_state',
+        cookies: { tc_oauth_state: 'a'.repeat(32) },
+      }),
+    );
+
+    expect(res.status).toBe(302);
+    expect(mockedUpsertUser).toHaveBeenCalledWith({
+      email: 'naim@example.com',
+      displayName: null,
+      avatarUrl: null,
+      authProvider: 'google',
+    });
   });
 });

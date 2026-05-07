@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertUserByEmail } from '../../../../../lib/db';
+import { upsertUserProfile } from '../../../../../lib/db';
 import {
   USER_SESSION_COOKIE,
   createSessionToken,
@@ -68,6 +68,8 @@ export async function GET(request: NextRequest) {
   }
 
   let email: string | null = null;
+  let displayName: string | null = null;
+  let avatarUrl: string | null = null;
   try {
     const tokenRes = await fetch(GITHUB_TOKEN_URL, {
       method: 'POST',
@@ -100,6 +102,9 @@ export async function GET(request: NextRequest) {
     if (!userRes.ok) return errorRedirect(request, 'userinfo_failed');
     const userJson = (await userRes.json()) as {
       email?: string | null;
+      name?: string | null;
+      login?: string | null;
+      avatar_url?: string | null;
     };
 
     const emailsRes = await fetch(GITHUB_EMAILS_URL, { headers: ghHeaders });
@@ -113,13 +118,28 @@ export async function GET(request: NextRequest) {
     }
 
     if (!email) return errorRedirect(request, 'email_unverified');
+
+    // GitHub `name` is optional; `login` (handle) is always present and
+    // is a fine fallback for the navbar greeting.
+    const rawName = (userJson.name ?? '').trim();
+    const rawLogin = (userJson.login ?? '').trim();
+    displayName = rawName || rawLogin || null;
+    avatarUrl =
+      typeof userJson.avatar_url === 'string' && userJson.avatar_url.startsWith('https://')
+        ? userJson.avatar_url
+        : null;
   } catch {
     return errorRedirect(request, 'oauth_network_error');
   }
 
   let userId: string;
   try {
-    const user = await upsertUserByEmail(email);
+    const user = await upsertUserProfile({
+      email,
+      displayName,
+      avatarUrl,
+      authProvider: 'github',
+    });
     userId = user.id;
   } catch {
     return errorRedirect(request, 'user_upsert_failed');
