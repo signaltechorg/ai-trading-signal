@@ -1,11 +1,15 @@
 // SSE endpoint for real-time price ticks + signal events
 // GET /api/prices/stream?pairs=BTCUSD,ETHUSD
 //
-// Uses Binance WebSocket for sub-second crypto prices, Stooq for metals,
-// and open.er-api.com for forex. Signals come from the real TA engine.
+// Architecture (per 2026-05-07 hub-first directive):
+//   - Crypto: direct Binance REST (2s poll, sub-second freshness)
+//   - Forex/Metals/Indices/Stocks: market-data-hub /api/quotes (15s poll)
+//   - Signals: real TA engine (getSignals)
+// Removed: CoinGecko, open.er-api.com, direct Stooq. All now live in the hub.
 
 import { NextRequest } from 'next/server';
 import { getLivePrices, SYMBOLS, getSignals, type TradingSignal } from '../../../lib/signals';
+import { fetchHubQuotes, isHubEnabled } from '../../../lib/data-providers';
 import { applyTierSignalVisibility, getTierFromRequest, type Tier } from '../../../../lib/tier';
 
 /* ── Known symbols (used to validate ?pairs= query param) ── */
@@ -34,81 +38,22 @@ function updatePriceState(pair: string, newPrice: number): PriceState {
   return existing;
 }
 
-/* ── Fetch real prices (CoinGecko + Stooq + forex API) ── */
-async function fetchRealPrices(): Promise<Map<string, { price: number; change24h: number }>> {
+/* ── Hub-sourced prices (forex/metals/indices/stocks) ── */
+async function fetchHubPrices(): Promise<Map<string, { price: number; change24h: number }>> {
   const result = new Map<string, { price: number; change24h: number }>();
-
-  // Fetch crypto with 24h change from CoinGecko
-  const [cryptoResult, forexResult, xauResult, xagResult] = await Promise.allSettled([
-    fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,solana,cardano,binancecoin&vs_currencies=usd&include_24hr_change=true',
-      { signal: AbortSignal.timeout(8000), cache: 'no-store' },
-    ).then(r => r.ok ? r.json() as Promise<Record<string, { usd: number; usd_24h_change?: number }>> : null),
-    fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(8000), cache: 'no-store' })
-      .then(r => r.ok ? r.json() as Promise<{ rates: Record<string, number> }> : null),
-    fetchStooq('xauusd'),
-    fetchStooq('xagusd'),
-  ]);
-
-  // Crypto
-  if (cryptoResult.status === 'fulfilled' && cryptoResult.value) {
-    const data = cryptoResult.value;
-    const cryptoMap: Record<string, string> = {
-      bitcoin: 'BTCUSD',
-      ethereum: 'ETHUSD',
-      ripple: 'XRPUSD',
-      solana: 'SOLUSD',
-      cardano: 'ADAUSD',
-      binancecoin: 'BNBUSD',
-    };
-    for (const [id, symbol] of Object.entries(cryptoMap)) {
-      if (data[id]?.usd) {
-        result.set(symbol, {
-          price: data[id].usd,
-          change24h: +(data[id].usd_24h_change?.toFixed(2) ?? 0),
-        });
-      }
-    }
-  }
-
-  // Forex
-  if (forexResult.status === 'fulfilled' && forexResult.value) {
-    const r = forexResult.value.rates || {};
-    if (r.EUR) result.set('EURUSD', { price: +(1 / r.EUR).toFixed(5), change24h: 0 });
-    if (r.GBP) result.set('GBPUSD', { price: +(1 / r.GBP).toFixed(5), change24h: 0 });
-    if (r.JPY) result.set('USDJPY', { price: +r.JPY.toFixed(3), change24h: 0 });
-    if (r.AUD) result.set('AUDUSD', { price: +(1 / r.AUD).toFixed(5), change24h: 0 });
-    if (r.CAD) result.set('USDCAD', { price: +r.CAD.toFixed(5), change24h: 0 });
-    if (r.NZD) result.set('NZDUSD', { price: +(1 / r.NZD).toFixed(5), change24h: 0 });
-    if (r.CHF) result.set('USDCHF', { price: +r.CHF.toFixed(5), change24h: 0 });
-  }
-
-  // Metals via Stooq
-  if (xauResult.status === 'fulfilled' && xauResult.value !== null) {
-    result.set('XAUUSD', { price: xauResult.value, change24h: 0 });
-  }
-  if (xagResult.status === 'fulfilled' && xagResult.value !== null) {
-    result.set('XAGUSD', { price: xagResult.value, change24h: 0 });
-  }
-
-  return result;
-}
-
-async function fetchStooq(symbol: string): Promise<number | null> {
+  if (!isHubEnabled()) return result;
   try {
-    const res = await fetch(`https://stooq.com/q/l/?s=${symbol}&f=c&h&e=csv`, {
-      signal: AbortSignal.timeout(5000),
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const text = await res.text();
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return null;
-    const val = parseFloat(lines[1].trim());
-    return isNaN(val) || val <= 0 ? null : val;
+    const quotes = await fetchHubQuotes();
+    for (const q of quotes) {
+      result.set(q.symbol, {
+        price: q.price,
+        change24h: q.change24h ?? 0,
+      });
+    }
   } catch {
-    return null;
+    /* fail silently — next poll retries */
   }
+  return result;
 }
 
 /* ── Fetch real signals from the TA engine ── */
@@ -151,11 +96,11 @@ function formatPrice(pair: string, price: number): number {
 }
 
 /* ── Intervals ── */
-const PRICE_POLL_MS = 15_000;   // forex/metals poll every 15s (crypto via WebSocket)
+const HUB_POLL_MS = 15_000;     // forex/metals/indices/stocks poll every 15s
 const SIGNAL_POLL_MS = 45_000;  // fetch signals every 45s
 const HEARTBEAT_MS = 15_000;    // heartbeat every 15s
 
-/* ── Binance REST for fast crypto prices (2s poll, no ws dependency) ── */
+/* ── Binance REST for fast crypto prices (2s poll, sub-second freshness) ── */
 const BINANCE_SYMBOL_MAP: Record<string, string> = {
   BTCUSDT: 'BTCUSD',
   ETHUSDT: 'ETHUSD',
@@ -280,14 +225,15 @@ export async function GET(req: NextRequest) {
         })();
       }, BINANCE_CRYPTO_POLL_MS);
 
-      // ── Poll interval for forex/metals only (crypto handled by Binance) ──
+      // ── Hub poll for forex/metals/indices/stocks (15s) ──
+      // Crypto is handled by the faster Binance poll above; skip those pairs here.
       const nonCryptoPairs = requestedPairs.filter(p => !cryptoPairs.has(p));
 
-      const priceInterval = setInterval(() => {
+      const hubInterval = setInterval(() => {
         if (closed || nonCryptoPairs.length === 0) return;
         void (async () => {
           try {
-            const prices = await fetchRealPrices();
+            const prices = await fetchHubPrices();
             if (closed) return;
             for (const pair of nonCryptoPairs) {
               const data = prices.get(pair);
@@ -295,7 +241,9 @@ export async function GET(req: NextRequest) {
               const state = updatePriceState(pair, data.price);
               const change24h = data.change24h !== 0
                 ? data.change24h
-                : (state.open !== 0 ? +((state.price - state.open) / state.open * 100).toFixed(2) : 0);
+                : (state.open !== 0
+                    ? +((state.price - state.open) / state.open * 100).toFixed(2)
+                    : 0);
               send('price', {
                 pair,
                 price: formatPrice(pair, state.price),
@@ -303,14 +251,14 @@ export async function GET(req: NextRequest) {
                 high24h: formatPrice(pair, state.high),
                 low24h: formatPrice(pair, state.low),
                 timestamp: Date.now(),
-                source: 'poll',
+                source: 'market-data-hub',
               });
             }
           } catch {
             // Silently skip failed poll; next interval will retry
           }
         })();
-      }, PRICE_POLL_MS);
+      }, HUB_POLL_MS);
 
       // ── Signal poll interval ──
       const signalInterval = setInterval(() => {
@@ -383,7 +331,7 @@ export async function GET(req: NextRequest) {
       req.signal.addEventListener('abort', () => {
         closed = true;
         clearInterval(cryptoInterval);
-        clearInterval(priceInterval);
+        clearInterval(hubInterval);
         clearInterval(signalInterval);
         clearInterval(heartbeatInterval);
         clearTimeout(initialSignalTimeout);
