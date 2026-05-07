@@ -44,6 +44,7 @@ interface AnimatedChartHeroProps {
 const ANIMATED_HERO_LABELS = [
   "BTC/USD",
   "XAU/USD",
+  "XAG/USD",
   "EUR/USD",
   "ETH/USD",
   "GBP/USD",
@@ -53,6 +54,9 @@ const ANIMATED_HERO_LABELS = [
   "US500",
   "GER40",
   "JPY225",
+  "TSLA",
+  "NVDA",
+  "AMD",
 ] as const;
 
 export function AnimatedChartHero({

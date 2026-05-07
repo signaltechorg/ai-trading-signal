@@ -53,11 +53,16 @@ const HERO_SYMBOL_MAP: Record<string, Mapping> = {
   AUS200: { key: 'AUS200' },
   SWI20: { key: 'SWI20' },
   SPA35: { key: 'SPA35' },
-  // Single-stock pass-through (Twelve Data only — not in RoboForex seed).
+  // Single-stock pass-through (hub Twelve Data lane — TD-only, not in RoboForex seed).
   NVDA: { key: 'NVDAUSD' },
   TSLA: { key: 'TSLAUSD' },
   AAPL: { key: 'AAPLUSD' },
   MSFT: { key: 'MSFTUSD' },
+  AMD: { key: 'AMDUSD' },
+  MU: { key: 'MUUSD' },
+  GOOGL: { key: 'GOOGLUSD' },
+  AMZN: { key: 'AMZNUSD' },
+  META: { key: 'METAUSD' },
 };
 
 export function formatPairPrice(label: string, price: number | null): string {
@@ -93,6 +98,11 @@ export function formatPairPrice(label: string, price: number | null): string {
     case 'TSLA':
     case 'AAPL':
     case 'MSFT':
+    case 'AMD':
+    case 'MU':
+    case 'GOOGL':
+    case 'AMZN':
+    case 'META':
       return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     default:
       return price.toLocaleString('en-US', { maximumFractionDigits: 2 });

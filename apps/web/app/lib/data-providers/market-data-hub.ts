@@ -34,7 +34,7 @@ const HUB_URL = normalizeHubUrl(process.env.MARKET_DATA_HUB_URL ?? '');
 // symbols pass through `fromHubSymbol()` unchanged because they're not in this
 // set — that is intentional (the TradeClaw symbol IS the index code).
 const STOCK_TICKERS = new Set([
-  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
+  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AMD', 'MU',
 ]);
 
 /** Convert TradeClaw symbol (BTCUSD) → Hub symbol (BTC/USD) */
