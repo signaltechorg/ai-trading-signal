@@ -104,6 +104,9 @@ describe('GET /api/auth/google/callback', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const fetchMock = setFetch([
@@ -166,6 +169,9 @@ describe('GET /api/auth/google/callback', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
@@ -204,6 +210,9 @@ describe('GET /api/auth/google/callback', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },

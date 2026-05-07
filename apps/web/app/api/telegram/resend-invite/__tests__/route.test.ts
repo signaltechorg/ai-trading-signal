@@ -40,6 +40,9 @@ function arrangeProUserWithLinkedTelegram() {
     tier: 'pro',
     tierExpiresAt: null,
     telegramUserId: BigInt(99999),
+    displayName: null,
+    avatarUrl: null,
+    authProvider: null,
   });
   mockedGetSub.mockResolvedValueOnce({
     id: 'sub-row-1',

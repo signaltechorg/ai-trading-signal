@@ -44,6 +44,9 @@ function fakeUser(overrides: Partial<{ telegramUserId: bigint | null }> = {}) {
     tier: 'free' as const,
     tierExpiresAt: null,
     telegramUserId: null,
+    displayName: null,
+    avatarUrl: null,
+    authProvider: null,
     ...overrides,
   };
 }

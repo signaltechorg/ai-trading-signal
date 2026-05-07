@@ -56,6 +56,9 @@ describe('POST /api/stripe/portal', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const res = await POST(makeRequest());
@@ -72,6 +75,9 @@ describe('POST /api/stripe/portal', () => {
       tier: 'pro',
       tierExpiresAt: new Date(Date.now() + 30 * 86400 * 1000),
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const portalCreate = jest.fn().mockResolvedValue({
@@ -103,6 +109,9 @@ describe('POST /api/stripe/portal', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
 
     const portalCreate = jest.fn().mockRejectedValue(new Error('Stripe down'));

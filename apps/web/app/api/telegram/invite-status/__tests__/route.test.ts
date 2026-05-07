@@ -48,6 +48,9 @@ describe('GET /api/telegram/invite-status', () => {
       tier: 'free',
       tierExpiresAt: null,
       telegramUserId: null,
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
 
@@ -72,6 +75,9 @@ describe('GET /api/telegram/invite-status', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: BigInt(42),
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     mockedGetSub.mockResolvedValueOnce({
       id: 'sub-1',
@@ -118,6 +124,9 @@ describe('GET /api/telegram/invite-status', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: BigInt(42),
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
     mockedGetInvite.mockResolvedValueOnce({
@@ -144,6 +153,9 @@ describe('GET /api/telegram/invite-status', () => {
       tier: 'pro',
       tierExpiresAt: null,
       telegramUserId: BigInt(42),
+      displayName: null,
+      avatarUrl: null,
+      authProvider: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
     mockedGetInvite.mockResolvedValueOnce(null);
