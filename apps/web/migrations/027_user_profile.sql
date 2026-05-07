@@ -18,4 +18,4 @@
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS avatar_url    TEXT NULL,
   ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(16) NULL
-    CHECK (auth_provider IS NULL OR auth_provider IN ('google', 'github', 'email'));
+    CHECK (auth_provider IS NULL OR auth_provider IN ('google', 'github'));

@@ -95,7 +95,10 @@ export function UserMenu({ size = 'default' }: UserMenuProps) {
     try {
       await fetch('/api/auth/session', { method: 'DELETE' });
     } finally {
-      // Hard navigation so server components re-resolve the cleared cookie.
+      // Hard navigation forces server components to re-resolve the cleared
+      // cookie. Awaiting the DELETE first means the Set-Cookie header has
+      // landed before this redirect; `finally` runs even on network failure
+      // so the user is never stranded on a "signed-in" UI after clicking.
       window.location.href = '/';
     }
   }

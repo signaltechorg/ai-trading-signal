@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { upsertUserProfile } from '../../../../../lib/db';
+import { safeAvatarUrl } from '../../../../../lib/avatar-url';
 import {
   USER_SESSION_COOKIE,
   createSessionToken,
@@ -124,10 +125,7 @@ export async function GET(request: NextRequest) {
     const rawName = (userJson.name ?? '').trim();
     const rawLogin = (userJson.login ?? '').trim();
     displayName = rawName || rawLogin || null;
-    avatarUrl =
-      typeof userJson.avatar_url === 'string' && userJson.avatar_url.startsWith('https://')
-        ? userJson.avatar_url
-        : null;
+    avatarUrl = safeAvatarUrl(userJson.avatar_url);
   } catch {
     return errorRedirect(request, 'oauth_network_error');
   }

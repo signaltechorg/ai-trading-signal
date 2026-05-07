@@ -352,6 +352,51 @@ describe('GET /api/auth/google/callback', () => {
     expect(new URL(res.headers.get('location')!).searchParams.get('error')).toBe('google_access_denied');
   });
 
+  it('drops a non-allowlisted https avatar host (defends against hot-link of attacker domain)', async () => {
+    mockedDecodeState.mockReturnValue({
+      nonce: 'a'.repeat(32),
+      issuedAt: Date.now(),
+    });
+    mockedUpsertUser.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'naim@example.com',
+      stripeCustomerId: null,
+      tier: 'free',
+      tierExpiresAt: null,
+      telegramUserId: null,
+      displayName: 'Naim',
+      avatarUrl: null,
+      authProvider: 'google',
+    });
+    setFetch([
+      { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
+      {
+        ok: true,
+        json: async () => ({
+          email: 'naim@example.com',
+          email_verified: true,
+          name: 'Naim',
+          // Valid https but not on the avatar host allowlist — must be dropped.
+          picture: 'https://attacker.example.com/track.png',
+        }),
+      },
+    ]);
+
+    await GET(
+      makeRequest({
+        url: 'http://localhost:3000/api/auth/google/callback?code=auth_code&state=fake_state',
+        cookies: { tc_oauth_state: 'a'.repeat(32) },
+      }),
+    );
+
+    expect(mockedUpsertUser).toHaveBeenCalledWith({
+      email: 'naim@example.com',
+      displayName: 'Naim',
+      avatarUrl: null,
+      authProvider: 'google',
+    });
+  });
+
   it('drops a non-https picture URL and a missing name; persists nulls instead', async () => {
     mockedDecodeState.mockReturnValue({
       nonce: 'a'.repeat(32),

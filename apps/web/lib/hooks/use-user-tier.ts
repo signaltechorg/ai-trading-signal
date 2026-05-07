@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 export type ClientTier = 'free' | 'pro' | 'elite' | 'custom';
 export type ClientSubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing' | null;
-export type ClientAuthProvider = 'google' | 'github' | 'email' | null;
+export type ClientAuthProvider = 'google' | 'github' | null;
 
 export interface ClientSession {
   userId: string;

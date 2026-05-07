@@ -33,7 +33,7 @@ export interface UserRecord {
   telegramUserId: bigint | null;
   displayName: string | null;
   avatarUrl: string | null;
-  authProvider: 'google' | 'github' | 'email' | null;
+  authProvider: 'google' | 'github' | null;
 }
 
 export interface SubscriptionRecord {
@@ -90,7 +90,7 @@ function toUserRecord(row: UserRow): UserRecord {
     displayName: row.name,
     avatarUrl: row.avatar_url,
     authProvider:
-      row.auth_provider === 'google' || row.auth_provider === 'github' || row.auth_provider === 'email'
+      row.auth_provider === 'google' || row.auth_provider === 'github'
         ? row.auth_provider
         : null,
   };
@@ -196,14 +196,18 @@ export interface UserProfileInput {
    * we never overwrite an existing auth_provider so the UI doesn't flip
    * between Google and GitHub when the same email signs in via both.
    */
-  authProvider: 'google' | 'github' | 'email';
+  authProvider: 'google' | 'github';
 }
 
 /**
  * Find-or-create a user by email and refresh their profile fields. Display
- * name and avatar are overwritten on every call (so a user who changes their
- * Google photo gets the new one on next sign-in); auth_provider is set only
- * when the row is first created.
+ * name and avatar mirror what the provider returned on this sign-in — so a
+ * user who changes their Google photo gets the new one (and a user who
+ * removes it gets a null, which the UserMenu falls back to initials for).
+ *
+ * `auth_provider` is set only when the row is first created; subsequent
+ * sign-ins via a different provider don't overwrite it (avoids confusing
+ * "via google" / "via github" flips when the same email signs in via both).
  */
 export async function upsertUserProfile(input: UserProfileInput): Promise<UserRecord> {
   const normalized = input.email.trim().toLowerCase();
@@ -211,8 +215,8 @@ export async function upsertUserProfile(input: UserProfileInput): Promise<UserRe
     `INSERT INTO users (email, name, avatar_url, auth_provider)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (email) DO UPDATE SET
-       name       = COALESCE(EXCLUDED.name, users.name),
-       avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
+       name       = EXCLUDED.name,
+       avatar_url = EXCLUDED.avatar_url,
        updated_at = NOW()
      RETURNING ${USER_COLUMNS}`,
     [normalized, input.displayName, input.avatarUrl, input.authProvider],
