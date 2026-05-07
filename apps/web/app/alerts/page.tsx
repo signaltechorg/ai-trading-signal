@@ -77,6 +77,25 @@ function CreateAlertModal({ onClose, onCreated, prefillSymbol, prefillPrice }: C
     }
     setSaving(true);
     try {
+      let cp = currentPrice;
+      if (!cp || cp <= 0) {
+        try {
+          const r = await fetch('/api/prices');
+          const j = await r.json();
+          const arr = Array.isArray(j) ? j : j.prices ?? j.data ?? [];
+          const hit = arr.find((p: { pair?: string; symbol?: string; price?: number }) =>
+            (p.pair ?? p.symbol) === symbol
+          );
+          if (hit?.price && hit.price > 0) cp = hit.price;
+        } catch {
+          // ignore — fall through to validation below
+        }
+      }
+      if (!cp || cp <= 0) {
+        setError('Live price unavailable — try again in a moment');
+        setSaving(false);
+        return;
+      }
       const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +103,7 @@ function CreateAlertModal({ onClose, onCreated, prefillSymbol, prefillPrice }: C
           symbol,
           direction,
           targetPrice: tp,
-          currentPrice,
+          currentPrice: cp,
           note: note || undefined,
           percentMove: percentMove ? parseFloat(percentMove) : undefined,
           timeWindow: timeWindow || undefined,
@@ -123,7 +142,7 @@ function CreateAlertModal({ onClose, onCreated, prefillSymbol, prefillPrice }: C
               className="w-full bg-[var(--glass-bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500/50 transition-colors font-mono"
             >
               {SUPPORTED_SYMBOLS.map(s => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s} className="bg-[#0d0d0d] text-[var(--foreground)]">{s}</option>
               ))}
             </select>
           </div>
@@ -200,11 +219,11 @@ function CreateAlertModal({ onClose, onCreated, prefillSymbol, prefillPrice }: C
                 onChange={e => setTimeWindow(e.target.value)}
                 className="w-full bg-[var(--glass-bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500/50 transition-colors"
               >
-                <option value="">Any</option>
-                <option value="1h">1h</option>
-                <option value="4h">4h</option>
-                <option value="1d">1d</option>
-                <option value="1w">1w</option>
+                <option value="" className="bg-[#0d0d0d] text-[var(--foreground)]">Any</option>
+                <option value="1h" className="bg-[#0d0d0d] text-[var(--foreground)]">1h</option>
+                <option value="4h" className="bg-[#0d0d0d] text-[var(--foreground)]">4h</option>
+                <option value="1d" className="bg-[#0d0d0d] text-[var(--foreground)]">1d</option>
+                <option value="1w" className="bg-[#0d0d0d] text-[var(--foreground)]">1w</option>
               </select>
             </div>
           </div>
