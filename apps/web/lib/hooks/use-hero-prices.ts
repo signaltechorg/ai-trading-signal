@@ -56,15 +56,41 @@ const HERO_SYMBOL_MAP: Record<string, Mapping> = {
   SWI20: { key: 'SWI20' },
   SPA35: { key: 'SPA35' },
   // Single-stock pass-through (hub Twelve Data lane — TD-only, not in RoboForex seed).
+  // Tech / mega-cap.
   NVDA: { key: 'NVDAUSD' },
   TSLA: { key: 'TSLAUSD' },
   AAPL: { key: 'AAPLUSD' },
   MSFT: { key: 'MSFTUSD' },
-  AMD: { key: 'AMDUSD' },
-  MU: { key: 'MUUSD' },
   GOOGL: { key: 'GOOGLUSD' },
   AMZN: { key: 'AMZNUSD' },
   META: { key: 'METAUSD' },
+  NFLX: { key: 'NFLXUSD' },
+  // Semiconductors (high retail demand — see audit).
+  AMD: { key: 'AMDUSD' },
+  MU: { key: 'MUUSD' },
+  AVGO: { key: 'AVGOUSD' },
+  INTC: { key: 'INTCUSD' },
+  TSM: { key: 'TSMUSD' },
+  QCOM: { key: 'QCOMUSD' },
+  // Financials.
+  JPM: { key: 'JPMUSD' },
+  GS: { key: 'GSUSD' },
+  BAC: { key: 'BACUSD' },
+  // Crypto-correlated.
+  COIN: { key: 'COINUSD' },
+  // Consumer / streaming.
+  DIS: { key: 'DISUSD' },
+  // Foundational FX context indicators (no platform should ship without these).
+  DXY: { key: 'DXY' },
+  VIX: { key: 'VIX' },
+  // Commodities completeness.
+  'NG/USD': { key: 'NGUSD' },     // Natural gas
+  'HG/USD': { key: 'HGUSD' },     // Copper
+  'XPT/USD': { key: 'XPTUSD' },   // Platinum
+  'XPD/USD': { key: 'XPDUSD' },   // Palladium
+  // Indices — Asia + small cap gaps.
+  HSI: { key: 'HSI' },             // Hang Seng
+  RUT2000: { key: 'RUT2000' },     // Russell 2000 (US small cap)
 };
 
 export function formatPairPrice(label: string, price: number | null): string {
@@ -97,6 +123,8 @@ export function formatPairPrice(label: string, price: number | null): string {
     case 'AUS200':
     case 'SWI20':
     case 'SPA35':
+    case 'HSI':
+    case 'RUT2000':
       return price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     case 'NVDA':
     case 'TSLA':
@@ -107,6 +135,25 @@ export function formatPairPrice(label: string, price: number | null): string {
     case 'GOOGL':
     case 'AMZN':
     case 'META':
+    case 'NFLX':
+    case 'AVGO':
+    case 'INTC':
+    case 'TSM':
+    case 'QCOM':
+    case 'JPM':
+    case 'GS':
+    case 'BAC':
+    case 'COIN':
+    case 'DIS':
+      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'DXY':
+    case 'VIX':
+      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case 'NG/USD':
+    case 'HG/USD':
+      return price.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+    case 'XPT/USD':
+    case 'XPD/USD':
       return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     default:
       return price.toLocaleString('en-US', { maximumFractionDigits: 2 });

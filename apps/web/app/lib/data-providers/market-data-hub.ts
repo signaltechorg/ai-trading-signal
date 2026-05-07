@@ -34,7 +34,15 @@ const HUB_URL = normalizeHubUrl(process.env.MARKET_DATA_HUB_URL ?? '');
 // symbols pass through `fromHubSymbol()` unchanged because they're not in this
 // set — that is intentional (the TradeClaw symbol IS the index code).
 const STOCK_TICKERS = new Set([
-  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AMD', 'MU',
+  // Currently in hub seed (PR #40):
+  'NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
+  // Pending hub seed (see docs/hub-seed-additions-2026-05-07.md):
+  // Semis (high retail):
+  'AMD', 'MU', 'AVGO', 'INTC', 'TSM', 'QCOM',
+  // Financials:
+  'JPM', 'GS', 'BAC',
+  // Other consumer / crypto-correlated:
+  'NFLX', 'DIS', 'COIN',
 ]);
 
 /** Convert TradeClaw symbol (BTCUSD) → Hub symbol (BTC/USD) */
