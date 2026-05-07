@@ -42,6 +42,9 @@ export async function GET(request: NextRequest) {
       subscriptionStatus: sub?.status ?? null,
       currentPeriodEnd: sub?.currentPeriodEnd.toISOString() ?? null,
       trialEnd: sub?.trialEnd?.toISOString() ?? null,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      authProvider: user.authProvider,
     },
   });
 }

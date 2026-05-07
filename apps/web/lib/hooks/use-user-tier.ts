@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 export type ClientTier = 'free' | 'pro' | 'elite' | 'custom';
 export type ClientSubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing' | null;
+export type ClientAuthProvider = 'google' | 'github' | 'email' | null;
 
 export interface ClientSession {
   userId: string;
@@ -25,6 +26,12 @@ export interface ClientSession {
    * future. Null for non-trial subs.
    */
   trialEnd: string | null;
+  /** Display name from Google's `name` or GitHub's `name`/`login`. Null for legacy email-only rows. */
+  displayName: string | null;
+  /** Profile image from Google `picture` or GitHub `avatar_url`. Always https. */
+  avatarUrl: string | null;
+  /** Provider used for the row's first-ever sign-in. Never updated thereafter. */
+  authProvider: ClientAuthProvider;
 }
 
 interface SessionResponse {
