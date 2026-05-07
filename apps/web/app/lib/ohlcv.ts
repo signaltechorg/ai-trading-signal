@@ -1,10 +1,19 @@
 /**
- * OHLCV Data Fetcher — fetches historical candle data from free APIs
- * Crypto: Binance → Kraken → CryptoCompare (fallback chain)
- * Forex/Metals: Stooq (free CSV) → Kraken → synthetic (fallback chain)
+ * OHLCV Data Fetcher — hub-first historical candle data
+ *
+ * Architecture (mirrors /api/prices route, per 2026-05-07 directive):
+ *   1. market-data-hub      — primary, when MARKET_DATA_HUB_URL is set
+ *   2. Binance public OHLCV — crypto-only thin survival fallback
+ *   3. Stooq CSV            — forex/metals-only thin survival fallback
+ *   4. Synthetic generator  — last resort, clearly tagged in the source field
+ *
+ * Removed from the hot path (Kraken / CryptoCompare): both still exported
+ * from data-providers/ for backtest + signal-history consumers, but no
+ * longer called per-request from this fetcher. Hub aggregates all crypto
+ * sources internally so direct calls duplicate work and add tail latency.
  */
 
-import { fetchKrakenOHLCV, fetchCryptoCompareOHLCV, fetchStooqOHLCV, isStooqSymbol } from './data-providers';
+import { fetchStooqOHLCV, isStooqSymbol } from './data-providers';
 import { fetchHubCandles, isHubEnabled } from './data-providers/market-data-hub';
 
 export type OHLCVSource = 'market-data-hub' | 'binance' | 'stooq' | 'kraken' | 'cryptocompare' | 'synthetic';
@@ -221,12 +230,13 @@ const FALLBACK_CONFIG: Record<string, { basePrice: number; volatility: number }>
 };
 
 /**
- * Main entry point — fetch OHLCV data for a symbol and timeframe
- * Crypto: Binance → Kraken → CryptoCompare
- * Forex/Metals: Stooq (free CSV, no key)
- * Last resort: synthetic
+ * Main entry point — fetch OHLCV for a symbol and timeframe.
+ * Hub-first; thin Binance + Stooq fallbacks; synthetic last resort.
  */
-export async function getOHLCV(symbol: string, timeframe: string = 'H1'): Promise<{ candles: OHLCV[]; source: OHLCVSource }> {
+export async function getOHLCV(
+  symbol: string,
+  timeframe: string = 'H1',
+): Promise<{ candles: OHLCV[]; source: OHLCVSource }> {
   const cacheKey = getCacheKey(symbol, timeframe);
   const cached = getFromCache(cacheKey);
   if (cached) {
@@ -236,52 +246,35 @@ export async function getOHLCV(symbol: string, timeframe: string = 'H1'): Promis
   let candles: OHLCV[] = [];
   let source: OHLCVSource = 'synthetic';
 
-  // ── Market Data Hub (hosted TradeClaw — Redis cache) ──────
+  // ── 1. market-data-hub (primary) ─────────────────────────
   if (isHubEnabled()) {
     try {
       candles = await fetchHubCandles(symbol, timeframe);
       if (candles.length > 0) source = 'market-data-hub';
     } catch {
-      // fall through to free APIs
+      /* fall through */
     }
   }
 
-  // ── Crypto: Binance → Kraken → CryptoCompare ──────────────
+  // ── 2. Binance OHLCV (crypto thin survival fallback) ─────
   if (candles.length < 50 && BINANCE_SYMBOLS[symbol]) {
     try {
       candles = await fetchBinanceOHLCV(symbol, timeframe);
       if (candles.length > 0) source = 'binance';
     } catch {
-      // fall through
-    }
-
-    if (candles.length < 50) {
-      try {
-        candles = await fetchKrakenOHLCV(symbol, timeframe);
-        if (candles.length > 0) source = 'kraken';
-      } catch {
-        // fall through
-      }
-    }
-
-    if (candles.length < 50) {
-      try {
-        candles = await fetchCryptoCompareOHLCV(symbol, timeframe);
-        if (candles.length > 0) source = 'cryptocompare';
-      } catch {
-        // fall through
-      }
+      /* fall through */
     }
   }
 
-  // ── Forex/Metals: Stooq (free, no API key) ────────────────
+  // ── 3. Stooq (forex/metals thin survival fallback) ───────
   if (candles.length < 50 && isStooqSymbol(symbol)) {
     try {
-      const lookback = timeframe === 'M5' ? 3 : timeframe === 'M15' ? 7 : timeframe === 'D1' ? 365 : 30;
+      const lookback =
+        timeframe === 'M5' ? 3 : timeframe === 'M15' ? 7 : timeframe === 'D1' ? 365 : 30;
       candles = await fetchStooqOHLCV(symbol, timeframe, lookback);
       if (candles.length > 0) source = 'stooq';
 
-      // For H4: aggregate H1 candles from Stooq
+      // H4 aggregation: build from H1 when direct H4 returns short.
       if (candles.length < 50 && timeframe === 'H4') {
         candles = await fetchStooqOHLCV(symbol, 'H1', 60);
         if (candles.length > 0) {
@@ -290,11 +283,11 @@ export async function getOHLCV(symbol: string, timeframe: string = 'H1'): Promis
         }
       }
     } catch {
-      // fall through
+      /* fall through */
     }
   }
 
-  // ── Last resort: synthetic ─────────────────────────────────
+  // ── 4. Synthetic (last resort, clearly tagged) ────────────
   if (candles.length < 50) {
     const config = FALLBACK_CONFIG[symbol];
     if (config) {

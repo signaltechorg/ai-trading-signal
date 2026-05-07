@@ -151,6 +151,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       count: Object.keys(prices).length,
       prices,
+      hubEnabled: isHubEnabled(),
       ...(hasFallback && { stale: true, fallbackDate: FALLBACK_DATE }),
     });
   } catch {
