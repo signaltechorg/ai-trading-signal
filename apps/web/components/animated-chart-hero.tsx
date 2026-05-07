@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useHeroPrices, formatPairPrice } from "../lib/hooks/use-hero-prices";
 
 interface Particle {
   x: number;
@@ -40,22 +41,35 @@ interface AnimatedChartHeroProps {
   className?: string;
 }
 
-const SIGNAL_SYMBOLS = [
-  { symbol: "BTC/USD", price: "94,210" },
-  { symbol: "XAU/USD", price: "2,648" },
-  { symbol: "EUR/USD", price: "1.0832" },
-  { symbol: "ETH/USD", price: "3,412" },
-  { symbol: "GBP/USD", price: "1.2734" },
-  { symbol: "SOL/USD", price: "182.6" },
-  { symbol: "NAS100", price: "21,840" },
-  { symbol: "OIL/USD", price: "78.34" },
-];
+const ANIMATED_HERO_LABELS = [
+  "BTC/USD",
+  "XAU/USD",
+  "EUR/USD",
+  "ETH/USD",
+  "GBP/USD",
+  "SOL/USD",
+  "OIL/USD",
+  "NAS100",
+  "US500",
+  "GER40",
+  "JPY225",
+] as const;
 
 export function AnimatedChartHero({
   height,
   className = "",
 }: AnimatedChartHeroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { prices } = useHeroPrices(ANIMATED_HERO_LABELS);
+  const symbolsRef = useRef<{ symbol: string; price: string }[]>([]);
+
+  // Keep canvas-loop's price source up to date without restarting the animation.
+  symbolsRef.current = ANIMATED_HERO_LABELS
+    .map((label) => ({
+      symbol: label,
+      price: formatPairPrice(label, prices[label]?.price ?? null),
+    }))
+    .filter((s) => s.price !== "—");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -456,9 +470,9 @@ export function AnimatedChartHero({
       }
 
       // ── Signal badges ─────────────────────────────────────────
-      if (t - lastSignalFrame >= SIGNAL_INTERVAL) {
+      if (t - lastSignalFrame >= SIGNAL_INTERVAL && symbolsRef.current.length > 0) {
         lastSignalFrame = t;
-        const sym = SIGNAL_SYMBOLS[Math.floor(Math.random() * SIGNAL_SYMBOLS.length)];
+        const sym = symbolsRef.current[Math.floor(Math.random() * symbolsRef.current.length)];
         const isBuy = Math.random() > 0.42;
         // Place badge near price line, offset to avoid overlap
         const fraction = 0.25 + Math.random() * 0.55;

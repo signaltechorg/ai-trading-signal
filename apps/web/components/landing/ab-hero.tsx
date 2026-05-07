@@ -7,23 +7,46 @@
  * Stats visible at /ab-stats (dev) or via window.__tcABStats()
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { Star, Radio, CheckCircle2 } from "lucide-react";
 import { AnimatedChartHero } from "../animated-chart-hero";
 import { TradeClawIconArtwork } from "../brand/tradeclaw-icon-artwork";
+import { useHeroPrices, formatPairPrice } from "../../lib/hooks/use-hero-prices";
 
 const GITHUB_URL = "https://github.com/naimkatiman/tradeclaw";
 
-const SIGNALS = [
-  { symbol: "XAU/USD", direction: "BUY" as const, confidence: 87, price: "2,648.30", proStatus: "live" as const, proAge: "2m" },
-  { symbol: "BTC/USD", direction: "SELL" as const, confidence: 74, price: "94,210.50", proStatus: "ended" as const, proAge: "14m" },
-  { symbol: "EUR/USD", direction: "BUY" as const, confidence: 81, price: "1.0832", proStatus: "live" as const, proAge: "5m" },
-  { symbol: "GBP/JPY", direction: "SELL" as const, confidence: 68, price: "191.540", proStatus: "ended" as const, proAge: "22m" },
-  { symbol: "ETH/USD", direction: "BUY" as const, confidence: 79, price: "3,412.80", proStatus: "live" as const, proAge: "1m" },
-  { symbol: "OIL/USD", direction: "SELL" as const, confidence: 72, price: "78.340", proStatus: "ended" as const, proAge: "31m" },
+interface HeroSignal {
+  symbol: string;
+  direction: "BUY" | "SELL";
+  confidence: number;
+  price: string;
+  proStatus: "live" | "ended";
+  proAge: string;
+}
+
+const SIGNAL_TEMPLATE: ReadonlyArray<Omit<HeroSignal, "price">> = [
+  { symbol: "XAU/USD", direction: "BUY", confidence: 87, proStatus: "live", proAge: "2m" },
+  { symbol: "BTC/USD", direction: "SELL", confidence: 74, proStatus: "ended", proAge: "14m" },
+  { symbol: "EUR/USD", direction: "BUY", confidence: 81, proStatus: "live", proAge: "5m" },
+  { symbol: "GBP/JPY", direction: "SELL", confidence: 68, proStatus: "ended", proAge: "22m" },
+  { symbol: "ETH/USD", direction: "BUY", confidence: 79, proStatus: "live", proAge: "1m" },
+  { symbol: "OIL/USD", direction: "SELL", confidence: 72, proStatus: "ended", proAge: "31m" },
 ];
-const TICKER_SIGNALS = [...SIGNALS, ...SIGNALS];
+
+const HERO_LABELS = SIGNAL_TEMPLATE.map((s) => s.symbol);
+
+function useHeroSignals(): HeroSignal[] {
+  const { prices } = useHeroPrices(HERO_LABELS);
+  return useMemo(
+    () =>
+      SIGNAL_TEMPLATE.map((tpl) => ({
+        ...tpl,
+        price: formatPairPrice(tpl.symbol, prices[tpl.symbol]?.price ?? null),
+      })),
+    [prices],
+  );
+}
 
 type Variant = "a" | "b" | "c";
 
@@ -111,10 +134,13 @@ function HeroBrandLockup() {
 function HeroVariantA({
   stars,
   onGitHubClick,
+  signals,
 }: {
   stars: number | null;
   onGitHubClick: () => void;
+  signals: HeroSignal[];
 }) {
+  const tickerSignals = [...signals, ...signals];
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
       <HeroBrandLockup />
@@ -150,7 +176,7 @@ function HeroVariantA({
         </div>
         <div className="overflow-hidden py-3">
           <div className="flex gap-3 w-max" style={{ animation: "ticker 30s linear infinite" }}>
-            {TICKER_SIGNALS.map((sig, i) => <SignalPill key={i} {...sig} />)}
+            {tickerSignals.map((sig, i) => <SignalPill key={i} {...sig} />)}
           </div>
         </div>
       </div>
@@ -180,10 +206,19 @@ function HeroVariantA({
 function HeroVariantB({
   stars,
   onGitHubClick,
+  signals,
 }: {
   stars: number | null;
   onGitHubClick: () => void;
+  signals: HeroSignal[];
 }) {
+  const btc = signals.find((s) => s.symbol === "BTC/USD");
+  const btcPriceNum = btc ? Number(btc.price.replace(/,/g, "")) : null;
+  const entryStr = btc && btcPriceNum && Number.isFinite(btcPriceNum) ? btcPriceNum.toFixed(2) : "—";
+  const slStr =
+    btcPriceNum && Number.isFinite(btcPriceNum)
+      ? (btcPriceNum * 0.993).toFixed(2)
+      : "—";
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
       <HeroBrandLockup />
@@ -244,13 +279,13 @@ function HeroVariantB({
           <span className="text-zinc-500">{"  "}</span>
           <span className="text-purple-400">&quot;entry&quot;</span>
           <span className="text-zinc-500">: </span>
-          <span className="text-white">94210.50</span>
+          <span className="text-white">{entryStr}</span>
           <span className="text-zinc-500">,</span>
           {"\n"}
           <span className="text-zinc-500">{"  "}</span>
           <span className="text-purple-400">&quot;stopLoss&quot;</span>
           <span className="text-zinc-500">: </span>
-          <span className="text-rose-400">93580.00</span>
+          <span className="text-rose-400">{slStr}</span>
           {"\n"}
           <span className="text-zinc-500">{"}"}</span>
         </pre>
@@ -287,9 +322,11 @@ function HeroVariantB({
 function HeroVariantC({
   stars,
   onGitHubClick,
+  signals,
 }: {
   stars: number | null;
   onGitHubClick: () => void;
+  signals: HeroSignal[];
 }) {
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
@@ -321,7 +358,7 @@ function HeroVariantC({
 
       {/* Live signal cards */}
       <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {SIGNALS.slice(0, 6).map((sig) => {
+        {signals.slice(0, 6).map((sig) => {
           const isLive = sig.proStatus === "live";
           return (
             <div
@@ -445,6 +482,8 @@ export function ABHero() {
     trackClick(variant);
   }, [variant]);
 
+  const signals = useHeroSignals();
+
   if (!mounted) {
     return (
       <section className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 pt-28 pb-16 text-center">
@@ -468,9 +507,9 @@ export function ABHero() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-emerald-500/5 blur-[140px]" />
       </div>
 
-      {variant === "a" && <HeroVariantA stars={stars} onGitHubClick={handleGitHubClick} />}
-      {variant === "b" && <HeroVariantB stars={stars} onGitHubClick={handleGitHubClick} />}
-      {variant === "c" && <HeroVariantC stars={stars} onGitHubClick={handleGitHubClick} />}
+      {variant === "a" && <HeroVariantA stars={stars} onGitHubClick={handleGitHubClick} signals={signals} />}
+      {variant === "b" && <HeroVariantB stars={stars} onGitHubClick={handleGitHubClick} signals={signals} />}
+      {variant === "c" && <HeroVariantC stars={stars} onGitHubClick={handleGitHubClick} signals={signals} />}
     </section>
   );
 }

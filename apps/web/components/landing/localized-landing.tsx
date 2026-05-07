@@ -1,20 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { Locale, Translations } from "../../lib/translations";
 import { LocaleSwitcher } from "./locale-switcher";
+import { useHeroPrices, formatPairPrice } from "../../lib/hooks/use-hero-prices";
 
 const GITHUB_URL = "https://github.com/naimkatiman/tradeclaw";
 
-const SIGNALS = [
-  { symbol: "XAU/USD", direction: "BUY" as const, confidence: 87, price: "2,648.30" },
-  { symbol: "BTC/USD", direction: "SELL" as const, confidence: 74, price: "94,210.50" },
-  { symbol: "EUR/USD", direction: "BUY" as const, confidence: 81, price: "1.0832" },
-  { symbol: "GBP/JPY", direction: "SELL" as const, confidence: 68, price: "191.540" },
-  { symbol: "ETH/USD", direction: "BUY" as const, confidence: 79, price: "3,412.80" },
-  { symbol: "OIL/USD", direction: "SELL" as const, confidence: 72, price: "78.340" },
+const SIGNAL_TEMPLATE: ReadonlyArray<{
+  symbol: string;
+  direction: "BUY" | "SELL";
+  confidence: number;
+}> = [
+  { symbol: "XAU/USD", direction: "BUY", confidence: 87 },
+  { symbol: "BTC/USD", direction: "SELL", confidence: 74 },
+  { symbol: "EUR/USD", direction: "BUY", confidence: 81 },
+  { symbol: "GBP/JPY", direction: "SELL", confidence: 68 },
+  { symbol: "ETH/USD", direction: "BUY", confidence: 79 },
+  { symbol: "OIL/USD", direction: "SELL", confidence: 72 },
 ];
-const TICKER_SIGNALS = [...SIGNALS, ...SIGNALS];
+const HERO_LABELS = SIGNAL_TEMPLATE.map((s) => s.symbol);
 
 const STAT_TARGETS = [847, 52000, 12, 430];
 const STAT_SUFFIXES = ["+", "+", "", "+"];
@@ -81,6 +86,14 @@ function StatCard({ target, suffix, label, description }: { target: number; suff
 export function LocalizedLanding({ t, locale }: { t: Translations; locale: Locale }) {
   const [stars, setStars] = useState<number | null>(null);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
+  const { prices } = useHeroPrices(HERO_LABELS);
+  const tickerSignals = useMemo(() => {
+    const live = SIGNAL_TEMPLATE.map((tpl) => ({
+      ...tpl,
+      price: formatPairPrice(tpl.symbol, prices[tpl.symbol]?.price ?? null),
+    }));
+    return [...live, ...live];
+  }, [prices]);
 
   useEffect(() => {
     fetch("https://api.github.com/repos/naimkatiman/tradeclaw")
@@ -138,7 +151,7 @@ export function LocalizedLanding({ t, locale }: { t: Translations; locale: Local
             </div>
             <div className="overflow-hidden py-3">
               <div className="flex gap-3 w-max" style={{ animation: "ticker 30s linear infinite" }}>
-                {TICKER_SIGNALS.map((sig, i) => (
+                {tickerSignals.map((sig, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-lg border border-white/6 bg-white/3 px-3 py-2 text-xs whitespace-nowrap">
                     <span className="font-mono font-medium text-white">{sig.symbol}</span>
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${sig.direction === "BUY" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
