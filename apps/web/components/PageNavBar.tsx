@@ -15,6 +15,10 @@ import {
   Wrench,
   Layers,
   Crosshair,
+  KeyRound,
+  Megaphone,
+  Activity,
+  ShieldCheck,
 } from 'lucide-react';
 import { TradeClawLogo } from './tradeclaw-logo';
 import { UserMenu } from './UserMenu';
@@ -31,7 +35,18 @@ interface DropdownGroup {
   links: NavLink[];
 }
 
-const PRIMARY_LINKS: { href: string; label: string }[] = [
+// ---------------------------------------------------------------------------
+// Link sets — picked at render time by `selectNav(pathname)`.
+//
+// MEMBER  → in-app links (default; covers /dashboard and every signed-in surface).
+// ADMIN   → /admin/* operator surface. Trading links are hidden so admins
+//           don't context-switch into the trader UI by accident; "Back to App"
+//           takes them to /dashboard.
+// ---------------------------------------------------------------------------
+
+interface PrimaryLink { href: string; label: string }
+
+const MEMBER_PRIMARY: PrimaryLink[] = [
   { href: '/dashboard', label: 'Signals' },
   { href: '/screener', label: 'Screener' },
   { href: '/backtest', label: 'Backtest' },
@@ -39,7 +54,7 @@ const PRIMARY_LINKS: { href: string; label: string }[] = [
   { href: '/track-record', label: 'Track Record' },
 ];
 
-const MORE_GROUPS: DropdownGroup[] = [
+const MEMBER_MORE: DropdownGroup[] = [
   {
     label: 'Trading Tools',
     links: [
@@ -73,15 +88,60 @@ const MORE_GROUPS: DropdownGroup[] = [
   },
 ];
 
-const ALL_MORE_HREFS = MORE_GROUPS.flatMap((g) => g.links.map((l) => l.href));
+const ADMIN_PRIMARY: PrimaryLink[] = [
+  { href: '/admin', label: 'Overview' },
+  { href: '/admin/pro-grants', label: 'Pro Grants' },
+  { href: '/admin/social-queue', label: 'Social Queue' },
+  { href: '/admin/executions', label: 'Executions' },
+  { href: '/dashboard', label: '↩ App' },
+];
+
+const ADMIN_MORE: DropdownGroup[] = [
+  {
+    label: 'Operations',
+    links: [
+      { href: '/admin/pro-grants', label: 'Pro Grants', icon: KeyRound },
+      { href: '/admin/social-queue', label: 'Social Queue', icon: Megaphone },
+      { href: '/admin/executions', label: 'Executions', icon: Activity },
+    ],
+  },
+  {
+    label: 'Surfaces',
+    links: [
+      { href: '/track-record', label: 'Public Track Record', icon: ShieldCheck },
+      { href: '/dashboard', label: 'User Dashboard', icon: BarChart2 },
+    ],
+  },
+];
+
+interface NavSet {
+  primary: PrimaryLink[];
+  more: DropdownGroup[];
+  /** Discriminator used in component logic (e.g. accent colors for admin). */
+  variant: 'member' | 'admin';
+}
+
+function selectNav(pathname: string): NavSet {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return { primary: ADMIN_PRIMARY, more: ADMIN_MORE, variant: 'admin' };
+  }
+  return { primary: MEMBER_PRIMARY, more: MEMBER_MORE, variant: 'member' };
+}
 
 export function PageNavBar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
-  const moreHasActive = ALL_MORE_HREFS.some(isActive);
+  const navSet = selectNav(pathname ?? '/');
+  const { primary: PRIMARY_LINKS, more: MORE_GROUPS, variant } = navSet;
+  const allMoreHrefs = MORE_GROUPS.flatMap((g) => g.links.map((l) => l.href));
+
+  // /admin/x must NOT highlight /admin overview just because pathname starts
+  // with '/admin'. Use exact-match for the overview entry.
+  const isActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/');
+  const moreHasActive = allMoreHrefs.some(isActive);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -109,7 +169,14 @@ export function PageNavBar() {
     }`;
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-xl">
+    <nav
+      className={`sticky top-0 z-50 border-b backdrop-blur-xl ${
+        variant === 'admin'
+          ? 'border-amber-500/20 bg-amber-950/20'
+          : 'border-[var(--border)] bg-[var(--background)]/90'
+      }`}
+      aria-label={variant === 'admin' ? 'Admin navigation' : 'Member navigation'}
+    >
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-1.5 shrink-0">
@@ -117,6 +184,11 @@ export function PageNavBar() {
           <span className="text-sm font-semibold">
             Trade<span className="text-emerald-400">Claw</span>
           </span>
+          {variant === 'admin' && (
+            <span className="ml-1 text-[9px] uppercase tracking-widest font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+              Admin
+            </span>
+          )}
         </Link>
 
         {/* Desktop: Primary links + More dropdown */}
