@@ -17,6 +17,7 @@ import {
   Crosshair,
 } from 'lucide-react';
 import { TradeClawLogo } from './tradeclaw-logo';
+import { UserMenu } from './UserMenu';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavLink {
@@ -119,7 +120,7 @@ export function PageNavBar() {
         </Link>
 
         {/* Desktop: Primary links + More dropdown */}
-        <div className="hidden md:flex items-center gap-1 ml-auto">
+        <div className="hidden md:flex items-center gap-1 ml-auto mr-2">
           {PRIMARY_LINKS.map((page) => (
             <Link
               key={page.href}
@@ -188,7 +189,10 @@ export function PageNavBar() {
           </div>
         </div>
 
-        {/* Mobile: just the logo is shown — mobile-nav.tsx handles bottom navigation */}
+        {/* Identity affordance — visible on all breakpoints. */}
+        <div className="ml-auto md:ml-0 flex items-center">
+          <UserMenu />
+        </div>
       </div>
     </nav>
   );
