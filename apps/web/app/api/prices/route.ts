@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
+  fetchBinancePrices,
   fetchCoinCapPrices,
   fetchKrakenPrices,
   fetchFrankfurterRates,
@@ -69,8 +70,9 @@ export async function GET() {
   try {
     const prices: Record<string, { price: number; change24h: number; source: string }> = {};
 
-    // Hub goes first — it's a Redis-cached aggregator with stocks (NVDA, QQQ, BNO etc.)
-    // and pre-resolved forex/crypto. Anything it returns is freshest data.
+    // Hub goes first — it's a Redis-cached aggregator with index CFDs (NAS100,
+    // US500, ...), Brent crude, and pre-resolved forex. Anything it returns is
+    // freshest data via R-StocksTrader → TD fallback chain.
     if (isHubEnabled()) {
       const hubQuotes = await fetchHubQuotes();
       for (const q of hubQuotes) {
@@ -82,7 +84,20 @@ export async function GET() {
       }
     }
 
-    // Fetch crypto prices from CoinGecko (free, no key) — fills any gaps the hub didn't cover
+    // Binance is the primary crypto source — no key, 1200 weight/min cap (vs
+    // CoinGecko's 5-30/min free tier that throttles us under load).
+    const binanceQuotes = await fetchBinancePrices();
+    for (const q of binanceQuotes) {
+      if (!prices[q.symbol]) {
+        prices[q.symbol] = {
+          price: q.price,
+          change24h: q.change24h ?? 0,
+          source: q.source,
+        };
+      }
+    }
+
+    // CoinGecko stays as a fallback for anything Binance + hub didn't cover.
     const cgRes = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${CRYPTO_SYMBOLS.join(',')}&vs_currencies=usd&include_24hr_change=true`,
       { next: { revalidate: 30 } }

@@ -34,6 +34,7 @@ export { safeFetch, safeFetchText } from './types';
 
 // Re-export all provider functions
 export {
+  fetchBinancePrices,
   fetchCoinCapPrices,
   fetchCoinCapHistory,
   fetchKrakenPrices,

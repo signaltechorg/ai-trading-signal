@@ -1,9 +1,95 @@
 /**
- * Crypto Data Providers — CoinCap, Kraken, CryptoCompare
+ * Crypto Data Providers — Binance, CoinCap, Kraken, CryptoCompare
  * All free, no API key required (CryptoCompare optional key for higher limits)
  */
 
 import { type PriceQuote, type OHLCV, safeFetch } from './types';
+
+// ─── Binance ───────────────────────────────────────────────────────────────
+// https://binance-docs.github.io/apidocs/spot/en/#24hr-ticker-price-change-statistics
+// Public endpoint, no key required, 1200 weight/min cap (very high vs CoinGecko's 5-30/min).
+// Binance trades USDT pairs; we map BTCUSD → BTCUSDT and treat USDT ~= USD for landing display.
+
+const BINANCE_MAP: Record<string, string> = {
+  BTCUSD: 'BTCUSDT',
+  ETHUSD: 'ETHUSDT',
+  XRPUSD: 'XRPUSDT',
+  SOLUSD: 'SOLUSDT',
+  ADAUSD: 'ADAUSDT',
+  BNBUSD: 'BNBUSDT',
+  DOTUSD: 'DOTUSDT',
+  DOGEUSD: 'DOGEUSDT',
+  AVAXUSD: 'AVAXUSDT',
+  LINKUSD: 'LINKUSDT',
+  MATICUSD: 'MATICUSDT',
+  ATOMUSD: 'ATOMUSDT',
+  UNIUSD: 'UNIUSDT',
+  LTCUSD: 'LTCUSDT',
+  BCHUSD: 'BCHUSDT',
+  NEARUSD: 'NEARUSDT',
+  APTUSD: 'APTUSDT',
+  ARBUSD: 'ARBUSDT',
+  OPUSD: 'OPUSDT',
+  FILUSD: 'FILUSDT',
+  INJUSD: 'INJUSDT',
+  SUIUSD: 'SUIUSDT',
+  SEIUSD: 'SEIUSDT',
+  TIAUSD: 'TIAUSDT',
+  RENDERUSD: 'RENDERUSDT',
+  FETUSD: 'FETUSDT',
+  AABORUSD: 'AAVEUSDT',
+  PEPEUSD: 'PEPEUSDT',
+  SHIBUSD: 'SHIBUSDT',
+  WIFUSD: 'WIFUSDT',
+};
+
+interface BinanceTicker {
+  symbol: string;
+  lastPrice: string;
+  priceChangePercent: string;
+  highPrice: string;
+  lowPrice: string;
+  volume: string;
+  quoteVolume: string;
+}
+
+/**
+ * Fetch 24h ticker prices from Binance for all mapped crypto symbols.
+ * Single batched request via `symbols` query param.
+ */
+export async function fetchBinancePrices(): Promise<PriceQuote[]> {
+  const binanceSymbols = Object.values(BINANCE_MAP);
+  // Binance's `symbols` query param wants a JSON array string, URL-encoded.
+  const symbolsParam = encodeURIComponent(JSON.stringify(binanceSymbols));
+  const data = await safeFetch<BinanceTicker[]>(
+    `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`,
+    { timeoutMs: 6000 },
+  );
+  if (!Array.isArray(data) || data.length === 0) return [];
+
+  const reverseMap = Object.fromEntries(
+    Object.entries(BINANCE_MAP).map(([k, v]) => [v, k]),
+  );
+
+  const out: PriceQuote[] = [];
+  for (const t of data) {
+    const tradeClawSymbol = reverseMap[t.symbol];
+    if (!tradeClawSymbol) continue;
+    const price = parseFloat(t.lastPrice);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    out.push({
+      symbol: tradeClawSymbol,
+      price,
+      change24h: +parseFloat(t.priceChangePercent || '0').toFixed(2),
+      high24h: parseFloat(t.highPrice),
+      low24h: parseFloat(t.lowPrice),
+      volume24h: parseFloat(t.quoteVolume),
+      timestamp: Date.now(),
+      source: 'binance',
+    });
+  }
+  return out;
+}
 
 // ─── CoinCap ───────────────────────────────────────────────────────────────
 // https://docs.coincap.io/ — 200 req/min without key, WebSocket available
