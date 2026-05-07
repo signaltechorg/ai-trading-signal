@@ -296,7 +296,13 @@ export async function getOHLCV(
     }
   }
 
-  if (candles.length > 0) {
+  // Cache only real-source data. Caching synthetic locks in stale state for
+  // 5 min after a transient hub failure — even when hub recovers, subsequent
+  // requests serve the cached synthetic until TTL expires. By skipping the
+  // cache for synthetic, every request retries the hub, so recovery is
+  // instant. Synthetic is computed cheaply enough (Math.random + arithmetic)
+  // that recomputing per-request is fine.
+  if (candles.length > 0 && source !== 'synthetic') {
     setCache(cacheKey, candles, source);
   }
 
