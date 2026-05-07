@@ -42,7 +42,9 @@ const HERO_SYMBOL_MAP: Record<string, Mapping> = {
   'GBP/JPY': { derived: 'GBPJPY' },
   // RoboForex CFDs via market-data-hub (PR #40, hub seed).
   // Real Brent crude CFD (~$80) and true index levels — not ETF proxies.
-  'OIL/USD': { key: 'BRENTUSD' },
+  'BRENT/USD': { key: 'BRENTUSD' },
+  'WTI/USD': { key: 'WTIUSD' },
+  'OIL/USD': { key: 'BRENTUSD' }, // Backwards-compat alias — defaults to Brent
   NAS100: { key: 'NAS100' },
   US500: { key: 'US500' },
   US30: { key: 'US30' },
@@ -82,6 +84,8 @@ export function formatPairPrice(label: string, price: number | null): string {
     case 'GBP/JPY':
       return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
     case 'OIL/USD':
+    case 'BRENT/USD':
+    case 'WTI/USD':
       return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     case 'NAS100':
     case 'US500':

@@ -49,14 +49,14 @@ const ANIMATED_HERO_LABELS = [
   "ETH/USD",
   "GBP/USD",
   "SOL/USD",
-  "OIL/USD",
+  "BRENT/USD",
+  "WTI/USD",
   "NAS100",
   "US500",
   "GER40",
   "JPY225",
   "TSLA",
   "NVDA",
-  "AMD",
 ] as const;
 
 export function AnimatedChartHero({
