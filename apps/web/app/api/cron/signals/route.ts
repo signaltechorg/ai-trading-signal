@@ -267,11 +267,14 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     const broadcastInputs: NewlyRecordedSignal[] = [...newSignals, ...catchupSignals];
+    let broadcastableCount = 0;
+    let curatedCount = 0;
     if (broadcastInputs.length > 0) {
       const winningCellsActive = getWinningCellsMode() === 'active';
       const curated = broadcastInputs.filter((s) =>
         !winningCellsActive || isWinningCell(s.symbol, s.direction),
       );
+      curatedCount = curated.length;
 
       let approvedIds: Set<string> | null = null;
       try {
@@ -318,6 +321,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           stopLoss: s.stopLoss,
           gateBlocked: false,
         }));
+      broadcastableCount = broadcastable.length;
       if (broadcastable.length > 0) {
         broadcastSignalsToProGroup(broadcastable).catch(() => undefined);
       }
@@ -336,6 +340,16 @@ export async function GET(request: NextRequest): Promise<Response> {
       resolved,
       pending,
       errors: errors.length > 0 ? errors : undefined,
+      // Catch-up pipeline observability — tells operators (and the synthetic
+      // verification script) how many unposted-tradable rows the cron pulled
+      // and where they fell out of the broadcast pipeline. Cheap to surface
+      // and useful when a tradable signal silently fails to reach the Pro
+      // group. Counts cover the merged set (newSignals + catchupSignals).
+      catchup: {
+        considered: catchupSignals.length,
+        curatedCount,
+        broadcastableCount,
+      },
       strategyId: preset.id,
       timestamp: new Date().toISOString(),
       auditRowId: auditRowId !== null ? auditRowId.toString() : null,
