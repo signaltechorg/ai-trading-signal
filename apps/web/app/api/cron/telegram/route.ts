@@ -34,18 +34,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const publicChannelId = channelId;
     let publicPushed = 0;
     if (publicChannelId && botToken) {
+      // One post per (pair, direction) per 2h window. Without DISTINCT ON the
+      // request-side writer in tracked-signals.ts (which records per-id, so
+      // H1 + M15 of the same BTCUSD SELL coexist) caused two messages in the
+      // same minute. The NOT EXISTS guard suppresses the duplicate timeframe
+      // even on later cron ticks while a sibling sits in the 2h window.
       const pending = await query<{
         id: string; pair: string; direction: string; confidence: number;
         entry_price: string; tp1: string | null; sl: string | null; timeframe: string;
       }>(`
-        SELECT id, pair, direction, confidence, entry_price, tp1, sl, timeframe
-        FROM signal_history
+        SELECT DISTINCT ON (pair, direction)
+               id, pair, direction, confidence, entry_price, tp1, sl, timeframe
+        FROM signal_history sh
         WHERE telegram_posted_at IS NULL
           AND is_simulated = false
           AND pair = ANY($1)
           AND created_at >= NOW() - INTERVAL '2 hours'
           AND created_at <= NOW() - INTERVAL '15 minutes'
-        ORDER BY created_at ASC
+          AND NOT EXISTS (
+            SELECT 1 FROM signal_history sib
+            WHERE sib.pair = sh.pair
+              AND sib.direction = sh.direction
+              AND sib.telegram_posted_at IS NOT NULL
+              AND sib.telegram_posted_at >= NOW() - INTERVAL '2 hours'
+          )
+        ORDER BY pair, direction, confidence DESC, created_at DESC
         LIMIT 10
       `, [[...FREE_SYMBOLS]]);
 
