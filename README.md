@@ -26,13 +26,14 @@ TradeClaw generates BUY/SELL signals using multi-timeframe technical analysis (R
 
 |  | Free | Pro ($29/mo) |
 |--|:----:|:------------:|
-| Symbols | 6 (BTC, ETH, XAU, EUR/USD, SPY, QQQ) | All pairs (forex, crypto, metals, commodities, US equities) |
+| Symbols | 6 (BTC, ETH, XAU, EUR/USD, SPY, QQQ) | All pairs (forex, crypto, metals, commodities, US equities incl. AMD/MU/GOOGL/AMZN/META) |
 | Signal delay | 15 min | Real-time |
 | Take-profit levels | TP1 only | TP1 + TP2 + TP3 |
 | Indicators | RSI + EMA trend | RSI, MACD, BB, Stochastic, Supertrend |
 | Signal history | 7 days | Full archive |
 | Confidence band | Standard (70–84) | Standard + Premium (85+) |
-| Telegram alerts | Public channel (delayed) | Private channel (instant) |
+| Telegram alerts | Public channel (delayed) | Private channel (instant), bot-gated Pro group with auto-kick on tier expiry |
+| Broker execution | — | Binance USDT-perp (testnet) + RoboForex R StocksTrader bridge |
 | Track record | Full access | Full access |
 | Self-host | Yes | Yes |
 
@@ -71,9 +72,10 @@ Requires PostgreSQL. Run migrations from `apps/web/migrations/` in order.
 ## Architecture
 
 ```
-apps/web/           Next.js app (dashboard, API routes, signal engine)
-packages/strategies/ Backtest comparison framework (not in live signal path)
-scripts/            Local dev tools (scanner-engine.py — local only)
+apps/web/                       Next.js app (dashboard, API routes, signal engine)
+apps/web/lib/execution/         Broker bridges (Binance USDT-perp, RoboForex R StocksTrader)
+packages/strategies/            Backtest comparison framework (not in live signal path)
+scripts/launch-binance-testnet.sh   Binance testnet bootstrap
 ```
 
 **Signal flow:**
@@ -86,6 +88,28 @@ API request → getTrackedSignals() → generateSignalsFromTA()
 ```
 
 Signals are generated as a side effect of API requests — no external scheduler. The TA engine runs inside the Next.js process.
+
+**Market data:**
+
+```
+/api/prices, OHLCV, SSE
+  → market-data-hub (primary, MARKET_DATA_HUB_URL)
+  → Binance (crypto fallback)
+  → Yahoo Finance (everything else fallback)
+```
+
+The hub is the source of truth. The two fallbacks are thin survival paths — they kick in only if the hub returns empty or errors, and OHLCV results from fallbacks are not cached so a hub blip can't lock the dashboard into stale synthetic data.
+
+**Execution (Pro):**
+
+```
+Pro signal → apps/web/lib/execution/executor.ts
+  → Binance USDT-perp (testnet by default) | RoboForex R StocksTrader
+  → pg advisory lock (single client across full execution path)
+  → kill-switch fail-closed if any precondition missing
+```
+
+Order placement maps the TradeClaw pair (`BTC/USD`) to the broker contract (`BTCUSDT` perp) before submission. Bootstrap a Binance testnet account with `bash scripts/launch-binance-testnet.sh`.
 
 ## Strategy Presets
 
@@ -118,13 +142,19 @@ Pro subscribers get real-time access to all endpoints with full depth.
 | Variable | Required | Description |
 |----------|:--------:|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `MARKET_DATA_HUB_URL` | Yes | Market data proxy URL |
+| `MARKET_DATA_HUB_URL` | Yes | Market data hub (primary quote/OHLCV/SSE source). Bare host accepted — `https://` is added if missing |
+| `CRON_SECRET` | Yes | Auth for `/api/cron/*` endpoints |
 | `TELEGRAM_BOT_TOKEN` | No | Telegram bot for alerts |
 | `TELEGRAM_CHANNEL_ID` | No | Private channel (Pro alerts) |
 | `TELEGRAM_PUBLIC_CHANNEL_ID` | No | Public channel (delayed free alerts) |
+| `TELEGRAM_PRO_GROUP_ID` | No | Pro group chat ID — bot auto-kicks members without active Pro tier |
 | `STRIPE_SECRET_KEY` | No | Stripe for Pro subscriptions |
+| `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret |
 | `STRIPE_PRO_PRICE_ID` | No | Stripe price ID for Pro tier |
-| `CRON_SECRET` | Yes | Auth for `/api/cron/*` endpoints |
+| `PREMIUM_SIGNAL_SOURCE_URL` | No | Hosted-only premium signal feed |
+| `PREMIUM_SIGNAL_SOURCE_KEY` | No | Bearer token for the premium feed |
+| `BINANCE_API_KEY` / `BINANCE_API_SECRET` | No | Binance USDT-perp execution (testnet by default) |
+| `ROBOFOREX_RST_*` | No | RoboForex R StocksTrader bridge credentials |
 | `SIGNAL_ENGINE_PRESET` | No | Strategy preset (default: `hmm-top3`) |
 
 ## Contributing

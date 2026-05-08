@@ -18,10 +18,23 @@
 
 ---
 
+## 0.5.0 新特性（2026-05-09）
+
+- **券商执行层上线** — Binance USDT 永续合约（默认测试网）+ RoboForex R StocksTrader 桥接
+- **Market-Data-Hub 优先架构** — `/api/prices`、OHLCV、SSE 统一从中枢拉取，附两条精简的兜底通道
+- **加密主源切换** — CoinGecko → Binance
+- **新增交易品种** — AMD、MU、GOOGL、AMZN、META、XAG/USD、WTI/USD、RoboForex 指数 CFD
+- **Pro 群组机器人接管** — 非 Pro 会员自动踢出，订阅时下发新邀请链接
+- **安全加固** — 魔法链接、OAuth、cron、SSRF、kill-switch 等多处闭环
+
+完整列表见 [CHANGELOG.md](CHANGELOG.md)。
+
+---
+
 ## 为什么选择 TradeClaw？
 
 - **零订阅费** — 自托管，数据归你所有，完全免费
-- **真实信号** — RSI/MACD/EMA/布林带/随机指标多重确认评分，实时来自 Binance + Yahoo Finance
+- **真实信号** — RSI/MACD/EMA/布林带/随机指标多重确认评分，行情来自 market-data-hub（中枢），并以 Binance + Yahoo Finance 作为兜底
 - **开发者优先** — REST API、CLI（`npx tradeclaw`）、Webhooks、插件系统、适用于 AI 助手的 MCP 服务器
 - **120+ 页面** — 仪表盘、回测、筛选器、模拟交易、Telegram 机器人、信号回放等
 
@@ -63,6 +76,8 @@ npx tradeclaw signals --pair BTCUSD --limit 5
 | 🧠 **AI** | 适用于 Claude Desktop 的 MCP 服务器，AI 信号解释 |
 | 📈 **回测** | Canvas 图表含 RSI/MACD 叠加层、CSV 导出、月度热力图 |
 | 🎮 **模拟交易** | 虚拟 $10,000 资金，自动跟随信号，净值曲线 |
+| 🛰️ **行情中枢** | market-data-hub 优先 + Binance/Yahoo 兜底，OHLCV 不缓存合成数据 |
+| 💼 **券商执行（Pro）** | Binance USDT 永续（测试网）+ RoboForex R StocksTrader 桥接 |
 
 ## TradeClaw 对比竞品
 

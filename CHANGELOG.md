@@ -8,10 +8,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+_No changes yet._
+
+---
+
+## [0.5.0] — 2026-05-09
+
 ### Added
-- OpenAPI 3.0.3 spec endpoint at `/api/openapi` — download the full spec to integrate with any HTTP client
-- Interactive API playground at `/api-docs` — try every endpoint directly in the browser with curl/Python/JS snippets
-- GitHub community files: issue templates (bug, feature, signal question), PR template, FUNDING.yml, CODEOWNERS
+- **Track 1 broker execution** — live order placement against Binance USDT-perp futures (testnet by default) via `apps/web/lib/execution/`, with notional-equity fallback when account balance reads as zero, and `scripts/launch-binance-testnet.sh` to bootstrap and verify a fresh testnet account end-to-end
+- **RoboForex R StocksTrader bridge** — bridge interface + symbol map for forex/CFD execution; symbol resolver maps TradeClaw pairs to RST contract specs before order placement
+- **TradeClaw → Binance symbol resolver** — runtime mapping (`BTC/USD` → `BTCUSDT`, etc.) before any order placement; protects against silent fills on the wrong instrument
+- **Market-data-hub as primary quote source** — new `MARKET_DATA_HUB_URL` env, hub-first architecture for `/api/prices`, OHLCV, and SSE streams, with two thin survival fallbacks (Binance for crypto, Yahoo for the rest)
+- **21 hub-pending symbols pre-wired** — symbol registry advertises pending coverage so the hub team can light them up server-side without a TradeClaw redeploy
+- **Symbol expansion** — AMD, MU, GOOGL, AMZN, META US equities; XAG/USD silver; WTI/USD as distinct from BRENT/USD; RoboForex index CFDs replacing the ETF proxies on the landing hero
+- **OpenAPI 3.0.3 spec endpoint** at `/api/openapi` — download the full spec to integrate with any HTTP client
+- **Interactive API playground** at `/api-docs` — try every endpoint directly in the browser with curl / Python / JS snippets
+- **Telegram Pro group auto-gating** — bot owns Pro group membership, auto-kicks any member without an active Pro tier, and issues fresh invite links on subscribe
+- **Pro tier landing badges** — hero signals show Pro tier status; sparklines hydrate with live hub prices instead of static demo data
+- **User profile in navbar** — member and admin links split into separate menus
+- **Cron-signals pipeline counters** — `/api/cron/signals` response now exposes catchup counters for hub observability
+- **Per-request source-distribution log** — every `/api/prices` request emits a hub-vs-fallback distribution line for observability
+- **GitHub community files**: issue templates (bug, feature, signal question), PR template, FUNDING.yml, CODEOWNERS
+
+### Changed
+- **Crypto primary quote source switched from CoinGecko to Binance** — lower latency, no public-API rate-limit cliff
+- **Prices / OHLCV / SSE collapsed to hub-first** — three separate provider chains replaced with a single hub-first path plus two survival fallbacks; ~40% less code in the data layer
+- **Pro broadcast catchup** — signals recorded by request path but never broadcast are now caught up by the cron pipeline instead of being silently dropped
+- **Signal resolution pending window widened from 14 to 30 days** — surfaces slow-resolving setups that previously timed out as `pending`
+
+### Fixed
+- **OHLCV no longer caches synthetic data** — fallback responses bypass the cache so a single hub blip can't lock the dashboard into stale synthetic candles
+- **OHLCV preserves real data when fallbacks return empty** — empty fallback responses no longer overwrite a previous good cache entry
+- **`MARKET_DATA_HUB_URL` tolerates missing `https://` prefix** — accidental bare-host config no longer breaks startup
+- **Alert creation has live-price fallback** — alerts can be created against symbols whose last-known price is stale, by fetching live on demand
+
+### Security
+- **Magic-link auth hardened** — single-use enforcement, tighter token expiry, scrubbed error responses
+- **OAuth callback re-validates `state.next`** — open-redirect closed; cookies default to `Secure`
+- **SSRF allowlist** on outbound webhook + premium-feed fetches; v1 tier-leak closed; EarningsEdge webhook auth verified
+- **Cron auth gaps closed** on `/api/cron/trial-reminders`, telegram, and TradingView routes
+- **Executor kill-switch fail-closed** — pg advisory lock held by a single client across the full execution path; logs scrubbed of order payloads
+- **Admin gate hardened** — constant-time compares for `tc_admin`; magic-link admin paths re-validated
+- **TradingView webhook 500 body scrubbed** — link-token no longer leaked in error responses
 
 ---
 
@@ -67,7 +105,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[Unreleased]: https://github.com/naimkatiman/tradeclaw/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/naimkatiman/tradeclaw/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/naimkatiman/tradeclaw/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/naimkatiman/tradeclaw/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/naimkatiman/tradeclaw/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/naimkatiman/tradeclaw/compare/v0.1.0...v0.2.0

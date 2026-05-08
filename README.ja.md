@@ -18,10 +18,23 @@
 
 ---
 
+## 0.5.0 の新機能（2026-05-09）
+
+- **ブローカー執行レイヤー始動** — Binance USDT 無期限先物（既定はテストネット）+ RoboForex R StocksTrader ブリッジ
+- **Market-Data-Hub 優先アーキテクチャ** — `/api/prices`、OHLCV、SSE がハブ優先に統一、二段の薄いフォールバック付き
+- **暗号資産の主データ源を切替** — CoinGecko → Binance
+- **新規シンボル** — AMD、MU、GOOGL、AMZN、META、XAG/USD、WTI/USD、RoboForex 指数 CFD
+- **Pro グループのボット管理** — Pro でないメンバーは自動キック、加入時に新規招待リンク
+- **セキュリティ強化** — マジックリンク、OAuth、cron、SSRF、kill-switch などを全面修正
+
+詳細は [CHANGELOG.md](CHANGELOG.md) を参照。
+
+---
+
 ## TradeClaw を選ぶ理由
 
 - **サブスクリプション不要** — セルフホストで、データはあなたのもの、費用は$0
-- **リアルなシグナル** — RSI/MACD/EMA/ボリンジャーバンド/ストキャスティクスの複合スコアリング、Binance + Yahoo Finance からリアルタイム取得
+- **リアルなシグナル** — RSI/MACD/EMA/ボリンジャーバンド/ストキャスティクスの複合スコアリング、market-data-hub（ハブ）から取得、Binance + Yahoo Finance がフォールバック
 - **開発者ファースト** — REST API、CLI（`npx tradeclaw`）、Webhook、プラグイン、AIアシスタント向けMCPサーバー
 - **120以上のページ** — ダッシュボード、バックテスト、スクリーナー、ペーパートレード、Telegramボット、シグナルリプレイなど
 
@@ -63,6 +76,8 @@ npx tradeclaw signals --pair BTCUSD --limit 5
 | 🧠 **AI** | Claude Desktop向けMCPサーバー、AIシグナル解説 |
 | 📈 **バックテスト** | RSI/MACDオーバーレイ付きCanvasチャート、CSVエクスポート、月次ヒートマップ |
 | 🎮 **ペーパートレード** | 仮想$10,000ポートフォリオ、シグナル自動追従、資産曲線 |
+| 🛰️ **データハブ** | market-data-hub 優先 + Binance/Yahoo フォールバック、OHLCV は合成データをキャッシュしない |
+| 💼 **ブローカー執行（Pro）** | Binance USDT 無期限（テストネット）+ RoboForex R StocksTrader ブリッジ |
 
 ## TradeClaw vs 競合他社
 

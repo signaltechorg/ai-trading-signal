@@ -18,10 +18,23 @@
 
 ---
 
+## 0.5.0 새로운 기능 (2026-05-09)
+
+- **브로커 실행 레이어 출시** — Binance USDT 무기한 선물(기본값 테스트넷) + RoboForex R StocksTrader 브리지
+- **Market-Data-Hub 우선 아키텍처** — `/api/prices`, OHLCV, SSE 가 모두 허브 우선으로 통합되고 두 단계의 얇은 폴백 사용
+- **암호화폐 주 데이터 소스 전환** — CoinGecko → Binance
+- **신규 심볼** — AMD, MU, GOOGL, AMZN, META, XAG/USD, WTI/USD, RoboForex 지수 CFD
+- **Pro 그룹 봇 관리** — Pro 가 아닌 멤버는 자동 추방, 구독 시 새 초대 링크 발급
+- **보안 강화** — 매직 링크, OAuth, cron, SSRF, kill-switch 등 전반 패치
+
+전체 내역은 [CHANGELOG.md](CHANGELOG.md) 참조.
+
+---
+
 ## TradeClaw를 선택하는 이유
 
 - **구독료 없음** — 셀프 호스팅으로 데이터를 직접 소유, 비용 $0
-- **실제 시그널** — RSI/MACD/EMA/볼린저 밴드/스토캐스틱 복합 점수 산출, Binance + Yahoo Finance에서 실시간 수신
+- **실제 시그널** — RSI/MACD/EMA/볼린저 밴드/스토캐스틱 복합 점수 산출, market-data-hub(허브)에서 수신하며 Binance + Yahoo Finance 가 폴백
 - **개발자 친화적** — REST API, CLI(`npx tradeclaw`), 웹훅, 플러그인, AI 어시스턴트용 MCP 서버
 - **120개 이상의 페이지** — 대시보드, 백테스트, 스크리너, 모의 거래, 텔레그램 봇, 시그널 리플레이 등
 
@@ -63,6 +76,8 @@ npx tradeclaw signals --pair BTCUSD --limit 5
 | 🧠 **AI** | Claude Desktop용 MCP 서버, AI 시그널 해설 |
 | 📈 **백테스트** | RSI/MACD 오버레이가 포함된 Canvas 차트, CSV 내보내기, 월간 히트맵 |
 | 🎮 **모의 거래** | 가상 $10,000 포트폴리오, 시그널 자동 추종, 자본 곡선 |
+| 🛰️ **데이터 허브** | market-data-hub 우선 + Binance/Yahoo 폴백, OHLCV는 합성 데이터를 캐시하지 않음 |
+| 💼 **브로커 실행 (Pro)** | Binance USDT 무기한 (테스트넷) + RoboForex R StocksTrader 브리지 |
 
 ## TradeClaw vs 경쟁 서비스
 
