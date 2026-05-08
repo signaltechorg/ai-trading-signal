@@ -110,7 +110,8 @@ export async function GET(request: NextRequest) {
       authProvider: 'google',
     });
     userId = user.id;
-  } catch {
+  } catch (err) {
+    console.error('[auth/google/callback] upsertUserProfile failed:', err);
     return errorRedirect(request, 'user_upsert_failed');
   }
 

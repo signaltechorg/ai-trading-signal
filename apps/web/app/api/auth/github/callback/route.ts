@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
       authProvider: 'github',
     });
     userId = user.id;
-  } catch {
+  } catch (err) {
+    console.error('[auth/github/callback] upsertUserProfile failed:', err);
     return errorRedirect(request, 'user_upsert_failed');
   }
 
