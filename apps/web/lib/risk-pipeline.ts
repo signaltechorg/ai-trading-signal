@@ -27,6 +27,11 @@ import { getDominantRegime } from './regime-filter';
 import { getPortfolio, getDemoUserId, type Portfolio } from './paper-trading';
 import { verifyRiskWithLlm, type LlmRiskVerification } from './llm-risk-verify';
 
+// Notional equity used when no demo-user portfolio is available so the
+// allocator has a non-zero base. Pro broadcasts must not silently mute on a
+// missing PUBLIC_WIDGET_DEMO_USER_ID — see Step 3 in runRiskPipeline.
+const NOTIONAL_EQUITY_FALLBACK = 10_000;
+
 // ── Types ────────────────────────────────────────────────────
 
 interface SignalForPipeline {
@@ -112,19 +117,25 @@ export async function runRiskPipeline(
   }
 
   // Step 3: For each signal — allocate + veto.
-  // Portfolio state comes from the operator's demo-user paper account; if no
-  // PUBLIC_WIDGET_DEMO_USER_ID is set, we fall back to a zeroed shell so the
-  // pipeline still evaluates breakers + veto without a real portfolio.
+  // Portfolio state comes from the operator's demo-user paper account. When
+  // PUBLIC_WIDGET_DEMO_USER_ID is unset (or fetch fails), fall back to
+  // NOTIONAL_EQUITY_FALLBACK so the allocator can still size positions.
+  // The earlier zeroed-shell fallback caused totalEquity=0 → allocator
+  // rejected every signal as "Portfolio equity is zero or negative" → veto
+  // chain muted Pro broadcasts entirely. Circuit breakers and per-signal
+  // vetoes still run on the notional path; only the no-portfolio trap is
+  // removed.
   const operatorId = getDemoUserId();
   const portfolio: Portfolio | null = operatorId
     ? await getPortfolio(operatorId).catch(() => null)
     : null;
-  const balance = portfolio?.balance ?? 0;
+  const balance = portfolio?.balance ?? NOTIONAL_EQUITY_FALLBACK;
   const positions = portfolio?.positions ?? [];
+  const positionsValue = positions.reduce((sum, p) => sum + p.quantity, 0);
   const portfolioState = {
-    totalEquity: balance + positions.reduce((sum, p) => sum + p.quantity, 0),
+    totalEquity: balance + positionsValue,
     cash: balance,
-    positionsValue: positions.reduce((sum, p) => sum + p.quantity, 0),
+    positionsValue,
     openPositions: positions.map((p) => ({
       symbol: p.symbol,
       direction: p.direction as 'BUY' | 'SELL',
