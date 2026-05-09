@@ -26,13 +26,14 @@ export default function SocialQueuePage() {
   const [loading, setLoading] = useState(true);
 
   const fetchPosts = useCallback(async () => {
-    const secret = localStorage.getItem('admin_secret') ?? '';
     const url = filter
       ? `/api/admin/social-queue?status=${filter}`
       : '/api/admin/social-queue';
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${secret}` },
-    });
+    const res = await fetch(url);
+    if (res.status === 401) {
+      window.location.href = '/admin/login?redirect=/admin/social-queue';
+      return;
+    }
     if (res.ok) {
       const data = await res.json();
       setPosts(data.posts);
@@ -43,34 +44,21 @@ export default function SocialQueuePage() {
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
   const doAction = async (action: string, id: string) => {
-    const secret = localStorage.getItem('admin_secret') ?? '';
-    await fetch('/api/admin/social-queue', {
+    const res = await fetch('/api/admin/social-queue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, id }),
     });
+    if (res.status === 401) {
+      window.location.href = '/admin/login?redirect=/admin/social-queue';
+      return;
+    }
     fetchPosts();
   };
 
   return (
     <main className="mx-auto max-w-6xl p-6">
       <h1 className="mb-6 text-2xl font-bold">Social Post Queue</h1>
-
-      {/* Auth prompt */}
-      <div className="mb-4 flex items-center gap-3">
-        <label className="text-sm text-zinc-400">Admin secret:</label>
-        <input
-          type="password"
-          className="rounded border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm"
-          placeholder="Enter admin secret"
-          defaultValue={typeof window !== 'undefined' ? localStorage.getItem('admin_secret') ?? '' : ''}
-          onChange={(e) => {
-            localStorage.setItem('admin_secret', e.target.value);
-          }}
-          onKeyDown={(e) => { if (e.key === 'Enter') fetchPosts(); }}
-        />
-        <button onClick={fetchPosts} className="rounded bg-zinc-700 px-3 py-1 text-sm hover:bg-zinc-600">Load</button>
-      </div>
 
       {/* Filter */}
       <div className="mb-6 flex gap-2">

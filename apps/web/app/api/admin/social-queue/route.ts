@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listQueue, approvePost, rejectPost, updateCopy } from '../../../../lib/social-queue';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? process.env.CRON_SECRET;
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 function isAuthorized(req: NextRequest): boolean {
   if (!ADMIN_SECRET) return false;
