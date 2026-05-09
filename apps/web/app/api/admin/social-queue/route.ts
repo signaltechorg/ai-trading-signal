@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listQueue, approvePost, rejectPost, updateCopy } from '../../../../lib/social-queue';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
-
-function isAuthorized(req: NextRequest): boolean {
-  if (!ADMIN_SECRET) return false;
-  const auth = req.headers.get('authorization');
-  return auth === `Bearer ${ADMIN_SECRET}`;
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const status = req.nextUrl.searchParams.get('status') as 'pending' | 'approved' | 'posted' | 'rejected' | null;
   const posts = await listQueue(status ?? undefined);
   return NextResponse.json({ posts });
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
   const { action, id, copy } = body as { action: string; id: string; copy?: string };
 
