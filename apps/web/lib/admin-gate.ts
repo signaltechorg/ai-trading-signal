@@ -64,8 +64,10 @@ export async function assertAdminApi(request: Request): Promise<NextResponse | n
       .map((c) => c.trim())
       .find((c) => c.startsWith('tc_admin='));
     if (match) {
-      const value = decodeURIComponent(match.slice('tc_admin='.length));
-      if (safeStringEqual(value, adminSecret)) return null;
+      try {
+        const value = decodeURIComponent(match.slice('tc_admin='.length));
+        if (safeStringEqual(value, adminSecret)) return null;
+      } catch { /* malformed encoded cookie — fall through to 401 */ }
     }
   }
 
@@ -92,8 +94,10 @@ export async function getAdminIdentityFromRequest(
       .map((c) => c.trim())
       .find((c) => c.startsWith('tc_admin='));
     if (match) {
-      const value = decodeURIComponent(match.slice('tc_admin='.length));
-      if (safeStringEqual(value, adminSecret)) return { via: 'secret' };
+      try {
+        const value = decodeURIComponent(match.slice('tc_admin='.length));
+        if (safeStringEqual(value, adminSecret)) return { via: 'secret' };
+      } catch { /* malformed encoded cookie — fall through to null */ }
     }
   }
 

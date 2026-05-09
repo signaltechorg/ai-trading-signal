@@ -49,7 +49,7 @@ export async function grantProAction(
       action: 'pro_grant',
       target: emailRaw.toLowerCase(),
       payload: { note: noteRaw || null, expiresAt: expiresAt?.toISOString() ?? null },
-    }).catch(() => {});
+    }).catch((err) => console.error('[admin-audit-log] insert failed:', err));
     invalidateProGrantsCache();
     revalidatePath('/admin/pro-grants');
     return { ok: true, message: `Granted Pro to ${emailRaw.toLowerCase()}.` };
@@ -71,16 +71,18 @@ export async function revokeProAction(
 
   try {
     const ok = await revokeProEmailGrant(emailRaw, revokedBy);
+    if (ok) {
+      await insertAdminAuditLog({
+        actor: revokedBy,
+        via: grant.via,
+        action: 'pro_revoke',
+        target: emailRaw.toLowerCase(),
+        payload: null,
+      }).catch((err) => console.error('[admin-audit-log] insert failed:', err));
+    }
     invalidateProGrantsCache();
     revalidatePath('/admin/pro-grants');
     if (!ok) return { ok: false, message: `No active grant found for ${emailRaw.toLowerCase()}.` };
-    await insertAdminAuditLog({
-      actor: revokedBy,
-      via: grant.via,
-      action: 'pro_revoke',
-      target: emailRaw.toLowerCase(),
-      payload: null,
-    }).catch(() => {});
     return { ok: true, message: `Revoked Pro for ${emailRaw.toLowerCase()}.` };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

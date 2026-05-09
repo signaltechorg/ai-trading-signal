@@ -19,19 +19,21 @@ export async function POST(req: NextRequest) {
   const actor = identity?.email ?? 'tc_admin';
   const via = identity?.via ?? 'secret';
 
+  const logAuditFailure = (err: unknown) => console.error('[admin-audit-log] insert failed:', err);
+
   switch (action) {
     case 'approve':
       await approvePost(id);
-      await insertAdminAuditLog({ actor, via, action: 'social_approve', target: id, payload: null }).catch(() => {});
+      await insertAdminAuditLog({ actor, via, action: 'social_approve', target: id, payload: null }).catch(logAuditFailure);
       break;
     case 'reject':
       await rejectPost(id);
-      await insertAdminAuditLog({ actor, via, action: 'social_reject', target: id, payload: null }).catch(() => {});
+      await insertAdminAuditLog({ actor, via, action: 'social_reject', target: id, payload: null }).catch(logAuditFailure);
       break;
     case 'update_copy':
       if (!copy) return NextResponse.json({ error: 'Missing copy' }, { status: 400 });
       await updateCopy(id, copy);
-      await insertAdminAuditLog({ actor, via, action: 'social_update_copy', target: id, payload: { copy } }).catch(() => {});
+      await insertAdminAuditLog({ actor, via, action: 'social_update_copy', target: id, payload: { copy } }).catch(logAuditFailure);
       break;
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
