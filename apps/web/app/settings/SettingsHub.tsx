@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CreditCard,
   LogIn,
+  LogOut,
   ShieldCheck,
 } from 'lucide-react';
 import { useUserSession, type ClientSession } from '../../lib/hooks/use-user-tier';
@@ -71,6 +72,32 @@ function PageShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     </div>
+  );
+}
+
+async function signOut(): Promise<void> {
+  try {
+    await fetch('/api/auth/session', { method: 'DELETE' });
+  } finally {
+    window.location.href = '/';
+  }
+}
+
+function SignOutButton() {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setBusy(true);
+        void signOut();
+      }}
+      disabled={busy}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#141414] border border-[#2a2a2a] text-zinc-400 rounded-lg hover:border-red-500/30 hover:text-red-400 transition-colors disabled:opacity-40"
+    >
+      <LogOut className="h-3.5 w-3.5" />
+      {busy ? 'Signing out…' : 'Sign out'}
+    </button>
   );
 }
 
@@ -243,6 +270,21 @@ export default function SettingsHub() {
                 description="Push signals to any HTTP endpoint, with optional HMAC-SHA256 signing."
               />
             </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3 px-1">
+              Account
+            </h2>
+            <Card className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-zinc-300">Sign out of this session</p>
+                <p className="text-xs text-zinc-600 mt-0.5">
+                  Clears the session cookie on this browser. Other devices stay signed in.
+                </p>
+              </div>
+              <SignOutButton />
+            </Card>
           </div>
         </>
       )}
