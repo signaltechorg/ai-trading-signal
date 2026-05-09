@@ -71,3 +71,31 @@ export async function assertAdminApi(request: Request): Promise<NextResponse | n
 
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
+
+// Why: non-redirecting identity for audit attribution from API routes (middleware already gated).
+export async function getAdminIdentityFromRequest(
+  request: Request,
+): Promise<{ via: 'email' | 'secret'; email?: string } | null> {
+  const session = readSessionFromRequest(request);
+  if (session?.userId) {
+    const user = await getUserById(session.userId);
+    if (user?.email && isAdminEmail(user.email)) {
+      return { via: 'email', email: user.email };
+    }
+  }
+
+  const cookieHeader = request.headers.get('cookie') ?? '';
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (adminSecret) {
+    const match = cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('tc_admin='));
+    if (match) {
+      const value = decodeURIComponent(match.slice('tc_admin='.length));
+      if (safeStringEqual(value, adminSecret)) return { via: 'secret' };
+    }
+  }
+
+  return null;
+}

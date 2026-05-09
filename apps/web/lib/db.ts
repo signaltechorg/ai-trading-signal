@@ -680,3 +680,30 @@ export async function listActiveProEmailGrants(): Promise<ProEmailGrantRecord[]>
   return rows.map(toProEmailGrantRecord);
 }
 
+// ---------------------------------------------------------------------------
+// Admin audit log (admin-granted actions, append-only)
+// Maps to migrations/028_admin_audit_log.sql
+// ---------------------------------------------------------------------------
+
+export interface AdminAuditLogInput {
+  actor: string;
+  via: 'email' | 'secret';
+  action: string;
+  target?: string | null;
+  payload?: unknown;
+}
+
+export async function insertAdminAuditLog(input: AdminAuditLogInput): Promise<void> {
+  await execute(
+    `INSERT INTO admin_audit_log (actor, via, action, target, payload)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [
+      input.actor,
+      input.via,
+      input.action,
+      input.target ?? null,
+      input.payload === undefined ? null : JSON.stringify(input.payload),
+    ],
+  );
+}
+
