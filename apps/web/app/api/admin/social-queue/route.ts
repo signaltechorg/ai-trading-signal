@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listQueue, approvePost, rejectPost, updateCopy } from '../../../../lib/social-queue';
+import { getAdminIdentityFromRequest } from '../../../../lib/admin-gate';
+import { insertAdminAuditLog } from '../../../../lib/db';
 
 export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get('status') as 'pending' | 'approved' | 'posted' | 'rejected' | null;
@@ -13,16 +15,23 @@ export async function POST(req: NextRequest) {
 
   if (!action || !id) return NextResponse.json({ error: 'Missing action or id' }, { status: 400 });
 
+  const identity = await getAdminIdentityFromRequest(req);
+  const actor = identity?.email ?? 'tc_admin';
+  const via = identity?.via ?? 'secret';
+
   switch (action) {
     case 'approve':
       await approvePost(id);
+      await insertAdminAuditLog({ actor, via, action: 'social_approve', target: id, payload: null }).catch(() => {});
       break;
     case 'reject':
       await rejectPost(id);
+      await insertAdminAuditLog({ actor, via, action: 'social_reject', target: id, payload: null }).catch(() => {});
       break;
     case 'update_copy':
       if (!copy) return NextResponse.json({ error: 'Missing copy' }, { status: 400 });
       await updateCopy(id, copy);
+      await insertAdminAuditLog({ actor, via, action: 'social_update_copy', target: id, payload: { copy } }).catch(() => {});
       break;
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

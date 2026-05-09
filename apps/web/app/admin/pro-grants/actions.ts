@@ -3,7 +3,7 @@
 import 'server-only';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '../../../lib/admin-gate';
-import { addProEmailGrant, revokeProEmailGrant } from '../../../lib/db';
+import { addProEmailGrant, revokeProEmailGrant, insertAdminAuditLog } from '../../../lib/db';
 import { invalidateProGrantsCache } from '../../../lib/admin-emails';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,6 +43,13 @@ export async function grantProAction(
 
   try {
     await addProEmailGrant(emailRaw, grantedBy, noteRaw || null, expiresAt);
+    await insertAdminAuditLog({
+      actor: grantedBy,
+      via: grant.via,
+      action: 'pro_grant',
+      target: emailRaw.toLowerCase(),
+      payload: { note: noteRaw || null, expiresAt: expiresAt?.toISOString() ?? null },
+    }).catch(() => {});
     invalidateProGrantsCache();
     revalidatePath('/admin/pro-grants');
     return { ok: true, message: `Granted Pro to ${emailRaw.toLowerCase()}.` };
@@ -67,6 +74,13 @@ export async function revokeProAction(
     invalidateProGrantsCache();
     revalidatePath('/admin/pro-grants');
     if (!ok) return { ok: false, message: `No active grant found for ${emailRaw.toLowerCase()}.` };
+    await insertAdminAuditLog({
+      actor: revokedBy,
+      via: grant.via,
+      action: 'pro_revoke',
+      target: emailRaw.toLowerCase(),
+      payload: null,
+    }).catch(() => {});
     return { ok: true, message: `Revoked Pro for ${emailRaw.toLowerCase()}.` };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
