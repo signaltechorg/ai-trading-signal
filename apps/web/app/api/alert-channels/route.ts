@@ -34,14 +34,22 @@ const UpsertSchema = z.object({
 export async function GET(req: NextRequest) {
   const session = readSessionFromRequest(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const [configs, user] = await Promise.all([
-    getChannelConfigsForUser(session.userId),
-    getUserById(session.userId),
-  ]);
-  return NextResponse.json({
-    configs,
-    telegramBotLinked: !!user?.telegramUserId,
-  });
+  try {
+    const [configs, user] = await Promise.all([
+      getChannelConfigsForUser(session.userId),
+      getUserById(session.userId),
+    ]);
+    return NextResponse.json({
+      configs,
+      telegramBotLinked: !!user?.telegramUserId,
+    });
+  } catch (err) {
+    console.error('[alert-channels] GET failed', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to load alert channels' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {

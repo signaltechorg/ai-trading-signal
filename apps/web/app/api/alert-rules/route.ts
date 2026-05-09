@@ -19,8 +19,16 @@ const CreateSchema = z.object({
 export async function GET(req: NextRequest) {
   const session = readSessionFromRequest(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const rules = await getAlertRulesForUser(session.userId);
-  return NextResponse.json({ rules });
+  try {
+    const rules = await getAlertRulesForUser(session.userId);
+    return NextResponse.json({ rules });
+  } catch (err) {
+    console.error('[alert-rules] GET failed', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to load alert rules' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {

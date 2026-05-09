@@ -1,5 +1,6 @@
 /**
- * Alert Rules DB — CRUD helpers for alert_rules and alert_channel_configs tables.
+ * Alert Rules DB — CRUD helpers for user_alert_rules and user_channel_configs tables.
+ * Schema: supabase/migrations/20260416_alert_rules.sql.
  * Uses the same db-pool pattern as signal-history.ts.
  */
 
@@ -51,7 +52,7 @@ export function signalMatchesRule(signal: SignalInput, rule: AlertRule): boolean
 export async function getAlertRulesForUser(userId: string): Promise<AlertRule[]> {
   return query<AlertRule>(
     `SELECT id, user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled
-     FROM alert_rules
+     FROM user_alert_rules
      WHERE user_id = $1
      ORDER BY created_at DESC`,
     [userId]
@@ -61,7 +62,7 @@ export async function getAlertRulesForUser(userId: string): Promise<AlertRule[]>
 export async function getAllEnabledRules(): Promise<AlertRule[]> {
   return query<AlertRule>(
     `SELECT id, user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled
-     FROM alert_rules
+     FROM user_alert_rules
      WHERE enabled = true
      ORDER BY created_at DESC`
   );
@@ -70,7 +71,7 @@ export async function getAllEnabledRules(): Promise<AlertRule[]> {
 export async function getChannelConfigsForUser(userId: string): Promise<ChannelConfig[]> {
   return query<ChannelConfig>(
     `SELECT id, user_id, channel, config, enabled
-     FROM alert_channel_configs
+     FROM user_channel_configs
      WHERE user_id = $1`,
     [userId]
   );
@@ -83,7 +84,7 @@ export async function upsertChannelConfig(
   enabled: boolean
 ): Promise<ChannelConfig> {
   const row = await queryOne<ChannelConfig>(
-    `INSERT INTO alert_channel_configs (user_id, channel, config, enabled)
+    `INSERT INTO user_channel_configs (user_id, channel, config, enabled)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (user_id, channel) DO UPDATE
        SET config = EXCLUDED.config,
@@ -101,7 +102,7 @@ export async function deleteChannelConfig(
   channel: ChannelConfig['channel'],
 ): Promise<boolean> {
   const rows = await query<{ id: string }>(
-    `DELETE FROM alert_channel_configs
+    `DELETE FROM user_channel_configs
      WHERE user_id = $1 AND channel = $2
      RETURNING id`,
     [userId, channel],
@@ -114,7 +115,7 @@ export async function createAlertRule(
   rule: Omit<AlertRule, 'id' | 'user_id'>
 ): Promise<AlertRule> {
   const row = await queryOne<AlertRule>(
-    `INSERT INTO alert_rules (user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled)
+    `INSERT INTO user_alert_rules (user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id, user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled`,
     [
@@ -124,7 +125,8 @@ export async function createAlertRule(
       rule.timeframe ?? null,
       rule.direction ?? null,
       rule.min_confidence,
-      JSON.stringify(rule.channels),
+      // channels is TEXT[] — pg driver maps a JS array to a Postgres array natively.
+      rule.channels,
       rule.enabled,
     ]
   );
@@ -144,11 +146,13 @@ export async function updateAlertRule(
   const setClauses = fields.map((f, i) => `${f} = $${i + 3}`).join(', ');
   const values = fields.map((f) => {
     const v = patch[f];
-    return Array.isArray(v) ? JSON.stringify(v) : (v ?? null);
+    // channels is TEXT[]; other array-typed fields don't exist on this row.
+    // Pass JS arrays directly so the pg driver maps them to Postgres arrays.
+    return v ?? null;
   });
 
   return queryOne<AlertRule>(
-    `UPDATE alert_rules
+    `UPDATE user_alert_rules
      SET ${setClauses}, updated_at = now()
      WHERE id = $1 AND user_id = $2
      RETURNING id, user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled`,
@@ -158,7 +162,7 @@ export async function updateAlertRule(
 
 export async function deleteAlertRule(id: string, userId: string): Promise<void> {
   await execute(
-    `DELETE FROM alert_rules WHERE id = $1 AND user_id = $2`,
+    `DELETE FROM user_alert_rules WHERE id = $1 AND user_id = $2`,
     [id, userId]
   );
 }
@@ -167,7 +171,7 @@ export async function deleteAlertRule(id: string, userId: string): Promise<void>
 async function getAlertRuleById(id: string, userId: string): Promise<AlertRule | null> {
   return queryOne<AlertRule>(
     `SELECT id, user_id, name, symbol, timeframe, direction, min_confidence, channels, enabled
-     FROM alert_rules
+     FROM user_alert_rules
      WHERE id = $1 AND user_id = $2`,
     [id, userId]
   );

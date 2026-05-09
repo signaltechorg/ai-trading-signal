@@ -14,7 +14,7 @@ import { isSafeOutboundUrl } from './safe-outbound-url';
  * normalized signal. Returns true on a successful HTTP response (2xx and
  * provider-ok if the provider exposes one). Never throws.
  *
- * Supported channels (matches alert_channel_configs.channel enum):
+ * Supported channels (matches user_channel_configs.channel enum):
  *   - 'telegram' — personal DM via Telegram bot. config: { botToken, chatId }
  *                  Falls back to TELEGRAM_BOT_TOKEN env var if botToken is
  *                  empty so users only need to provide their chat_id.

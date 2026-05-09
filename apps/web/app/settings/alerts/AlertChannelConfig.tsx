@@ -262,8 +262,11 @@ export default function AlertChannelConfigPanel() {
     fetch('/api/alert-channels')
       .then(async (r) => {
         if (r.status === 401) throw new Error('Sign in to manage alert channels.');
-        if (!r.ok) throw new Error('Failed to load');
-        return r.json();
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(typeof d.error === 'string' ? d.error : 'Failed to load alert channels');
+        }
+        return d;
       })
       .then((d) => {
         setConfigs(d.configs ?? []);
