@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { BackgroundDecor } from '@/components/background/BackgroundDecor';
+
+// Why: prevents open-redirect — attacker can craft ?redirect=//evil.com or ?redirect=https://evil.com
+function isSafeRedirect(target: string | null): boolean {
+  if (!target || target.length < 2) return false;
+  if (target[0] !== '/') return false;
+  if (target[1] === '/' || target[1] === '\\') return false;
+  if (/[\r\n\t]/.test(target)) return false;
+  return true;
+}
 
 export function AdminLoginClient() {
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,8 +38,9 @@ export function AdminLoginClient() {
         return;
       }
 
-      // Redirect to dashboard on success
-      router.push('/dashboard');
+      const redirectTarget = searchParams.get('redirect');
+      const next = isSafeRedirect(redirectTarget) ? redirectTarget! : '/admin';
+      router.push(next);
     } catch {
       setError('Network error');
     } finally {
