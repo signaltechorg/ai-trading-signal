@@ -82,7 +82,7 @@ function CodeBlock({ code, title }: { code: string; title?: string }) {
 }
 
 const FEATURES = [
-  { icon: Zap, title: 'Live Signals', desc: 'Fetch real-time BUY/SELL signals with confidence scores' },
+  { icon: Zap, title: 'Live Signals', desc: 'Fetch fresh BUY/SELL signals (5-minute cadence) with confidence scores' },
   { icon: Shield, title: 'Deploy Gates', desc: 'Block deploys on SELL signals or low confidence' },
   { icon: BarChart3, title: 'Step Summary', desc: 'Rich signal report in your Actions run UI' },
   { icon: Clock, title: 'Scheduled Scans', desc: 'Cron-based multi-pair signal monitoring' },

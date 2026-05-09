@@ -49,7 +49,7 @@ export function TierBanner() {
             <span className="font-semibold uppercase text-amber-400">{session.tier}</span>
             <span className="text-zinc-500 hidden sm:inline">·</span>
             <span className="text-zinc-400 hidden sm:inline">
-              Real-time signals, all symbols, premium strategies unlocked
+              Instant signal delivery (no delay), all symbols, premium strategies unlocked
             </span>
           </div>
           <Link
@@ -72,7 +72,7 @@ export function TierBanner() {
           <span className="font-semibold text-zinc-400">FREE</span>
           <span className="text-zinc-600 hidden sm:inline">·</span>
           <span className="text-zinc-500 hidden sm:inline">
-            Locked 15 min after publish, 6 symbols, last 7 days. Real-time on Pro.
+            Locked 15 min after publish, 6 symbols, last 7 days. Instant delivery on Pro.
           </span>
         </div>
         <Link

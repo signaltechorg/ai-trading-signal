@@ -294,7 +294,7 @@ export default function WeeklyClient() {
             {/* CTA */}
             <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--glass-bg)] p-4">
               <div>
-                <p className="text-sm font-semibold">Want real-time signals?</p>
+                <p className="text-sm font-semibold">Want live signals every 5 minutes?</p>
                 <p className="text-[11px] text-[var(--text-secondary)]">
                   Avg confidence this week: {digest.stats.avgConfidence}%
                 </p>

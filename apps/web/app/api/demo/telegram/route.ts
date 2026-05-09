@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         : `✅ *Public Status:* ${escapeV2('delay-cleared preview')}`,
       '',
       escapeV2('Entry, take-profit, and stop-loss levels are hidden in this public demo.'),
-      escapeV2('Open the dashboard for delayed public signals or upgrade for full real-time delivery.'),
+      escapeV2('Open the dashboard for delayed public signals or upgrade for instant (no-delay) delivery on the 5-minute cron.'),
       '',
       escapeV2('📈 Powered by TradeClaw — tradeclaw.win'),
       escapeV2('⚠️ For educational purposes only. Not financial advice.'),

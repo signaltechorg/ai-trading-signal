@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'Live Pearson correlation heatmap across forex, crypto, and commodities. Identify diversification opportunities and correlated pairs.',
   openGraph: {
     title: 'Cross-Asset Correlation | TradeClaw',
-    description: 'Real-time correlation matrix: BTC, ETH, gold, silver, EUR/USD, GBP/USD, and more.',
+    description: 'Live correlation matrix: BTC, ETH, gold, silver, EUR/USD, GBP/USD, and more — refreshed every 5 minutes.',
   },
 };
 

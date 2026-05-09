@@ -447,7 +447,7 @@ export function BrokerSimClient() {
                 <li>• Auto-execute TradeClaw signals as market orders</li>
                 <li>• Apply position sizing from your risk settings</li>
                 <li>• Set SL/TP from signal levels automatically</li>
-                <li>• Stream real-time P&L back to the dashboard</li>
+                <li>• Stream live P&L back to the dashboard</li>
               </ul>
               <a
                 href="https://github.com/naimkatiman/tradeclaw/discussions"

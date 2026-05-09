@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: 'System performance metrics — latency, signal throughput, memory, and health monitoring.',
   openGraph: {
     title: 'Performance Dashboard | TradeClaw',
-    description: 'Real-time system health: signal generation latency, API response times, cache hit rates.',
+    description: 'Live system health: signal generation latency, API response times, cache hit rates.',
   },
 };
 

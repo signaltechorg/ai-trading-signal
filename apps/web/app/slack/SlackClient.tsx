@@ -209,7 +209,7 @@ export function SlackClient() {
             Slack <span className="text-zinc-400">Integration</span>
           </h1>
           <p className="text-zinc-400 text-sm sm:text-base max-w-lg mx-auto">
-            Get real-time AI trading signal alerts delivered directly to your Slack channels via incoming webhooks.
+            Get AI trading signal alerts delivered to your Slack channels via incoming webhooks — fired on the 5-minute signal cron.
           </p>
         </div>
 

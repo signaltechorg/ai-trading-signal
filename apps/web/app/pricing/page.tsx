@@ -15,7 +15,7 @@ const FREE_HISTORY_LABEL = TIER_HISTORY_DAYS.free
   : 'Full history';
 
 const FEATURES: Feature[] = [
-  { label: 'Signal delivery', free: '15-min delay', pro: 'Real-time' },
+  { label: 'Signal delivery', free: '15-min delay', pro: 'Instant (no delay)' },
   {
     label: 'Symbols covered',
     free: `${FREE_SYMBOLS.length} symbols across crypto, forex, commodities, indices`,
@@ -63,7 +63,7 @@ export default function PricingPage() {
             Stop renting your edge.
           </h1>
           <p className="mt-4 text-lg text-[var(--text-secondary)]">
-            Start free. Upgrade when you&apos;re ready for real-time signals, private groups, and full analytics.
+            Start free. Upgrade when you&apos;re ready for instant signal delivery, private groups, and full analytics.
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export default function PricingPage() {
               },
               {
                 q: 'Is the code really open source?',
-                a: 'Yes. TradeClaw is MIT-licensed on GitHub. You can self-host the entire framework. Pro is the hosted tier with real-time delivery, premium signals, and private Telegram access.',
+                a: 'Yes. TradeClaw is MIT-licensed on GitHub. You can self-host the entire framework. Pro is the hosted tier with instant (no-delay) signal delivery, premium signals, and private Telegram access. See /data-freshness for exact cadences.',
               },
             ].map(({ q, a }) => (
               <div key={q} className="rounded-xl border border-[var(--border)] bg-[var(--glass-bg)] p-5">

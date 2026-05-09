@@ -3,7 +3,7 @@ import NotificationsLoader from './NotificationsLoader';
 
 export const metadata: Metadata = {
   title: 'Signal Notifications | TradeClaw',
-  description: 'Enable browser push notifications for real-time trading signals. Configure per-pair alerts, confidence thresholds, and direction filters.',
+  description: 'Enable browser push notifications for live trading signals (5-minute cadence). Configure per-pair alerts, confidence thresholds, and direction filters.',
   openGraph: {
     title: 'Signal Notifications | TradeClaw',
     description: 'Get instant push notifications when high-confidence trading signals fire.',

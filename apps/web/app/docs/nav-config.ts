@@ -31,7 +31,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'Integrations',
     items: [
       { href: '/docs/api', label: 'API Reference', description: 'Full REST API documentation' },
-      { href: '/docs/webhooks', label: 'Webhooks', description: 'Real-time event delivery with HMAC signing' },
+      { href: '/docs/webhooks', label: 'Webhooks', description: 'Push event delivery with HMAC signing' },
       { href: '/docs/telegram', label: 'Telegram Bot', description: 'Bot setup and command reference' },
       { href: '/docs/plugins', label: 'Plugins', description: 'Custom indicator development' },
       { href: '/docs/embedding', label: 'Embedding', description: 'Embeddable widget for any website' },

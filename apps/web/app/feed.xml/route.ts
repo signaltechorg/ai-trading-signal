@@ -82,7 +82,7 @@ export async function GET() {
   <channel>
     <title>TradeClaw — Live AI Trading Signals</title>
     <link>${BASE_URL}</link>
-    <description>Real-time AI-generated trading signals for forex, crypto, and metals. Confidence-rated with TP/SL levels. Subscribe to get live signals in your RSS reader.</description>
+    <description>Live AI-generated trading signals for forex, crypto, and metals on a 5-minute cadence. Confidence-rated with TP/SL levels. Subscribe to get live signals in your RSS reader.</description>
     <language>en-us</language>
     <atom:link href="${BASE_URL}/feed.xml" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>

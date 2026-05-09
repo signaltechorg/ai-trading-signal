@@ -682,7 +682,7 @@ export function TrackRecordClient() {
         <div className="glass-card rounded-2xl p-5 mb-8 border-l-2 border-emerald-500/50">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold mb-0.5">Get These Signals in Real-Time</h3>
+              <h3 className="text-base font-bold mb-0.5">Get These Signals Without Delay</h3>
               <p className="text-xs text-[var(--text-secondary)]">
                 Instant Telegram alerts with entry, SL, and 3 TP levels.
               </p>

@@ -72,7 +72,7 @@ export async function GET() {
     home_page_url: BASE_URL,
     feed_url: `${BASE_URL}/feed.json`,
     description:
-      'Real-time AI-generated trading signals for forex, crypto, and metals. Confidence-rated with TP/SL levels. Subscribe to get live signals in any JSON Feed reader.',
+      'Live AI-generated trading signals for forex, crypto, and metals on a 5-minute cadence. Confidence-rated with TP/SL levels. Subscribe to get live signals in any JSON Feed reader.',
     favicon: `${BASE_URL}/favicon.ico`,
     authors: [{ name: 'TradeClaw', url: BASE_URL }],
     language: 'en-US',

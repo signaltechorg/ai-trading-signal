@@ -115,7 +115,7 @@ export default function DeveloperClient() {
             TradeClaw <span className="text-emerald-400">Developer API</span>
           </h1>
           <p className="text-[var(--text-secondary)] text-sm max-w-xl">
-            Access real-time trading signals programmatically. Free tier includes 1,000 requests/day.
+            Access live trading signals (5-minute cadence) programmatically. Free tier includes 1,000 requests/day.
           </p>
         </div>
 

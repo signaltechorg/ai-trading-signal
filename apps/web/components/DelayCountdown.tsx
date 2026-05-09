@@ -75,7 +75,7 @@ export function DelayCountdown({
         href="/pricing?from=delay"
         className="shrink-0 rounded-md bg-emerald-500 px-3 py-1 text-xs font-semibold text-black transition-colors hover:bg-emerald-400"
       >
-        Upgrade for real-time
+        Upgrade for instant delivery
       </Link>
     </div>
   );

@@ -211,7 +211,7 @@ export default function NewsClient({ initial }: { initial: NewsData }) {
             <span className="text-emerald-400">&times;</span> Live Signals
           </h1>
           <p className="text-sm text-zinc-400 max-w-lg mx-auto">
-            CoinGecko&apos;s hottest coins matched with real-time TradeClaw trading signals.
+            CoinGecko&apos;s hottest coins matched with TradeClaw trading signals.
             Auto-refreshes every 5 minutes.
           </p>
         </div>

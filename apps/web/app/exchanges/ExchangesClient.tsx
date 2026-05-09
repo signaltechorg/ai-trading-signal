@@ -300,7 +300,7 @@ export default function ExchangesClient() {
               },
               {
                 icon: RefreshCw,
-                title: 'Real-time Data',
+                title: 'Live Data',
                 desc: 'Live orderbooks, OHLCV candles, tickers, and account balances.',
               },
             ].map((item) => (

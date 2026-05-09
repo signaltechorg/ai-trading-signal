@@ -78,7 +78,7 @@ export default function ProfileWidgetClient() {
             <span className="text-emerald-400">GitHub Profile README</span>
           </h1>
           <p className="text-lg text-white/60 max-w-2xl mx-auto mb-8">
-            One line of Markdown. Real-time BUY/SELL signals. Updates automatically.
+            One line of Markdown. Live BUY/SELL signals refreshed every 5 minutes. Updates automatically.
             100M+ GitHub profiles — be the one with live trading signals.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">

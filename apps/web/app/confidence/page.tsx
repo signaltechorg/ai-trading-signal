@@ -4,7 +4,7 @@ import ConfidenceClient from './ConfidenceClient';
 export const metadata: Metadata = {
   title: 'Confidence Score Calculator | How TradeClaw Scores Signals',
   description:
-    'Interactive slider tool showing exactly how TradeClaw computes signal confidence scores. Drag the indicators and watch the algorithm score your setup in real time.',
+    'Interactive slider tool showing exactly how TradeClaw computes signal confidence scores. Drag the indicators and watch the algorithm score your setup live.',
   keywords: [
     'trading signal confidence',
     'RSI MACD EMA scoring',

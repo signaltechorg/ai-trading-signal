@@ -295,7 +295,7 @@ export default function WaitlistClient() {
           {[
             {
               icon: Timer,
-              title: 'Real-Time Signals',
+              title: 'Live Signals (5-min)',
               desc: 'AI-powered BUY/SELL signals across forex, crypto, and metals',
             },
             {

@@ -65,7 +65,7 @@ export function DataSourceBadge({ source }: DataSourceBadgeProps) {
     <span
       className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded font-mono leading-none select-none"
       style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}
-      title={`Price data sourced from ${source} in real-time`}
+      title={`Price data sourced from ${source}. See /data-freshness for cadence.`}
     >
       <span
         className="h-1 w-1 rounded-full shrink-0"

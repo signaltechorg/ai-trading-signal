@@ -25,6 +25,7 @@ const FOOTER_LINKS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "GitHub", href: GITHUB_URL, external: true },
       { label: "Documentation", href: `${GITHUB_URL}#readme`, external: true },
+      { label: "Data freshness", href: "/data-freshness" },
       {
         label: "Docker Hub",
         href: "https://hub.docker.com",

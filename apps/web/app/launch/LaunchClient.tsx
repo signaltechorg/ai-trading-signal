@@ -10,7 +10,7 @@ import type { LucideIcon } from 'lucide-react';
 const FEATURES: Array<{ icon: LucideIcon; title: string; desc: string }> = [
   {
     icon: Radio,
-    title: 'Real-time Signals',
+    title: 'Live Signals (5-min)',
     desc: 'RSI, MACD, EMA-20/50/200, Bollinger Bands — multi-indicator confluence scoring across 12 forex, crypto & metal pairs.',
   },
   {
@@ -21,12 +21,12 @@ const FEATURES: Array<{ icon: LucideIcon; title: string; desc: string }> = [
   {
     icon: Briefcase,
     title: 'Paper Trading',
-    desc: 'Simulate trades on live prices with a virtual portfolio. Track open P&L, equity curve, and performance stats in real time.',
+    desc: 'Simulate trades on live prices with a virtual portfolio. Track open P&L, equity curve, and performance stats live.',
   },
   {
     icon: Bot,
     title: 'Telegram Bot',
-    desc: 'Subscribe to real-time buy/sell alerts in your Telegram chat. Filter by pair and minimum confidence — no app required.',
+    desc: 'Subscribe to buy/sell alerts in your Telegram chat — fired on the 5-minute signal cron. Filter by pair and minimum confidence — no app required.',
   },
   {
     icon: Wrench,
@@ -55,10 +55,10 @@ const FIRST_COMMENT = `Hey Product Hunt! 👋 I'm Naim, the maker of TradeClaw.
 
 I built TradeClaw because I was tired of paying $50–$300/month for trading signal platforms that I couldn't audit, customize, or trust. Every "AI" signal was a black box. So I open-sourced one.
 
-TradeClaw gives you real-time buy/sell signals for 12 forex, crypto & metal pairs — powered by RSI, MACD, EMA-20/50/200, and Bollinger Bands confluence scoring. You self-host it on your own VPS or even a Raspberry Pi. One command: \`docker compose up\`.
+TradeClaw gives you fresh buy/sell signals every 5 minutes for 12 forex, crypto & metal pairs — powered by RSI, MACD, EMA-20/50/200, and Bollinger Bands confluence scoring. You self-host it on your own VPS or even a Raspberry Pi. One command: \`docker compose up\`.
 
 What you get:
-• Real-time signals with multi-indicator confluence scoring
+• Live signals on a 5-minute cron with multi-indicator confluence scoring
 • Full backtesting engine with Sharpe ratio, win rate & drawdown metrics
 • Paper trading simulator with live P&L tracking
 • Telegram bot for instant buy/sell notifications

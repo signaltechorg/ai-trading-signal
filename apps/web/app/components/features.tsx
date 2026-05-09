@@ -36,7 +36,7 @@ const features: { Icon: LucideIcon; title: string; description: string }[] = [
     Icon: DollarSign,
     title: "Paper Trading",
     description:
-      "Practice with virtual money. Track P&L, win rate, and drawdown in real-time before going live.",
+      "Practice with virtual money. Track P&L, win rate, and drawdown live as fills occur, before going live.",
   },
   {
     Icon: Lock,

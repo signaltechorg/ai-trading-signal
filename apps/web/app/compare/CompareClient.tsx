@@ -63,7 +63,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
     threecommas: true,
   },
   {
-    feature: 'Real-time signals',
+    feature: 'Live signals (5-min cadence)',
     tradeclaw: true,
     tradingview: true,
     talib: false,
@@ -196,11 +196,11 @@ const FAQS = [
   },
   {
     q: 'Why not just use TA-Lib?',
-    a: 'TA-Lib is a powerful low-level C library, but it is just that — a library. There is no web dashboard, no real-time feeds, no alerts, no REST API, and no deployment story. Installation is notoriously tricky on modern systems. TradeClaw wraps all the indicator math in a full-stack platform with a UI, API, and Docker deploy — so you get TA-Lib-level performance without any of the plumbing.',
+    a: 'TA-Lib is a powerful low-level C library, but it is just that — a library. There is no web dashboard, no live feeds, no alerts, no REST API, and no deployment story. Installation is notoriously tricky on modern systems. TradeClaw wraps all the indicator math in a full-stack platform with a UI, API, and Docker deploy — so you get TA-Lib-level performance without any of the plumbing.',
   },
   {
     q: 'Why not just use pandas-ta?',
-    a: 'pandas-ta is great for Jupyter notebooks and Python batch analysis, but it has no web UI, no real-time streaming, no alert system, and no built-in deployment story. Every new project requires wiring up your own server, database, and frontend. TradeClaw ships all of that out of the box and supports the same 130+ indicators.',
+    a: 'pandas-ta is great for Jupyter notebooks and Python batch analysis, but it has no web UI, no live streaming feed, no alert system, and no built-in deployment story. Every new project requires wiring up your own server, database, and frontend. TradeClaw ships all of that out of the box and supports the same 130+ indicators.',
   },
   {
     q: 'Why not just use 3Commas?',

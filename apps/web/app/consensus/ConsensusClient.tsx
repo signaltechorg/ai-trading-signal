@@ -138,7 +138,7 @@ export default function ConsensusClient() {
   const handleShare = () => {
     if (!data) return;
     const bias = data.overallBullish >= 55 ? 'BULLISH' : data.overallBullish <= 45 ? 'BEARISH' : 'NEUTRAL';
-    const text = `📊 Market Consensus right now: ${data.overallBullish}% BULLISH\n\n🟢 Most bullish: ${data.mostBullish}\n🔴 Most bearish: ${data.mostBearish}\n\nReal-time signal consensus from @TradeClaw_win — open source AI trading platform\n\nhttps://tradeclaw.win/consensus #${bias} #trading #forex #crypto`;
+    const text = `📊 Market Consensus right now: ${data.overallBullish}% BULLISH\n\n🟢 Most bullish: ${data.mostBullish}\n🔴 Most bearish: ${data.mostBearish}\n\nLive signal consensus from @TradeClaw_win (60s refresh) — open source AI trading platform\n\nhttps://tradeclaw.win/consensus #${bias} #trading #forex #crypto`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -266,7 +266,7 @@ export default function ConsensusClient() {
           <Star className="w-10 h-10 text-zinc-400 mx-auto mb-3" />
           <h3 className="text-xl font-bold mb-2">TradeClaw is open source</h3>
           <p className="text-zinc-400 mb-5">
-            Self-host your own instance and get real-time signal consensus for any asset — for free, forever.
+            Self-host your own instance and get live signal consensus for any asset — for free, forever.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <a

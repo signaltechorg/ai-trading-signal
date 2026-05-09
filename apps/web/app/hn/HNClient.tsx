@@ -50,7 +50,7 @@ Next.js 15, TypeScript, Tailwind CSS, Docker Compose. No heavyweight ML dependen
 **GitHub:** ${GITHUB_URL}
 
 **Current features:**
-- Real-time signal screener for 12 symbols
+- Live signal screener for 12 symbols (5-minute cadence)
 - Multi-timeframe analysis (1m, 5m, 15m, 1h, 4h, 1d)
 - AI signal explanation (plain-English rationale)
 - Backtesting engine with equity curve

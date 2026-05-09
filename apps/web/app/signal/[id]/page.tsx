@@ -515,7 +515,7 @@ export default async function SignalPage(
               Price chart with entry, SL, and TP lines is a Pro feature
             </p>
             <p className="mt-1 text-xs text-zinc-400">
-              Upgrade to Pro to unlock real-time signals, full TP ladder, and the
+              Upgrade to Pro to unlock instant (no-delay) signal delivery, full TP ladder, and the
               live price chart for every signal.
             </p>
             <Link

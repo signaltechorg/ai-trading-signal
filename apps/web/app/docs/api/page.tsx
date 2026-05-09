@@ -153,7 +153,7 @@ export default function ApiPage() {
             },
             {
               method: 'GET', path: '/api/prices/stream',
-              desc: 'Server-Sent Events stream. Emits price updates and new signals in real time.',
+              desc: 'Server-Sent Events stream. Emits price updates within seconds (~2s crypto, ≤60s FX/metals/stocks) and new signals on each 5-minute cron tick.',
             },
           ] as Endpoint[]).map(ep => <EndpointRow key={ep.path} ep={ep} />)}
         </div>

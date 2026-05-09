@@ -12,7 +12,7 @@ const StarsClient = dynamic(() => import('./StarsClient').then(m => ({ default: 
 export const metadata: Metadata = {
   title: 'TradeClaw GitHub Stars — Track Our Journey to 1,000 Stars',
   description:
-    'Watch TradeClaw grow in real time. Live star counter, milestone celebrations, progress toward 1,000 stars, and features that unlock along the way.',
+    'Watch TradeClaw grow live. Star counter, milestone celebrations, progress toward 1,000 stars, and features that unlock along the way.',
   openGraph: {
     title: 'TradeClaw Stars — Join the Journey to 1,000',
     description:

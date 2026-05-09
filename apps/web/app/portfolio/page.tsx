@@ -12,7 +12,7 @@ const PortfolioClient = dynamic(() => import('./PortfolioClient'), {
 export const metadata: Metadata = {
   title: 'Portfolio Signal Scanner — TradeClaw',
   description:
-    'Input your holdings and get real-time TradeClaw signal alignment scores per asset. See portfolio-wide consensus, BUY/SELL/HOLD status, and export your snapshot as JSON.',
+    'Input your holdings and get live TradeClaw signal alignment scores per asset (refreshed every 5 minutes). See portfolio-wide consensus, BUY/SELL/HOLD status, and export your snapshot as JSON.',
   openGraph: {
     title: 'Portfolio Signal Scanner — TradeClaw',
     description: 'See which of your holdings have active BUY or SELL signals right now.',

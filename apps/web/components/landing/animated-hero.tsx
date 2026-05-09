@@ -81,7 +81,7 @@ export function AnimatedHero() {
 
         {/* Subtitle */}
         <p className="mx-auto mt-6 max-w-2xl text-base text-[var(--text-secondary)] leading-relaxed sm:text-lg">
-          Real-time BUY/SELL signals for forex, crypto, and commodities.
+          Live BUY/SELL signals for forex, crypto, and commodities, refreshed every 5 minutes.
           Self-hosted, private, and free — no subscription, no lock-in, no
           data sent to third parties.
         </p>

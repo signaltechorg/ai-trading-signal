@@ -25,7 +25,7 @@ const RELEASES: Release[] = [
     version: 'v0.4.0',
     date: 'March 2026',
     label: 'latest',
-    summary: 'PWA support, plugin system, public proof tracker, real-time SSE price feed, and this documentation site.',
+    summary: 'PWA support, plugin system, public proof tracker, live SSE price feed (~2s crypto / ≤60s FX), and this documentation site.',
     changes: [
       { type: 'feat', text: 'Progressive Web App — installable, offline caching via Service Worker, push notification support' },
       { type: 'feat', text: 'Documentation site at /docs — 10+ pages covering signals, API, webhooks, plugins, and more' },
@@ -33,7 +33,7 @@ const RELEASES: Release[] = [
       { type: 'feat', text: 'Price alerts with browser notifications — set threshold, direction, and optional note' },
       { type: 'feat', text: 'Plugin system — custom JS indicator modules with sandboxed V8 execution' },
       { type: 'feat', text: 'Signal accuracy tracker with public proof — win/loss records per symbol and timeframe' },
-      { type: 'feat', text: 'Real-time SSE price feed at /api/prices/stream — pushes price events and new signals' },
+      { type: 'feat', text: 'Live SSE price feed at /api/prices/stream — pushes price events (~2s crypto, ≤60s FX) and new signals on each 5-min tick' },
       { type: 'feat', text: 'Signal explainer — AI-generated reasoning for each signal at /api/explain' },
     ],
   },

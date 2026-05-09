@@ -311,7 +311,7 @@ fetch('${jsonUrl}')
             <UseCase
               icon={<FileCode className="w-4 h-4" />}
               title="Documentation"
-              description="Add real-time portfolio metrics to your project docs."
+              description="Add live portfolio metrics to your project docs."
             />
             <UseCase
               icon={<Layout className="w-4 h-4" />}

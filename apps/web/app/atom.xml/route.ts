@@ -86,7 +86,7 @@ export async function GET() {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>${BASE_URL}/atom.xml</id>
   <title type="text">TradeClaw — Live AI Trading Signals</title>
-  <subtitle type="text">Real-time AI-generated trading signals for forex, crypto, and metals. Confidence-rated with TP/SL levels.</subtitle>
+  <subtitle type="text">Live AI-generated trading signals for forex, crypto, and metals on a 5-minute cadence. Confidence-rated with TP/SL levels.</subtitle>
   <link href="${BASE_URL}" rel="alternate" type="text/html" />
   <link href="${BASE_URL}/atom.xml" rel="self" type="application/atom+xml" />
   <updated>${updated}</updated>

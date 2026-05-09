@@ -66,7 +66,7 @@ export function DiscordClient() {
             <span className="text-[#5865F2]">Discord</span> Server
           </h1>
           <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-8">
-            Get real-time trading signals, leaderboards, and health checks — all from Discord slash commands. Free and open source.
+            Get live trading signals (5-minute cadence), leaderboards, and health checks — all from Discord slash commands. Free and open source.
           </p>
 
           <a
@@ -94,7 +94,7 @@ export function DiscordClient() {
                   <polyline points="16 7 22 7 22 13" />
                 </svg>
               ),
-              title: 'Real-Time Signals',
+              title: 'Live Signals (5-min)',
               desc: 'BUY/SELL signals with confidence scores, TP/SL levels, and indicator data — delivered to your Discord channel.',
             },
             {

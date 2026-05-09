@@ -113,7 +113,7 @@ const PRE_WRITTEN_POSTS: {
     text: `Hey r/selfhosted! I built TradeClaw — a fully self-hosted, open-source AI trading signal platform. No subscriptions, no black boxes.
 
 What it does:
-• Real-time buy/sell signals for 12 forex, crypto & metal pairs
+• Live buy/sell signals for 12 forex, crypto & metal pairs (5-minute cadence)
 • Multi-indicator confluence scoring (RSI, MACD, EMA-20/50/200, Bollinger Bands)
 • Full backtesting engine with Sharpe ratio, win rate & max drawdown
 • Paper trading simulator with live P&L tracking
@@ -277,7 +277,7 @@ Core features:
 • Multi-indicator confluence scoring (RSI, MACD, EMA, Bollinger Bands)
 • Backtesting engine with institutional-grade metrics
 • Paper trading simulator for risk-free strategy testing
-• Telegram bot for real-time trade alerts
+• Telegram bot for live trade alerts on the 5-minute cron
 • MIT licensed — no subscriptions, no lock-in
 
 If you're in fintech, algo trading, or just believe traders deserve transparent tools, I'd appreciate a look and a GitHub star.

@@ -49,6 +49,7 @@ const COLUMNS: FooterColumn[] = [
       { href: '/star', label: 'Star history' },
       { href: '/start', label: 'Self-host guide' },
       { href: '/security', label: 'Security' },
+      { href: '/data-freshness', label: 'Data freshness' },
       { href: '/roadmap', label: 'Roadmap' },
     ],
   },

@@ -375,7 +375,7 @@ export default function ExamplesClient() {
       <section className="max-w-3xl mx-auto px-4 pb-24 text-center">
         <h2 className="text-2xl font-bold mb-3">Ready to build?</h2>
         <p className="text-zinc-400 mb-8">
-          Star the repo, explore the API, or set up webhooks for real-time alerts.
+          Star the repo, explore the API, or set up webhooks for live alerts.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <a

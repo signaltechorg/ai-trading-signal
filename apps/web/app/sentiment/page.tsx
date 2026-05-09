@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Market Sentiment — Crypto Fear & Greed Index',
     description:
-      'Real-time crypto sentiment: Fear & Greed gauge, BTC dominance, trending coins, and volume heatmap — all in one view.',
+      'Live crypto sentiment (5-minute auto-refresh): Fear & Greed gauge, BTC dominance, trending coins, and volume heatmap — all in one view.',
   },
 };
 

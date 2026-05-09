@@ -158,7 +158,7 @@ async function handleBotUpdate(update: TelegramUpdate): Promise<void> {
         `Your Telegram account is now linked to TradeClaw.\n\n` +
           `For now, follow the free public channel for delayed signals: https://t.me/tradeclawwin\n\n` +
           `Upgrade to Pro at https://tradeclaw.win/pricing to unlock the private Pro group ` +
-          `(real-time signals, dedicated chat & admin topics) — your invite is DMed here automatically right after checkout.`
+          `(instant no-delay signal delivery on the 5-minute cron, dedicated chat & admin topics) — your invite is DMed here automatically right after checkout.`
       );
     }
   }

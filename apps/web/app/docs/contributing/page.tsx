@@ -88,7 +88,7 @@ export default function ContributingPage() {
             { tech: 'TypeScript', role: 'Language', desc: 'Strict mode, no implicit any' },
             { tech: 'Tailwind CSS v4', role: 'Styling', desc: 'Utility classes, no CSS modules' },
             { tech: 'File-based storage', role: 'Data', desc: 'JSON files in /data — no database required' },
-            { tech: 'Server-Sent Events', role: 'Real-time', desc: 'Live price stream via /api/prices/stream' },
+            { tech: 'Server-Sent Events', role: 'Live push', desc: 'Live price stream via /api/prices/stream' },
             { tech: 'Node.js crypto', role: 'Security', desc: 'HMAC-SHA256 for webhook signing' },
           ].map(t => (
             <div key={t.tech} className="p-4 rounded-xl border border-white/5 bg-white/[0.02]">

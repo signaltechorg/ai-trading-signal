@@ -407,7 +407,7 @@ export default function ScreenerClient() {
 
       <div className="relative max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-8">
         <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-300">
-          <strong>Live Data</strong> — Real-time market data from Binance and Yahoo Finance.
+          <strong>Live Data</strong> — market data from Binance (~2s) and the hub (≤60s for FX/metals/stocks).
         </div>
 
         {/* Header */}

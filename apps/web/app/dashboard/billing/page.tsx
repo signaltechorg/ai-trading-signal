@@ -37,14 +37,14 @@ function proPlan(interval: Interval): PlanInfo {
     return {
       name: 'Pro (Annual)',
       price: '$290/yr',
-      description: 'Real-time signals, all symbols, private Pro Telegram group. Save $58 vs monthly.',
+      description: 'Instant (no-delay) signal delivery, all symbols, private Pro Telegram group. Save $58 vs monthly.',
       color: 'text-emerald-400',
     };
   }
   return {
     name: 'Pro',
     price: '$29/mo',
-    description: 'Real-time signals, all symbols, private Pro Telegram group.',
+    description: 'Instant (no-delay) signal delivery, all symbols, private Pro Telegram group.',
     color: 'text-emerald-400',
   };
 }

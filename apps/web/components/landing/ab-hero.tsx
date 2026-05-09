@@ -166,7 +166,7 @@ function HeroVariantA({
       <p className="mx-auto mt-6 max-w-2xl text-base text-zinc-400 leading-relaxed sm:text-lg">
         TradeClaw generates BUY/SELL signals using multi-timeframe technical
         analysis. Every signal is recorded, tracked, and published — wins and
-        losses. Start free, upgrade to Pro for real-time delivery.
+        losses. Start free, upgrade to Pro for instant (no-delay) delivery.
       </p>
 
       <div className="relative mt-10 overflow-hidden rounded-xl border border-white/8 bg-[#0a0a0a]">
@@ -245,7 +245,7 @@ function HeroVariantB({
       <p className="mx-auto mt-6 max-w-2xl text-base text-zinc-400 leading-relaxed sm:text-lg">
         TradeClaw runs RSI, MACD, EMA confluence and returns a decision — BUY,
         SELL, confidence %, entry, SL, TP. REST API, Docker, MIT license.
-        Free tier gets you started. Pro ($29/mo) unlocks real-time delivery.
+        Free tier gets you started. Pro ($29/mo) unlocks instant (no-delay) delivery.
       </p>
 
       {/* Code snippet */}
@@ -339,7 +339,7 @@ function HeroVariantC({
       </div>
       <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-500/20 bg-zinc-500/8 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.15em] text-zinc-400">
         <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse" />
-        Free · 3 Assets | Pro · All Assets · Real-time
+        Free · 3 Assets | Pro · All Assets · No delay
       </div>
 
       <h1 className="text-[2.25rem] font-bold leading-[1.05] tracking-[-0.03em] sm:text-6xl lg:text-7xl text-white break-words">
@@ -353,7 +353,7 @@ function HeroVariantC({
       <p className="mx-auto mt-6 max-w-2xl text-base text-zinc-400 leading-relaxed sm:text-lg">
         TradeClaw analyzes forex, crypto, and commodities —
         and tells you BUY, SELL, or wait. Every signal is recorded and verified.
-        Free covers 6 symbols across asset classes. Pro ($29/mo) unlocks all pairs in real-time.
+        Free covers 6 symbols across asset classes. Pro ($29/mo) unlocks all pairs with no delay.
       </p>
 
       {/* Live signal cards */}

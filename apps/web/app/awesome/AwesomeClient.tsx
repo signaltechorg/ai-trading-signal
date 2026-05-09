@@ -24,7 +24,7 @@ const SUBMISSIONS: AwesomeSubmission[] = [
       'The go-to list for self-hostable software. 200k+ stars. Getting listed here drives massive organic discovery.',
     status: 'Planned',
     copyText:
-      '- [TradeClaw](https://github.com/naimkatiman/tradeclaw) - AI-powered trading signal platform with real-time signals, backtesting, paper trading, and Telegram alerts. Self-hostable with Docker. ([Demo](https://tradeclaw.win), [Source Code](https://github.com/naimkatiman/tradeclaw)) `MIT` `Nodejs`',
+      '- [TradeClaw](https://github.com/naimkatiman/tradeclaw) - AI-powered trading signal platform with 5-minute live signals, backtesting, paper trading, and Telegram alerts. Self-hostable with Docker. ([Demo](https://tradeclaw.win), [Source Code](https://github.com/naimkatiman/tradeclaw)) `MIT` `Nodejs`',
     copyLabel: 'Copy entry',
   },
   {
@@ -108,7 +108,7 @@ const WHY_ITEMS = [
       </svg>
     ),
     title: 'Telegram alerts',
-    desc: 'Real-time buy/sell notifications delivered to your Telegram bot — no app required.',
+    desc: 'Live buy/sell notifications delivered to your Telegram bot on the 5-minute signal cron — no app required.',
   },
   {
     icon: (

@@ -210,7 +210,7 @@ function Step4() {
           {
             href: '/dashboard',
             label: 'Live Dashboard',
-            desc: 'Real-time BUY/SELL signals across 10+ assets',
+            desc: 'Live BUY/SELL signals across 10+ assets (5-min cadence)',
             color: 'emerald',
           },
           {

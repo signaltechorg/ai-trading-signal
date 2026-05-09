@@ -70,7 +70,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "TradeClaw — Stop Renting Your Trading Edge",
     description:
-      "Real-time AI trading signals for forex, crypto & metals. Open-source framework. Hosted Pro tier available.",
+      "Live AI trading signals for forex, crypto & metals on a 5-minute cadence. Open-source framework. Hosted Pro tier available.",
     url: "https://tradeclaw.win",
     siteName: "TradeClaw",
     type: "website",

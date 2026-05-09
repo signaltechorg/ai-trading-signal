@@ -225,7 +225,7 @@ export default function LiveClient() {
   const scriptSnippet = `<script src="${baseUrl}/api/widget/live"></script>`;
   const jsonSnippet = `// Fetch live signals via REST API\nconst resp = await fetch('${baseUrl}/api/live-feed');\nconst data = await resp.json();\n// data.signals — array of last 20 signals`;
 
-  const tweetText = `Check out TradeClaw — free, self-hosted AI trading signals firing in real-time\n\n${baseUrl}/live`;
+  const tweetText = `Check out TradeClaw — free, self-hosted AI trading signals firing every 5 minutes\n\n${baseUrl}/live`;
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
 
   return (
@@ -253,7 +253,7 @@ export default function LiveClient() {
             Live Signal Activity Feed
           </h1>
           <p className="text-[var(--text-secondary)] text-sm max-w-xl">
-            Watch TradeClaw analyze markets in real time. Embed this feed in your blog, newsletter, or site with one line of code.
+            Watch TradeClaw analyze markets live (5-minute cadence). Embed this feed in your blog, newsletter, or site with one line of code.
           </p>
         </div>
 

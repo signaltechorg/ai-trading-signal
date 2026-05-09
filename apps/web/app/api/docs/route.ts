@@ -8,7 +8,7 @@ export async function GET() {
     info: {
       title: "TradeClaw API",
       version: "1.0.0",
-      description: "Real-time trading signals with multi-timeframe confluence scoring. Self-hostable, open source.",
+      description: "Live trading signals (5-minute cadence) with multi-timeframe confluence scoring. Self-hostable, open source.",
       contact: { url: "https://github.com/naimkatiman/tradeclaw" }
     },
     servers: [
@@ -96,7 +96,7 @@ export async function GET() {
       "/api/prices/stream": {
         get: {
           summary: "SSE live price stream",
-          description: "Server-Sent Events stream of live prices. Connect and receive price updates in real-time.",
+          description: "Server-Sent Events stream of live prices. Connect and receive price updates within seconds (~2s crypto, ≤60s FX/metals/stocks).",
           responses: {
             "200": {
               description: "Event stream",

@@ -12,11 +12,11 @@ const WaitlistClient = dynamic(() => import('./WaitlistClient'), {
 export const metadata: Metadata = {
   title: 'Join the Waitlist | TradeClaw',
   description:
-    'Get early access to TradeClaw — the open-source AI trading platform with real-time signals, backtesting, and self-hosting.',
+    'Get early access to TradeClaw — the open-source AI trading platform with 5-minute live signals, backtesting, and self-hosting.',
   openGraph: {
     title: 'Join the TradeClaw Waitlist',
     description:
-      'Get early access to the open-source AI trading platform with real-time signals, backtesting, and self-hosting.',
+      'Get early access to the open-source AI trading platform with 5-minute live signals, backtesting, and self-hosting.',
   },
 };
 

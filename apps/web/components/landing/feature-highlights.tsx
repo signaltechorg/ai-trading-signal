@@ -212,7 +212,7 @@ export function FeatureHighlights() {
           
           <div className="order-1 lg:order-2">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/10 px-3.5 py-1.5 text-xs uppercase tracking-widest text-purple-400">
-              Real-Time Execution
+              Instant Execution
             </div>
             <h3 className="text-3xl font-bold tracking-tight sm:text-4xl text-[var(--foreground)] mb-6">
               Instant signal delivery. Zero lag.

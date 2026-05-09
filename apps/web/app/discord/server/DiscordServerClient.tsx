@@ -24,7 +24,7 @@ const CHANNELS = [
   {
     icon: Hash,
     name: 'live-signals',
-    description: 'Real-time BUY/SELL signal alerts for BTC, ETH, XAU and 7+ pairs — auto-posted every cycle.',
+    description: 'Live BUY/SELL signal alerts for BTC, ETH, XAU and 7+ pairs — auto-posted every 5-minute cycle.',
     color: 'text-emerald-400',
     badge: 'Live',
     badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',

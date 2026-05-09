@@ -119,7 +119,7 @@ function Hero() {
         </span>
       </h1>
       <p className="text-[var(--text-secondary)] text-base max-w-xl mx-auto mb-6">
-        Access real-time trading signals, leaderboard data, and screener results
+        Access live trading signals (5-minute cadence), leaderboard data, and screener results
         programmatically. 1,000 requests/hour free.{' '}
         <Link href="/docs/self-hosting" className="text-emerald-400 hover:underline">
           Self-host for unlimited.
@@ -553,7 +553,7 @@ export default function ApiKeysClient() {
             <h2 className="text-base font-semibold mb-4">Available endpoints</h2>
             <div className="space-y-2">
               {[
-                { method: 'GET', path: '/api/signals', scope: 'signals', desc: 'Real-time trading signals (BUY/SELL)' },
+                { method: 'GET', path: '/api/signals', scope: 'signals', desc: 'Live trading signals — BUY/SELL, 5-minute cadence' },
                 { method: 'GET', path: '/api/signals/multi-tf', scope: 'signals', desc: 'Multi-timeframe signal analysis' },
                 { method: 'GET', path: '/api/leaderboard', scope: 'leaderboard', desc: 'Strategy performance leaderboard' },
                 { method: 'GET', path: '/api/screener', scope: 'screener', desc: 'Instrument screener results' },

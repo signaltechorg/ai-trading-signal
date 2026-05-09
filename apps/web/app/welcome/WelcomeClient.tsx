@@ -240,7 +240,7 @@ export function WelcomeClient({ userId }: WelcomeClientProps) {
           signalState === 'loading'
             ? 'Loading\u2026'
             : signalState === 'ready'
-              ? 'This is exactly the format that hits your Telegram in real time.'
+              ? 'This is exactly the format that hits your Telegram on the 5-minute signal tick.'
               : 'No signals live right now. Next one will land in your Telegram.'
         }
       >

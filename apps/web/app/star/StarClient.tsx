@@ -19,7 +19,7 @@ const MILESTONES: Array<{ stars: number; icon: LucideIcon; feature: string; desc
     stars: 250,
     icon: Smartphone,
     feature: "Mobile app (React Native)",
-    desc: "Real-time signals and alerts on your phone, with push notifications",
+    desc: "Live signals and alerts on your phone (5-minute cadence), with push notifications",
   },
   {
     stars: 500,
@@ -43,7 +43,7 @@ const SHARE_TWEETS = [
 
 const LINKEDIN_POST = `🚀 Excited about this open-source project: TradeClaw
 
-TradeClaw is a self-hosted AI trading signal platform for forex, crypto, and commodities. It uses RSI, MACD, EMA, and Bollinger Bands to generate real-time BUY/SELL signals.
+TradeClaw is a self-hosted AI trading signal platform for forex, crypto, and commodities. It uses RSI, MACD, EMA, and Bollinger Bands to generate live BUY/SELL signals on a 5-minute cadence.
 
 What makes it different:
 • Completely free, MIT licensed

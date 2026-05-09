@@ -53,7 +53,7 @@ export async function ProofHero() {
     <section data-testid="proof-hero" className="mx-auto mt-10 max-w-5xl px-4">
       <div className="mb-6 text-center">
         <p className="text-lg text-[var(--text-secondary)]">
-          Real-time signals, backed by the last 30 days of live performance.
+          Live signals (5-min cadence), backed by the last 30 days of live performance.
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export async function ProofHero() {
       {stats?.samples && (
         <div className="mt-10">
           <h2 className="mb-3 text-center text-sm font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
-            Real-time vs 15-min delay
+            Pro (no delay) vs Free (15-min delay)
           </h2>
           <DelayDemo pro={stats.samples.pro} free={stats.samples.free} />
         </div>

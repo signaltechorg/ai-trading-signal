@@ -211,7 +211,7 @@ export default function NotificationsClient() {
           </div>
           <h1 className="text-3xl font-bold mb-3">Signal Notifications</h1>
           <p className="text-[var(--text-secondary)] max-w-md mx-auto">
-            Get real-time browser push notifications when high-confidence trading signals fire. Never miss an entry.
+            Get instant browser push notifications when high-confidence trading signals fire on the 5-minute cron. Never miss an entry.
           </p>
         </div>
 

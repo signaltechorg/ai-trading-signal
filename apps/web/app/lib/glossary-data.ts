@@ -58,7 +58,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "A momentum oscillator that measures the speed and magnitude of recent price changes on a scale of 0 to 100. Readings above 70 typically indicate overbought conditions while readings below 30 suggest oversold conditions. Developed by J. Welles Wilder, it is one of the most widely used technical indicators.",
     tcRelevance:
-      "TradeClaw calculates RSI across multiple timeframes and fires real-time signals when RSI crosses key overbought/oversold thresholds, helping you catch momentum shifts before the crowd.",
+      "TradeClaw calculates RSI across multiple timeframes and fires fresh signals on the 5-minute cron when RSI crosses key overbought/oversold thresholds, helping you catch momentum shifts before the crowd.",
     relatedTerms: ["macd", "stochastic", "divergence"],
     relatedPage: "/signals",
     tags: ["momentum", "oscillator", "overbought", "oversold"],
@@ -72,7 +72,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "A trend-following momentum indicator that shows the relationship between two exponential moving averages of price. The MACD line is the difference between the 12-period and 26-period EMA, while the signal line is a 9-period EMA of the MACD line. Crossovers, divergences, and rapid rises/falls are commonly used as trading signals.",
     tcRelevance:
-      "TradeClaw monitors MACD crossovers and histogram direction changes in real time, combining them with other indicators to produce higher-confidence composite signals.",
+      "TradeClaw monitors MACD crossovers and histogram direction changes on the 5-minute signal cron, combining them with other indicators to produce higher-confidence composite signals.",
     relatedTerms: ["ema", "divergence", "trend"],
     relatedPage: "/signals",
     tags: ["momentum", "trend", "crossover"],
@@ -340,7 +340,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "A dynamic stop-loss order that moves with the market price at a fixed distance or percentage. As the price moves in your favor, the stop adjusts upward (for long positions), locking in profits while still protecting against reversals. The stop never moves backward, ensuring a minimum exit level.",
     tcRelevance:
-      "TradeClaw supports ATR-based trailing stop suggestions that adapt to real-time volatility, helping traders ride winning trends longer while protecting accumulated gains.",
+      "TradeClaw supports ATR-based trailing stop suggestions that adapt to current market volatility on each signal tick, helping traders ride winning trends longer while protecting accumulated gains.",
     relatedTerms: ["stop-loss", "parabolic-sar", "atr"],
     relatedPage: "/signals",
     tags: ["risk", "dynamic", "trailing"],
@@ -368,7 +368,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "The peak-to-trough decline in portfolio or account value, expressed as a percentage from the highest point. Drawdown measures the downside risk of a strategy and is a key metric for evaluating trading performance. Understanding drawdown tolerance is essential for maintaining psychological discipline during losing streaks.",
     tcRelevance:
-      "TradeClaw tracks real-time drawdown across your strategies and backtests, alerting you when drawdown approaches your configured maximum tolerance to prevent catastrophic losses.",
+      "TradeClaw tracks live drawdown across your strategies and backtests, alerting you on each signal tick when drawdown approaches your configured maximum tolerance to prevent catastrophic losses.",
     relatedTerms: ["max-drawdown", "sharpe-ratio", "risk-reward"],
     relatedPage: "/results",
     tags: ["risk", "performance", "decline"],
@@ -464,7 +464,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "The difference between the highest price a buyer is willing to pay (bid) and the lowest price a seller is willing to accept (ask). Tighter spreads indicate higher liquidity and lower trading costs. The spread is an implicit cost of every trade and must be considered in any profitable trading strategy.",
     tcRelevance:
-      "TradeClaw monitors real-time spread data to assess liquidity conditions and filters signals to prioritize assets with tighter spreads, reducing your implicit trading costs.",
+      "TradeClaw monitors current spread data on each signal tick to assess liquidity conditions and filters signals to prioritize assets with tighter spreads, reducing your implicit trading costs.",
     relatedTerms: ["slippage", "market-order", "limit-order"],
     tags: ["cost", "liquidity", "bid-ask"],
   },
@@ -563,7 +563,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "A condition where price makes a new high or low that is not confirmed by a corresponding move in an indicator (such as RSI, MACD, or OBV). Bullish divergence occurs when price makes a lower low but the indicator makes a higher low. Bearish divergence occurs when price makes a higher high but the indicator makes a lower high.",
     tcRelevance:
-      "TradeClaw scans for divergences across RSI, MACD, and OBV simultaneously, flagging them as early warning signals for potential trend reversals in real time.",
+      "TradeClaw scans for divergences across RSI, MACD, and OBV simultaneously on each 5-minute tick, flagging them as early warning signals for potential trend reversals.",
     relatedTerms: ["rsi", "macd", "obv", "reversal"],
     relatedPage: "/signals",
     tags: ["warning", "momentum", "confirmation"],
@@ -705,9 +705,9 @@ export const glossaryTerms: GlossaryTerm[] = [
     letter: "P",
     category: "strategy",
     definition:
-      "The practice of simulating trades without risking real money, using live market data to test strategies in real time. Paper trading bridges the gap between backtesting and live trading by letting traders build confidence and refine execution without financial risk. It is essential for validating strategies in current market conditions.",
+      "The practice of simulating trades without risking real money, using live market data to test strategies as the market moves. Paper trading bridges the gap between backtesting and live trading by letting traders build confidence and refine execution without financial risk. It is essential for validating strategies in current market conditions.",
     tcRelevance:
-      "TradeClaw includes a built-in paper trading module that executes simulated trades based on live signals, tracking virtual P&L and performance metrics in real time.",
+      "TradeClaw includes a built-in paper trading module that executes simulated trades based on live signals, tracking virtual P&L and performance metrics live as fills occur.",
     relatedTerms: ["backtesting", "overfitting", "win-rate"],
     relatedPage: "/paper-trading",
     tags: ["simulation", "practice", "risk-free"],

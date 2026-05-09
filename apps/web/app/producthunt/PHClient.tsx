@@ -34,7 +34,7 @@ const TAGLINES = [
 ];
 
 const SHORT_DESCRIPTION =
-  'TradeClaw is an open-source, self-hosted AI trading signal platform. Get real-time BUY/SELL signals for crypto, forex, and commodities. Docker Compose deploy in 60 seconds. No API keys, no paywall.';
+  'TradeClaw is an open-source, self-hosted AI trading signal platform. Get live BUY/SELL signals (5-minute cadence) for crypto, forex, and commodities. Docker Compose deploy in 60 seconds. No API keys, no paywall.';
 
 const TOPICS = ['Developer Tools', 'Finance', 'Open Source', 'Bots', 'Productivity'];
 
@@ -46,7 +46,7 @@ TradeClaw is 100% open-source and runs on your own infra with a single \`docker 
 
 What makes it different:
 - Self-hosted — your data stays yours
-- Real-time signals with confidence scores
+- Live signals every 5 minutes with confidence scores
 - Paper trading mode to test before risking real money
 - Embeddable widgets for blogs and dashboards
 - REST API + Telegram bot integration
@@ -54,7 +54,7 @@ What makes it different:
 Would love your feedback. Star us on GitHub if you find it useful!`;
 
 const GALLERY_CAPTIONS = [
-  'Real-time dashboard with live BUY/SELL signals and confidence scores',
+  'Live dashboard with BUY/SELL signals and confidence scores, refreshed every 5 minutes',
   'Multi-timeframe analysis across BTC, ETH, XAU, EUR, GBP',
   'One-click Docker Compose deployment — self-host in 60 seconds',
   'Paper trading mode: test strategies with zero risk',
@@ -73,7 +73,7 @@ ${PH_URL}
 
 const LINKEDIN_TEXT = `Excited to share that TradeClaw just launched on Product Hunt!
 
-TradeClaw is an open-source, self-hosted AI trading signal platform. It provides real-time BUY/SELL signals for crypto, forex, and commodities — all running on your own infrastructure.
+TradeClaw is an open-source, self-hosted AI trading signal platform. It provides live BUY/SELL signals (5-minute cadence) for crypto, forex, and commodities — all running on your own infrastructure.
 
 Key features:
 - Docker Compose deploy in 60 seconds

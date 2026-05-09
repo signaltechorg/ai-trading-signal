@@ -5,7 +5,7 @@ import { getPrevNext } from '../nav-config';
 
 export const metadata: Metadata = {
   title: 'Webhooks',
-  description: 'Real-time event delivery via HMAC-SHA256 signed webhooks — setup, payload schema, retry logic, and receiver examples.',
+  description: 'Push event delivery via HMAC-SHA256 signed webhooks — signals on the 5-minute cron, prices within seconds. Setup, payload schema, retry logic, and receiver examples.',
 };
 
 export default function WebhooksPage() {
@@ -17,9 +17,11 @@ export default function WebhooksPage() {
         <p className="text-sm text-emerald-400 font-medium mb-2">Integrations</p>
         <h1 className="text-4xl font-bold text-white tracking-tight mb-4">Webhooks</h1>
         <p className="text-lg text-zinc-400 leading-relaxed">
-          TradeClaw can push signal and price events to any URL in real time.
-          Each delivery is signed with HMAC-SHA256 so your receiver can verify
-          the payload came from your instance — not a third party.
+          TradeClaw can push signal and price events to any URL — signals fire on
+          the 5-minute cron, price events stream within seconds for crypto and
+          ≤60s for FX/metals/stocks. Each delivery is signed with HMAC-SHA256 so
+          your receiver can verify the payload came from your instance — not a
+          third party.
         </p>
       </div>
 

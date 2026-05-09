@@ -105,7 +105,7 @@ export default function BadgesReadmeClient() {
   ).join('\n');
 
   const shareText = encodeURIComponent(
-    `Added live signal badges to my README using @TradeClaw_win 📊\n\nShowing real-time BUY/SELL signals for BTC, ETH, XAU and more — completely free & open source.\n\nhttps://tradeclaw.win/badges/readme`
+    `Added live signal badges to my README using @TradeClaw_win 📊\n\nShowing BUY/SELL signals refreshed every 5 minutes for BTC, ETH, XAU and more — completely free & open source.\n\nhttps://tradeclaw.win/badges/readme`
   );
 
   return (
@@ -128,7 +128,7 @@ export default function BadgesReadmeClient() {
           </h1>
 
           <p className="text-lg text-zinc-400 max-w-xl mb-8 leading-relaxed">
-            Fork TradeClaw and show real-time BUY/SELL signals directly in your README.
+            Fork TradeClaw and show BUY/SELL signals directly in your README — refreshed every 5 minutes.
             Every fork with badges becomes a signal discovery node for your community.
           </p>
 

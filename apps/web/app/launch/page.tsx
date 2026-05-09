@@ -4,7 +4,7 @@ import { LaunchClient } from './LaunchClient';
 export const metadata: Metadata = {
   title: 'Product Hunt Launch — TradeClaw',
   description:
-    'TradeClaw is launching on Product Hunt. Self-hosted AI trading signal platform — real-time signals, backtesting, paper trading, Telegram alerts. MIT licensed. Deploy in 5 min.',
+    'TradeClaw is launching on Product Hunt. Self-hosted AI trading signal platform — 5-minute signal cadence, backtesting, paper trading, Telegram alerts. MIT licensed. Deploy in 5 min.',
   openGraph: {
     title: 'TradeClaw is launching on Product Hunt',
     description:

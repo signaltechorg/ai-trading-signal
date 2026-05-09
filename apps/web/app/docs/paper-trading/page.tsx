@@ -29,7 +29,7 @@ export default function PaperTradingPage() {
         <div className="space-y-3">
           {[
             { step: '1', title: 'Open positions', desc: 'Manually enter trades or enable auto-follow to mirror every signal.' },
-            { step: '2', title: 'Track in real-time', desc: 'Open P&L updates with simulated price ticks. SL/TP triggers automatically.' },
+            { step: '2', title: 'Track live', desc: 'Open P&L updates as simulated price ticks arrive (~2s crypto, ≤60s FX). SL/TP triggers automatically.' },
             { step: '3', title: 'Measure performance', desc: 'Win rate, Sharpe ratio, max drawdown, profit factor — all calculated live.' },
           ].map(item => (
             <div key={item.step} className="flex items-start gap-4 p-4 rounded-xl border border-white/6 bg-white/[0.02]">
