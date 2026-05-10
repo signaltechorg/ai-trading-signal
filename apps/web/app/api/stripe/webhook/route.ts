@@ -151,10 +151,12 @@ async function handleCheckoutCompleted(
   const periodStart = firstItem ? new Date(firstItem.current_period_start * 1000) : new Date();
   const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null;
 
-  // Update user tier
-  await updateUserTier(userId, tier, periodEnd);
-
-  // Persist subscription record
+  // Persist subscription record FIRST. getUserTier reads subscriptions
+  // (not users.tier — that column is a denormalized convenience), so a
+  // concurrent /api/auth/session call that lands between these two writes
+  // resolves the new tier as soon as the subscriptions row commits. Doing
+  // updateUserTier first opens a tiny window where getUserTier returns
+  // 'free' even though we've already decided the user is paid.
   await upsertSubscription({
     userId,
     stripeSubscriptionId,
@@ -166,6 +168,9 @@ async function handleCheckoutCompleted(
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     trialEnd,
   });
+
+  // Then update the denormalized user-row tier cache.
+  await updateUserTier(userId, tier, periodEnd);
 
   // Send Telegram invite if user has linked their Telegram account.
   // sendInviteWithRetry handles transient Telegram API failures internally
@@ -226,7 +231,12 @@ async function handleSubscriptionUpdated(
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
 ): Promise<void> {
-  const userId = subscription.metadata?.userId;
+  // Source the userId and tier from our subscriptions table — that's what
+  // checkout persisted at session creation. Trusting metadata fails if Stripe
+  // ever drops it, and metadata.tier defaulting to 'pro' silently misclassifies
+  // Elite cancellations (wrong group revoked, wrong analytics).
+  const existing = await getSubscriptionByStripeId(subscription.id);
+  const userId = existing?.userId ?? subscription.metadata?.userId;
   if (!userId) return;
 
   await updateUserTier(userId, 'free', null);
@@ -239,11 +249,13 @@ async function handleSubscriptionDeleted(
 
   const user = await getUserByStripeCustomerId(stripeCustomerId);
   if (user?.telegramUserId) {
-    // Source the tier from subscription metadata (set at checkout creation)
-    // rather than re-resolving the priceId, which may have been archived
-    // by the time delete fires. Default to 'pro' if metadata is missing.
+    // Prefer the persisted tier (set at checkout) over metadata. Falls back to
+    // metadata only if our row is somehow missing — which would already have
+    // been caught upstream, but defensive.
+    const persistedTier = existing?.tier;
     const metaTier = subscription.metadata?.tier;
-    const tier: 'pro' | 'elite' = metaTier === 'elite' ? 'elite' : 'pro';
+    const tier: 'pro' | 'elite' =
+      persistedTier === 'elite' || metaTier === 'elite' ? 'elite' : 'pro';
     try {
       await revokeAccess(user.telegramUserId.toString(), tier);
     } catch (err) {
