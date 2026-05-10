@@ -288,7 +288,7 @@ export function PricingCards() {
           role="status"
           className="mx-auto mb-4 max-w-md rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] px-4 py-2 text-center text-sm text-emerald-200"
         >
-          Resuming checkout… you'll be redirected to Stripe in a moment.
+          Resuming checkout… you&apos;ll be redirected to Stripe in a moment.
         </div>
       )}
       {resumeError && (
