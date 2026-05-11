@@ -1,8 +1,12 @@
+import Link from 'next/link';
 import { Navbar } from '../components/navbar';
 import { SiteFooter } from '../../components/landing/site-footer';
 import { PricingCards } from './PricingCards';
 import { FREE_SYMBOLS } from '../../lib/tier-client';
 import { TIER_HISTORY_DAYS } from '../../lib/tier';
+import { getPricingStats } from '../../lib/pricing-stats';
+
+export const revalidate = 600;
 
 interface Feature {
   label: string;
@@ -52,7 +56,10 @@ function renderValue(val: string | boolean) {
   return <span className="text-sm text-[var(--foreground)]">{val}</span>;
 }
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const stats = await getPricingStats();
+  const hasNumbers = stats.closedSignalsAllTime > 0 && stats.winRatePct !== null;
+
   return (
     <>
       <Navbar />
@@ -66,6 +73,46 @@ export default function PricingPage() {
             Start free. Upgrade when you&apos;re ready for instant signal delivery, private groups, and full analytics.
           </p>
         </div>
+
+        {hasNumbers && (
+          <div className="mx-auto mt-10 max-w-3xl">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.04] px-6 py-5">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-[var(--foreground)] sm:text-3xl">
+                    {stats.winRatePct?.toFixed(1)}%
+                  </div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-[var(--text-secondary)]">
+                    Win rate
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[var(--foreground)] sm:text-3xl">
+                    {stats.closedSignalsAllTime.toLocaleString()}
+                  </div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-[var(--text-secondary)]">
+                    Resolved signals
+                  </div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold sm:text-3xl ${stats.cumulativePnlPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {stats.cumulativePnlPct >= 0 ? '+' : ''}
+                    {stats.cumulativePnlPct.toFixed(1)}%
+                  </div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-[var(--text-secondary)]">
+                    Cumulative PnL
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-center text-xs text-[var(--text-secondary)]">
+                Every signal, entry, and outcome is recorded in our public Postgres.{' '}
+                <Link href="/track-record" className="text-emerald-400 hover:underline">
+                  Verify the full archive →
+                </Link>
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="mt-12">
           <PricingCards />
