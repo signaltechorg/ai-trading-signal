@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getTrialingExpiringT3D,
   getTrialingExpiringWithin,
   getTrialingMissingTrialEnd,
   getUserById,
   markTrialReminderSent,
+  markTrialReminderT3DSent,
   setTrialEnd,
 } from '../../../../lib/db';
-import { sendTrialEndingEmail } from '../../../../lib/transactional-email';
+import {
+  sendTrialEndingEmail,
+  sendTrialEndingT3DEmail,
+} from '../../../../lib/transactional-email';
 import { getStripe } from '../../../../lib/stripe';
 import { requireCronAuth } from '../../../../lib/cron-auth';
+import { getMissedProPnL } from '../../../../lib/missed-pnl';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +25,20 @@ export const dynamic = 'force-dynamic';
 const REMIND_FROM_HOURS = 12;
 const REMIND_TO_HOURS = 30;
 
+// Window for the T-3d sweep — 72h ± 12h. Same once-daily cron catches it.
+const T3D_FROM_HOURS = 60;
+const T3D_TO_HOURS = 84;
+
 interface ReminderSummary {
   checked: number;
   sent: number;
   failed: number;
   backfilled: number;
+}
+
+interface CombinedSummary {
+  t3d: { checked: number; sent: number; failed: number };
+  t1d: ReminderSummary;
 }
 
 async function backfillMissingTrialEnds(): Promise<number> {
@@ -113,11 +128,81 @@ async function runReminderSweep(): Promise<ReminderSummary> {
   return { checked: due.length, sent, failed, backfilled };
 }
 
+async function runT3DSweep(): Promise<{ checked: number; sent: number; failed: number }> {
+  const due = await getTrialingExpiringT3D(T3D_FROM_HOURS, T3D_TO_HOURS);
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const sub of due) {
+    if (!sub.trialEnd) continue;
+    try {
+      const user = await getUserById(sub.userId);
+      if (!user?.email) {
+        console.warn('[cron/trial-reminders/t3d] user has no email:', sub.userId);
+        continue;
+      }
+
+      let amountCents = 0;
+      let currency = 'usd';
+      try {
+        const stripeSub = await getStripe().subscriptions.retrieve(sub.stripeSubscriptionId);
+        const item = stripeSub.items.data[0];
+        amountCents = item?.price?.unit_amount ?? 0;
+        currency = item?.price?.currency ?? 'usd';
+      } catch (err) {
+        console.error(
+          '[cron/trial-reminders/t3d] price lookup failed:',
+          sub.stripeSubscriptionId,
+          err instanceof Error ? err.message : err,
+        );
+      }
+
+      // Enrich with missed-P&L from the trial window. Fail-soft: any error
+      // in the enrichment path returns an empty pitch — the email still
+      // ships, just without the dollars hook.
+      const missed = await getMissedProPnL(sub.createdAt);
+
+      const result = await sendTrialEndingT3DEmail(user.email, {
+        trialEndsAt: sub.trialEnd,
+        amountCents,
+        currency,
+        missedSymbols: missed.signals.map((s) => s.symbol),
+        missedPnlPct: missed.totalPnlPct,
+        missedPnlDollars: missed.totalPnlDollars,
+      });
+
+      if (result.ok) {
+        await markTrialReminderT3DSent(sub.stripeSubscriptionId);
+        sent += 1;
+      } else {
+        console.error(
+          '[cron/trial-reminders/t3d] send failed:',
+          result.reason,
+          sub.stripeSubscriptionId,
+        );
+        failed += 1;
+      }
+    } catch (err) {
+      console.error(
+        '[cron/trial-reminders/t3d] handler threw:',
+        sub.stripeSubscriptionId,
+        err instanceof Error ? err.message : err,
+      );
+      failed += 1;
+    }
+  }
+
+  return { checked: due.length, sent, failed };
+}
+
 export async function GET(request: NextRequest): Promise<Response> {
   const denied = requireCronAuth(request);
   if (denied) return denied;
   try {
-    const summary = await runReminderSweep();
+    const t1d = await runReminderSweep();
+    const t3d = await runT3DSweep();
+    const summary: CombinedSummary = { t3d, t1d };
     return NextResponse.json({ ...summary, timestamp: new Date().toISOString() });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Reminder sweep failed';
