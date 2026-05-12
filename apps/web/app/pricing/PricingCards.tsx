@@ -6,6 +6,7 @@ import {
   TIER_DEFINITIONS,
   type TierDefinition,
 } from '../../lib/stripe-tiers';
+import { EliteInterestForm } from '../../components/EliteInterestForm';
 
 type Interval = 'monthly' | 'annual';
 
@@ -306,6 +307,58 @@ export function PricingCards() {
         <FreeCard def={freeDef} />
         <ProCard def={proDef} interval={billingInterval} />
       </div>
+      <EliteComingSoonCard />
     </>
+  );
+}
+
+function EliteComingSoonCard() {
+  return (
+    <div
+      data-testid="elite-coming-soon-card"
+      className="mx-auto mt-8 max-w-3xl rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.04] to-emerald-500/[0.04] p-6 shadow-[0_0_40px_rgba(245,158,11,0.06)]"
+    >
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-300">
+              Coming soon
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
+              Elite
+            </span>
+          </div>
+          <h3 className="text-2xl font-bold text-[var(--foreground)]">
+            Hands-off Pro.
+          </h3>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Pricing TBD — help us set it. Tell us which pieces you&apos;d use and what you&apos;d pay.
+          </p>
+          <ul className="mt-5 flex flex-col gap-3 text-sm text-[var(--foreground)]">
+            <li className="flex items-start gap-2">
+              <span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+              <div>
+                <div className="font-semibold text-emerald-400">Copy trade</div>
+                <div className="text-[var(--text-secondary)]">
+                  Your account mirrors our Pro signals automatically — entries, exits, sizing. The moat.
+                </div>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              <div>
+                <div className="font-semibold text-[var(--foreground)]">Connect to live trade</div>
+                <div className="text-[var(--text-secondary)]">
+                  Pro signals pushed straight to your broker (MT5, Alpaca, IB), no manual entry.
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--glass-bg)] p-5">
+          <EliteInterestForm source="pricing" />
+        </div>
+      </div>
+    </div>
   );
 }
