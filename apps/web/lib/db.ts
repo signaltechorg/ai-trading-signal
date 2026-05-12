@@ -389,6 +389,36 @@ export async function markTrialReminderSent(stripeSubscriptionId: string): Promi
   );
 }
 
+/**
+ * Trialing subs in the T-3d window that haven't received the T-3d email.
+ * Mirrors getTrialingExpiringWithin but predicates on the new column added
+ * in migration 029 so the T-1d and T-3d sweeps stay independent.
+ */
+export async function getTrialingExpiringT3D(
+  hoursFrom: number,
+  hoursTo: number,
+): Promise<SubscriptionRecord[]> {
+  const rows = await query<SubscriptionRow>(
+    `SELECT ${SUBSCRIPTION_COLUMNS}
+     FROM subscriptions
+     WHERE status = 'trialing'
+       AND trial_end IS NOT NULL
+       AND trial_end BETWEEN NOW() + ($1 || ' hours')::interval
+                         AND NOW() + ($2 || ' hours')::interval
+       AND trial_reminder_t3d_sent_at IS NULL`,
+    [hoursFrom, hoursTo],
+  );
+  return rows.map(toSubscriptionRecord);
+}
+
+export async function markTrialReminderT3DSent(stripeSubscriptionId: string): Promise<void> {
+  await execute(
+    `UPDATE subscriptions SET trial_reminder_t3d_sent_at = NOW(), updated_at = NOW()
+     WHERE stripe_subscription_id = $1`,
+    [stripeSubscriptionId],
+  );
+}
+
 export async function cancelSubscription(
   stripeSubscriptionId: string,
 ): Promise<void> {

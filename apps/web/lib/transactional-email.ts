@@ -233,6 +233,140 @@ export async function sendTrialEndingEmail(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Trial-ending reminder (T-3d) — anchored to realized missed P&L
+// ---------------------------------------------------------------------------
+
+export interface TrialEndingT3DEmailOpts {
+  trialEndsAt: Date;
+  amountCents: number;
+  currency: string;
+  /** Top-N missed Pro signal symbols (max 3) — already filtered to winners only. */
+  missedSymbols: string[];
+  /** Cumulative pnlPct of the top-N missed signals. */
+  missedPnlPct: number;
+  /** Equivalent $ if user had taken those signals at 1% sizing on $10k. */
+  missedPnlDollars: number;
+}
+
+function buildTrialEndingT3DSubject(opts: TrialEndingT3DEmailOpts): string {
+  if (opts.missedPnlDollars > 0) {
+    const dollarsRounded = Math.round(opts.missedPnlDollars);
+    return `You missed $${dollarsRounded} in Pro signals — trial ends in 3 days`;
+  }
+  return 'Your TradeClaw Pro trial ends in 3 days';
+}
+
+function buildTrialEndingT3DText(opts: TrialEndingT3DEmailOpts): string {
+  const amount = opts.amountCents > 0 ? fmtAmount(opts.amountCents, opts.currency) : '';
+  const endDate = fmtDate(opts.trialEndsAt);
+  const symbolList = opts.missedSymbols.slice(0, 3).join(', ');
+  const lines: string[] = [];
+
+  if (opts.missedPnlDollars > 0 && symbolList) {
+    lines.push(
+      `If you'd taken our top ${opts.missedSymbols.length} Pro signals during your trial`,
+      `(${symbolList}) at 1% sizing on a $10k account,`,
+      `you'd be up $${opts.missedPnlDollars.toFixed(2)} (${opts.missedPnlPct.toFixed(1)}%).`,
+      '',
+    );
+  }
+
+  lines.push(
+    `Your TradeClaw Pro trial ends ${endDate} — 3 days from now.`,
+    '',
+    amount ? `We'll charge ${amount} to your card on file when the trial converts.` : '',
+    '',
+    'Want to keep the Pro signals coming? No action needed.',
+    '',
+    'Want to cancel? Do it now to avoid the charge:',
+    'https://tradeclaw.win/dashboard/billing',
+    '',
+    'Every signal, entry, and outcome is in our public Postgres at',
+    'https://tradeclaw.win/track-record — verify before you decide.',
+    '',
+    'Questions? Reply to this email or contact support@tradeclaw.win.',
+    '',
+    'TradeClaw',
+    'https://tradeclaw.win',
+  );
+  return lines.filter((l) => l !== '').join('\n');
+}
+
+function buildTrialEndingT3DHtml(opts: TrialEndingT3DEmailOpts): string {
+  const amount = opts.amountCents > 0 ? fmtAmount(opts.amountCents, opts.currency) : '';
+  const endDate = fmtDate(opts.trialEndsAt);
+  const symbolList = opts.missedSymbols.slice(0, 3).join(', ');
+  const showPitch = opts.missedPnlDollars > 0 && symbolList.length > 0;
+
+  return [
+    `<!doctype html><html><body style="background:#0a0a0a;margin:0;padding:24px;color:#e2e8f0">`,
+    `<table cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#111;border:1px solid #1f2937;border-radius:12px;overflow:hidden">`,
+    `<tr><td style="padding:20px 24px;border-bottom:1px solid #1f2937">`,
+    `<div style="font:600 14px/1 system-ui;color:#10b981;letter-spacing:0.06em;text-transform:uppercase">Trial ending in 3 days</div>`,
+    `<div style="font:600 22px/1.2 system-ui;color:#fff;margin-top:6px">Trial ends ${endDate}</div>`,
+    `</td></tr>`,
+    showPitch
+      ? `<tr><td style="padding:20px 24px;background:#0d2b1f;border-bottom:1px solid #1f2937">
+           <div style="font:600 13px/1 system-ui;color:#10b981;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:8px">Missed during your trial</div>
+           <div style="font:700 28px/1.1 system-ui;color:#fff">+$${opts.missedPnlDollars.toFixed(2)}</div>
+           <div style="font:14px/1.5 system-ui;color:#cbd5e1;margin-top:8px">
+             If you&apos;d taken our top Pro signals (<strong style="color:#fff">${symbolList}</strong>) at 1% sizing on a $10k account, you&apos;d be up <strong style="color:#10b981">${opts.missedPnlPct.toFixed(1)}%</strong>.
+           </div>
+         </td></tr>`
+      : '',
+    `<tr><td style="padding:20px 24px;font:14px/1.6 system-ui;color:#cbd5e1">`,
+    amount
+      ? `<p style="margin:0 0 14px">We&apos;ll charge <strong style="color:#fff">${amount}</strong> on ${endDate} when the trial converts.</p>`
+      : `<p style="margin:0 0 14px">Your trial converts to paid on ${endDate}.</p>`,
+    `<p style="margin:0 0 18px">Want to keep the Pro signals coming? No action needed.</p>`,
+    `<p style="margin:0 0 18px"><a href="https://tradeclaw.win/dashboard/billing" style="display:inline-block;background:#10b981;color:#0a0a0a;font:600 14px/1 system-ui;padding:12px 20px;border-radius:8px;text-decoration:none">Manage billing</a></p>`,
+    `<p style="margin:0;color:#94a3b8;font-size:13px">Every entry and outcome is auditable in our public Postgres at <a href="https://tradeclaw.win/track-record" style="color:#10b981;text-decoration:none">tradeclaw.win/track-record</a>.</p>`,
+    `</td></tr>`,
+    `<tr><td style="padding:14px 24px;border-top:1px solid #1f2937;font:12px/1.5 system-ui;color:#64748b">`,
+    `Questions? Reply or contact <a href="mailto:support@tradeclaw.win" style="color:#10b981;text-decoration:none">support@tradeclaw.win</a>.`,
+    `</td></tr>`,
+    `</table></body></html>`,
+  ].filter((s) => s !== '').join('');
+}
+
+export async function sendTrialEndingT3DEmail(
+  to: string,
+  opts: TrialEndingT3DEmailOpts,
+): Promise<EmailSendResult> {
+  if (!to) return { ok: false, reason: 'no_to_address' };
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, reason: 'no_api_key' };
+
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!from) return { ok: false, reason: 'no_from_address' };
+
+  try {
+    const res = await fetch(RESEND_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: buildTrialEndingT3DSubject(opts),
+        text: buildTrialEndingT3DText(opts),
+        html: buildTrialEndingT3DHtml(opts),
+      }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+
+    if (!res.ok) return { ok: false, reason: 'provider_error' };
+    const data = (await res.json().catch(() => ({}))) as { id?: string };
+    return { ok: true, providerId: data.id };
+  } catch {
+    return { ok: false, reason: 'network_error' };
+  }
+}
+
 export const __test__ = {
   buildPaymentFailedSubject,
   buildPaymentFailedText,
@@ -240,6 +374,9 @@ export const __test__ = {
   buildTrialEndingSubject,
   buildTrialEndingText,
   buildTrialEndingHtml,
+  buildTrialEndingT3DSubject,
+  buildTrialEndingT3DText,
+  buildTrialEndingT3DHtml,
   fmtAmount,
   fmtDate,
 };
