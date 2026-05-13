@@ -7,6 +7,7 @@ import { LiveDemoEmbed } from "../components/landing/live-demo-embed";
 import { LiveHeroSignals } from "../components/landing/live-hero-signals";
 import { LiveActivityStrip } from "../components/landing/live-activity-strip";
 import { ProofHero } from "../components/landing/proof-hero";
+import { TelegramHero } from "../components/landing/telegram-hero";
 import { EmailCTA } from "../components/landing/email-cta";
 import { BackgroundDecor } from "../components/background/BackgroundDecor";
 
@@ -22,6 +23,7 @@ export default function Home() {
           <ABHero />
         </div>
         <LiveHeroSignals />
+        <TelegramHero />
         <ProofHero />
         <LiveActivityStrip />
         <LiveDemoEmbed />

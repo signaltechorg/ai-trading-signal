@@ -144,12 +144,6 @@ function HeroVariantA({
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
       <HeroBrandLockup />
-      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-zinc-400">
-        <span className="inline-flex items-center gap-1 text-emerald-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Variant A
-        </span>
-      </div>
       <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/5 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.15em] text-emerald-400">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
         Open Source · Every Trade Verified
@@ -183,21 +177,28 @@ function HeroVariantA({
 
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Link
-          href="/track-record"
+          href="/pricing"
           className="group flex items-center gap-2.5 rounded-full bg-emerald-500 px-7 py-3 text-sm font-semibold text-black transition-all duration-200 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98]"
         >
-          View Track Record
+          Start 7-day Pro trial
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="transition-transform group-hover:translate-x-0.5">
             <path d="M1 7h12M7 1l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
         <Link
-          href="/dashboard"
+          href="/track-record"
           className="flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-7 py-3 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-white/20 hover:bg-white/8 hover:text-white"
         >
-          Start Free
+          View track record
         </Link>
       </div>
+      <p className="mt-3 text-center text-[11px] text-zinc-500">
+        Cancel anytime before day 8 — no charge. Or{' '}
+        <Link href="/dashboard" className="text-zinc-400 underline hover:text-zinc-200">
+          start free
+        </Link>{' '}
+        on 6 symbols.
+      </p>
     </div>
   );
 }
@@ -222,12 +223,6 @@ function HeroVariantB({
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
       <HeroBrandLockup />
-      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-zinc-400">
-        <span className="inline-flex items-center gap-1 text-purple-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
-          Variant B
-        </span>
-      </div>
       <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/8 px-4 py-1.5 text-xs font-mono font-medium text-purple-400">
         npx @naimkatiman/tradeclaw signals --pair BTCUSD
       </div>
@@ -314,6 +309,13 @@ function HeroVariantB({
           {stars !== null ? <><Star className="w-3.5 h-3.5 inline" /> {stars} Stars</> : "Star on GitHub"}
         </a>
       </div>
+      <p className="mt-3 text-center text-[11px] text-zinc-500">
+        Or{' '}
+        <Link href="/pricing" className="text-purple-300 underline hover:text-purple-200">
+          start a 7-day Pro trial
+        </Link>{' '}
+        — cancel anytime before day 8.
+      </p>
     </div>
   );
 }
@@ -331,12 +333,6 @@ function HeroVariantC({
   return (
     <div className="relative z-10 mx-auto max-w-4xl">
       <HeroBrandLockup />
-      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-zinc-400">
-        <span className="inline-flex items-center gap-1 text-zinc-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse" />
-          Variant C
-        </span>
-      </div>
       <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-500/20 bg-zinc-500/8 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.15em] text-zinc-400">
         <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse" />
         Free · 3 Assets | Pro · All Assets · No delay
@@ -439,6 +435,13 @@ function HeroVariantC({
           {stars !== null ? <><Star className="w-3.5 h-3.5 inline" /> {stars} Stars</> : "Star on GitHub"}
         </a>
       </div>
+      <p className="mt-3 text-center text-[11px] text-zinc-500">
+        Want every pair, instant?{' '}
+        <Link href="/pricing" className="text-zinc-300 underline hover:text-white">
+          Start a 7-day Pro trial
+        </Link>{' '}
+        — cancel anytime before day 8.
+      </p>
     </div>
   );
 }

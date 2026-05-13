@@ -166,6 +166,11 @@ function ProCard({ def, interval }: ProCardProps) {
         >
           {loading ? 'Redirecting…' : 'Start 7-Day Trial'}
         </button>
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-[var(--text-secondary)]">
+          Card required.{' '}
+          {interval === 'annual' ? '$290 charged' : '$29 charged'} on day 8.{' '}
+          Cancel anytime before then — no charge.
+        </p>
         {error && (
           <p role="alert" className="mt-2 text-center text-xs text-red-400">
             {error}
