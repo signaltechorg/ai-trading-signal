@@ -93,6 +93,12 @@ export async function GET(request: NextRequest): Promise<Response> {
     results.socialWeekly = await callInternal('/api/cron/social/weekly', request);
   }
 
+  // 7. Ops digest — once at 23:00 UTC (07:00 MYT next day). Posts the
+  //    /admin/ops "Today" panel to each OPS_TELEGRAM_ADMIN_IDS recipient.
+  if (hour === 23 && minute < 10) {
+    results.opsDigest = await callInternal('/api/cron/ops-digest', request);
+  }
+
   return NextResponse.json({
     ok: true,
     ran: Object.keys(results),

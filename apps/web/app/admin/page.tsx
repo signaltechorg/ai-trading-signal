@@ -7,6 +7,7 @@ import {
   Users,
   Activity,
   ExternalLink,
+  Gauge,
   KeyRound,
 } from 'lucide-react';
 import { requireAdmin } from '../../lib/admin-gate';
@@ -169,6 +170,12 @@ export default async function AdminIndexPage() {
           Tools
         </h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <Tile
+            href="/admin/ops"
+            title="Ops Dashboard"
+            body="Signal engine health: 24h counts, gate-blocked signals, last cron run."
+            icon={Gauge}
+          />
           <Tile
             href="/admin/pro-grants"
             title="Pro Grants"

@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/telegram';
 import { getUserByTelegramId } from '../../../../lib/db';
 import { getUserTier } from '../../../../lib/tier';
+import { handleOpsCommand } from '../../../../lib/telegram-ops-commands';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 
@@ -421,6 +422,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const chatId = message.chat.id;
     const text = message.text.trim();
     const command = text.split(' ')[0].split('@')[0].toLowerCase();
+
+    // Admin-gated /ops surface — silently consumes for non-admins so we don't
+    // surface its existence. Falls through (returns false) for non-/ops text.
+    if (await handleOpsCommand(chatId, message.from?.id, text)) {
+      return NextResponse.json({ ok: true });
+    }
 
     switch (command) {
       case '/start':
