@@ -292,11 +292,14 @@ function drawChart(
 }
 
 type EquityScope = 'pro' | 'free';
+type EquityBand = 'all' | 'premium' | 'standard';
 
 interface EquityCurveProps {
   period?: '7d' | '30d' | 'all';
   scope?: EquityScope;
   category?: CategoryFilter;
+  band?: EquityBand;
+  onBandChange?: (band: EquityBand) => void;
 }
 
 interface SmoothMeta {
@@ -304,7 +307,7 @@ interface SmoothMeta {
   capR: number | null;
 }
 
-export function EquityCurve({ period = 'all', scope = 'pro', category = 'all' }: EquityCurveProps) {
+export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', band = 'all', onBandChange }: EquityCurveProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [points, setPoints] = useState<EquityPoint[]>([]);
   const [summary, setSummary] = useState<EquitySummary | null>(null);
@@ -322,6 +325,7 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all' }:
       try {
         const params = new URLSearchParams({ period, scope });
         if (category !== 'all') params.set('category', category);
+        if (band !== 'all') params.set('band', band);
         if (smooth) params.set('smooth', 'median2x');
         const res = await fetch(`/api/signals/equity?${params.toString()}`);
         if (!res.ok) return;
@@ -336,7 +340,7 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all' }:
       }
     }
     load();
-  }, [period, scope, category, smooth]);
+  }, [period, scope, category, band, smooth]);
 
   const handleHover = useCallback((data: TooltipData | null) => {
     setTooltip(data);
@@ -407,21 +411,48 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all' }:
             </p>
           )}
         </div>
-        {/* Smooth toggle — opt-in marketing view. Off by default so the
-            headline numbers match the raw paper-trade outcome. */}
-        <button
-          type="button"
-          onClick={() => setSmooth(s => !s)}
-          aria-pressed={smooth}
-          className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
-            smooth
-              ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-              : 'border-white/10 bg-white/[0.02] text-zinc-500 hover:text-zinc-300'
-          }`}
-          title="Clip the top and bottom 5% of trade outcomes (P95 cap). Reveals the path without single-trade outliers in either direction."
-        >
-          {smooth ? 'Smoothed (P95)' : 'Smooth outliers'}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Band toggle — All vs Premium-only. Lets viewers see what the
+              high-confidence filter (conf ≥ 85) actually looked like vs the
+              full firehose in the same window. Only shown when caller wired
+              an onBandChange so the parent decides whether the toggle is
+              meaningful for its scope. */}
+          {onBandChange && (
+            <div className="inline-flex overflow-hidden rounded-md border border-white/10">
+              {(['all', 'premium'] as const).map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onBandChange(value)}
+                  aria-pressed={band === value}
+                  className={`px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
+                    band === value
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : 'bg-white/[0.02] text-zinc-500 hover:text-zinc-300'
+                  }`}
+                  title={value === 'premium' ? 'Premium-only: confidence ≥ 85. The high-conviction subset of signals.' : 'All signals (full firehose).'}
+                >
+                  {value === 'all' ? 'All' : 'Premium'}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Smooth toggle — opt-in marketing view. Off by default so the
+              headline numbers match the raw paper-trade outcome. */}
+          <button
+            type="button"
+            onClick={() => setSmooth(s => !s)}
+            aria-pressed={smooth}
+            className={`rounded-md border px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
+              smooth
+                ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                : 'border-white/10 bg-white/[0.02] text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="Clip the top and bottom 5% of trade outcomes (P95 cap). Reveals the path without single-trade outliers in either direction."
+          >
+            {smooth ? 'Smoothed (P95)' : 'Smooth outliers'}
+          </button>
+        </div>
       </div>
 
       {/* Stats overlay — Total Return and Max Drawdown are presented as a

@@ -7,6 +7,7 @@ import { Lock } from 'lucide-react';
 import { PageNavBar } from '@/components/PageNavBar';
 import { useUserTier } from '@/lib/hooks/use-user-tier';
 import { EquityCurve } from '@/app/components/equity-curve';
+import { TrailingWeekBandCallout } from '@/app/components/trailing-week-band-callout';
 import { BackgroundDecor } from '@/components/background/BackgroundDecor';
 import { InfoHint } from '@/components/InfoHint';
 import { STAT_HINTS } from '@/lib/stat-hints';
@@ -322,6 +323,12 @@ export function TrackRecordClient() {
   const [scope, setScope] = useState<Scope>('pro');
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [period, setPeriod] = useState<Period>('30d');
+  // Equity band toggle is local to the curve — doesn't affect the rest of
+  // the page (history table, per-symbol breakdown, etc). 'all' is the
+  // default so newcomers see the firehose first; opt-in to the premium-only
+  // view via the toggle on the equity card. Typed as the full EquityBand
+  // union to match the prop contract — UI only surfaces all/premium today.
+  const [equityBand, setEquityBand] = useState<'all' | 'premium' | 'standard'>('all');
   const [pairFilter, setPairFilter] = useState<string>('ALL');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('ALL');
   const [stats, setStats] = useState<HistoryStats | null>(null);
@@ -706,12 +713,22 @@ export function TrackRecordClient() {
           </div>
         </div>
 
+        {/* Trailing-7d callout — Premium-band vs full-firehose side-by-side
+           over the last week. Renders ABOVE the equity curve so the regime
+           context lands before the long-form chart. Pro scope only — the
+           free slice is too narrow for a band split. */}
+        {scope === 'pro' && <TrailingWeekBandCallout />}
+
         {/* Equity Curve — component accepts a narrower period set; map unsupported periods to 'all'.
-           Scope mirrors the tab above so Pro vs Free are clearly distinct charts. */}
+           Scope mirrors the tab above so Pro vs Free are clearly distinct charts.
+           Band toggle is exposed only on Pro scope; Free scope is a narrow free-tier
+           slice where a premium split isn't meaningful. */}
         <EquityCurve
           period={period === '7d' || period === '30d' ? period : 'all'}
           scope={scope}
           category={category}
+          band={scope === 'pro' ? equityBand : 'all'}
+          onBandChange={scope === 'pro' ? setEquityBand : undefined}
         />
 
         {/* Per-Symbol Breakdown */}
