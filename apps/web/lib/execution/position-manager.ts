@@ -19,6 +19,7 @@ import {
   cancelOrder,
   currentMode,
   getAccount,
+  getMarkPrice,
   getOpenOrders,
   getOrderByClientId,
   placeOrder,
@@ -78,7 +79,11 @@ export async function runPositionManagerTick(): Promise<ManageTickResult> {
       const liveQty = livePos ? Math.abs(livePos.positionAmt) : 0;
 
       if (liveQty === 0) {
-        await markClosed(ex.id);
+        // Snapshot mark price at close-detection. Fail-soft: a flaky
+        // markPrice fetch shouldn't block marking the row closed —
+        // exit_price stays NULL and the row is still terminal.
+        const exitPrice = await getMarkPrice(ex.symbol).catch(() => null);
+        await markClosed(ex.id, exitPrice);
         result.closed++;
         void notifyPositionClosed({
           signalId: ex.signalId,
@@ -190,16 +195,27 @@ async function fetchOpenExecutions(): Promise<OpenExecution[]> {
   }
 }
 
-async function markClosed(executionId: string): Promise<void> {
+async function markClosed(executionId: string, exitPrice: number | null): Promise<void> {
   try {
+    // COALESCE($2, exit_price) so a re-run that gets NULL from a flaky
+    // getMarkPrice doesn't overwrite a price we already captured on a prior
+    // tick. Status guard means the row is only updated once anyway.
     await execute(
-      `UPDATE executions SET status='closed', closed_at=NOW(), updated_at=NOW()
+      `UPDATE executions
+          SET status='closed',
+              closed_at=NOW(),
+              updated_at=NOW(),
+              exit_price=COALESCE($2, exit_price)
         WHERE id=$1 AND status <> 'closed'`,
-      [executionId],
+      [executionId, exitPrice],
     );
   } catch (err: unknown) {
     const code = (err as { code?: string } | null)?.code;
-    if (code !== '42P01') throw err;
+    // 42P01 = table missing (pre-018), 42703 = column missing (pre-031).
+    // Either means schema not caught up to code — swallow so the rest of
+    // the tick proceeds.
+    if (code === '42P01' || code === '42703') return;
+    throw err;
   }
 }
 
