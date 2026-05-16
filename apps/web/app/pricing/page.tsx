@@ -27,9 +27,9 @@ const FEATURES: Feature[] = [
   },
   { label: 'Telegram group', free: 'Public @tradeclawwin', pro: 'Private Pro group — same signals you see in the dashboard, no scroll lag' },
   { label: 'Risk levels', free: 'TP1 only', pro: 'TP1, TP2, TP3 + Stop Loss — full exit plan before you enter' },
-  { label: 'Entry signal', free: 'Basic (RSI, EMA)', pro: 'Confluence-gated — multiple indicators must align across H1/H4/D1 before firing' },
-  { label: 'Track record', free: 'Audit our public Postgres yourself', pro: 'Audit our public Postgres yourself' },
-  { label: 'Signal history', free: FREE_HISTORY_LABEL, pro: 'Unlimited — backtest your own strategies on real outcomes' },
+  { label: 'Entry signal', free: 'Basic (RSI, EMA)', pro: 'Higher-conviction setups — multiple indicators must align across H1/H4/D1 before a signal fires' },
+  { label: 'Track record', free: 'Audit our public Postgres yourself', pro: 'Every entry, exit, and outcome is recorded in our public Postgres archive' },
+  { label: 'Signal history', free: FREE_HISTORY_LABEL, pro: 'Unlimited real outcomes for backtests, audits, and strategy checks' },
   { label: 'Support', free: 'Community', pro: 'Email (24h response)' },
   { label: 'Free trial', free: false, pro: '7 days, no charge if you cancel' },
 ];

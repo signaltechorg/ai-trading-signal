@@ -1123,10 +1123,10 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
       </div>
 
       {/* Synthetic data warning banner */}
-      {syntheticSymbols.length > 0 && syntheticSymbols.length / 12 > 0.3 && (
+      {syntheticSymbols.length > 0 && syntheticSymbols.length / SYMBOLS.length > 0.3 && (
         <div className="border-b border-zinc-500/20 bg-zinc-500/5 px-4 py-2">
           <p className="max-w-7xl mx-auto text-xs text-zinc-400/80 font-mono">
-            <AlertTriangle className="w-3.5 h-3.5 inline mr-1" /> {syntheticSymbols.length} of 12 symbols are using synthetic data (API unavailable) — signals suppressed for those pairs.
+            <AlertTriangle className="w-3.5 h-3.5 inline mr-1" /> {syntheticSymbols.length} of {SYMBOLS.length} symbols are using synthetic data (API unavailable) — signals suppressed for those pairs.
           </p>
         </div>
       )}
