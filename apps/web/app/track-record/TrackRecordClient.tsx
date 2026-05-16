@@ -322,7 +322,7 @@ export function TrackRecordClient() {
   // is a comparison view showing what the free experience delivers.
   const [scope, setScope] = useState<Scope>('pro');
   const [category, setCategory] = useState<CategoryFilter>('all');
-  const [period, setPeriod] = useState<Period>('30d');
+  const [period, setPeriod] = useState<Period>('all');
   // Equity band toggle is local to the curve — doesn't affect the rest of
   // the page (history table, per-symbol breakdown, etc). 'all' is the
   // default so newcomers see the firehose first; opt-in to the premium-only
