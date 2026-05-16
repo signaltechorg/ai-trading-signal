@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-17T00:01:57+08:00
+updated: 2026-05-17T01:15:00+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1590,12 +1590,158 @@ tasks:
       navbar/mobile-nav/sitemap discoverability and generated a downloadable ZIP in
       apps/web/public/downloads/tradeclaw-extension.zip. Verified with `npm run build`.
 
+  # ── Phase 33: AI Operator Dashboard Layer ──
+  # Retail-to-institutional bridge: persistent memory, tool registry, connector status, CI controls.
+
+  - id: TC-171
+    title: "Operator memory subsystem — per-user persistent memory store (file-backed JSON → Postgres upgrade path). Stores user preferences, saved watchlists, alert history, and operator notes. /api/operator/memory CRUD endpoints + dashboard widget."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [db-schema, api-routes, dashboard-widget]
+    notes: >
+      Phase A: schema + migration for operator_memory table (user_id, key, value JSONB, updated_at).
+      Phase B: /api/operator/memory GET/PUT/DELETE routes with session auth.
+      Phase C: dashboard sidebar widget — quick notes, pinned pairs, recent activity.
+
+  - id: TC-172
+    title: "Tools registry — connectable tool/indicator registry UI. Lists available TA indicators, signal generators, and external tool integrations with enable/disable toggles. /operator/tools page + /api/operator/tools endpoint."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [config-schema, api, ui-page]
+    notes: >
+      Phase A: tool registry config schema (id, name, category, enabled, config JSONB).
+      Phase B: /api/operator/tools GET/PATCH — list tools, toggle enable state.
+      Phase C: /operator/tools page — categorized grid (TA indicators, signal engines, external connectors) with toggle switches and config modals.
+
+  - id: TC-173
+    title: "Connector status dashboard — real-time health monitoring for exchange APIs, market data feeds, and external integrations. /operator/connectors page with uptime badges, last-check timestamps, and error logs."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [health-check-service, api, ui-page]
+    notes: >
+      Phase A: health-check service — periodic ping of market-data-hub, exchange APIs, Telegram bot.
+      Phase B: /api/operator/connectors GET — returns connector status array with uptime %, last_check, last_error.
+      Phase C: /operator/connectors page — status cards with green/yellow/red badges, expandable error logs, manual re-check button.
+
+  - id: TC-174
+    title: "Continuous improvement controls — automated performance tracking with actionable suggestions. Tracks signal accuracy trends, strategy drift, and config staleness. /operator/insights page with recommendation cards."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [metrics-aggregation, recommendation-engine, ui-page]
+    notes: >
+      Phase A: metrics aggregation — daily rollup of signal accuracy, avg confidence, hit/miss ratio by pair and timeframe.
+      Phase B: recommendation engine — rule-based suggestions (e.g. "XAUUSD accuracy dropped 15% this week — review TA thresholds").
+      Phase C: /operator/insights page — trend charts, recommendation cards with dismiss/snooze/act actions.
+
+  - id: TC-175
+    title: "Unified operator dashboard — /operator landing page that stitches TC-171..174 into a single command-center view. Memory sidebar, tools summary, connector status strip, and insights feed. Pro-gated."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [layout, widget-integration, pro-gate]
+    notes: >
+      Phase A: /operator layout — responsive grid with sidebar (memory) + main area (tools summary, connectors, insights).
+      Phase B: integrate TC-171..174 widgets into unified view with shared loading states.
+      Phase C: Pro-gate via tier check — free users see a preview/upgrade CTA.
+
+  # ── Phase 34: Pro-tier TradingAgents Research Stack ──
+  # TauricResearch/TradingAgents as the advanced research/orchestration layer for power users.
+
+  - id: TC-176
+    title: "TradingAgents integration scaffold — evaluate TauricResearch/TradingAgents repo, document integration points, create packages/trading-agents/ wrapper with typed interfaces for analyst/risk/PM agent roles."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [research-spike, package-scaffold, typed-interfaces]
+    notes: >
+      Phase A: research spike — clone TauricResearch/TradingAgents, document architecture, identify integration surface (Python agents, LLM calls, data feeds).
+      Phase B: packages/trading-agents/ scaffold — TypeScript wrapper that shells out to Python agents or calls their API.
+      Phase C: typed interfaces — AnalystAgent, RiskAgent, PortfolioManagerAgent with input/output schemas.
+
+  - id: TC-177
+    title: "Multi-agent research pipeline — orchestrated analyst→risk→PM workflow that produces a structured research report for any symbol. /api/pro/research endpoint + background job queue."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [job-queue, pipeline-orchestration, api-endpoint]
+    notes: >
+      Phase A: simple job queue (pg-based) for long-running research tasks.
+      Phase B: pipeline orchestration — analyst gathers data + TA, risk scores the setup, PM produces go/no-go with sizing.
+      Phase C: /api/pro/research POST {symbol, timeframe} → returns job_id; GET /api/pro/research/:id → returns structured report.
+
+  - id: TC-178
+    title: "Pro research dashboard — /pro/research page with research request form, job status tracker, and rendered research reports. Includes agent activity timeline showing analyst→risk→PM progression."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [ui-page, job-tracker, report-renderer]
+    notes: >
+      Phase A: /pro/research page — symbol input, timeframe selector, "Run Research" button.
+      Phase B: job tracker — real-time status updates (queued → analyst → risk → pm → complete), SSE or polling.
+      Phase C: report renderer — structured markdown/card view of the final research output with charts.
+
+  # ── Phase 35: SMB Capital Playbook ──
+  # Guided workflows inspired by SMB Capital methodology: alerts, pre-market, journal, custom logic, autopsy.
+
+  - id: TC-179
+    title: "Custom price alerts — user-defined alert conditions (price crosses level, RSI threshold, signal fired). /alerts page with alert builder, active alerts list, and delivery via in-app + Telegram. File-backed JSON store."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [alert-schema, evaluation-engine, ui-page, delivery]
+    notes: >
+      Phase A: alert schema — {id, user_id, symbol, condition_type, threshold, enabled, triggered_at}.
+      Phase B: evaluation engine — runs on each signal/price update, checks active alerts, marks triggered.
+      Phase C: /alerts page — alert builder form (pair, condition, threshold), active alerts table with enable/disable/delete.
+      Phase D: delivery — in-app toast + optional Telegram push via existing bot integration.
+
+  - id: TC-180
+    title: "Pre-market game plan automation — daily pre-market briefing generator. Pulls overnight moves, key levels, scheduled news events, and current signal state into a structured game plan. /game-plan page with auto-generated daily brief."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [data-aggregation, plan-template, ui-page, scheduled-generation]
+    notes: >
+      Phase A: data aggregation — overnight price changes, key S/R levels from TA engine, upcoming news (if news feed available).
+      Phase B: plan template — structured markdown: "Key Levels | Active Signals | Overnight Moves | Today's Focus Pairs".
+      Phase C: /game-plan page — today's plan with historical plan archive.
+      Phase D: scheduled generation — cron job (pre-market hours) that auto-generates the daily plan.
+
+  - id: TC-181
+    title: "Trading journal + analysis — structured trade logging with performance analytics. /journal page with trade entry form (pair, direction, entry, exit, notes), trade history table, and aggregate stats (win rate, avg R, best/worst)."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [journal-schema, api-routes, ui-page, analytics]
+    notes: >
+      Phase A: journal schema — {id, user_id, symbol, direction, entry_price, exit_price, stop_loss, take_profit, notes, tags, outcome, r_multiple, created_at}.
+      Phase B: /api/journal CRUD — create, list (with filters), update, delete.
+      Phase C: /journal page — trade entry form, filterable history table, quick-tag system (setup type, emotion, mistake).
+      Phase D: analytics dashboard — win rate, avg R, profit factor, equity curve, tag-based breakdown.
+
+  - id: TC-182
+    title: "Custom entry/exit logic — visual rule builder for user-defined trade entry and exit conditions. Combines TA indicators with boolean logic (AND/OR). /strategy-rules page with drag-drop rule builder and backtest preview."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [rule-schema, evaluation-engine, ui-builder, backtest-hook]
+    notes: >
+      Phase A: rule schema — tree structure {operator: AND/OR, conditions: [{indicator, comparator, value}]}.
+      Phase B: evaluation engine — takes rule tree + current TA data, returns boolean match.
+      Phase C: /strategy-rules page — visual builder with indicator dropdowns, comparator selects, AND/OR grouping.
+      Phase D: backtest hook — wire rule evaluation into existing backtest engine for preview results.
+
+  - id: TC-183
+    title: "AI trade autopsy — post-trade AI analysis that reviews what went right/wrong. Takes a completed journal entry, pulls chart context (TA state at entry/exit), and generates a structured review. Template-based (no LLM API cost). /journal/:id/autopsy page."
+    status: planned
+    owner: pm-tradeclaw
+    phase: [context-retrieval, autopsy-template, ui-page]
+    notes: >
+      Phase A: context retrieval — given a trade's entry/exit timestamps, pull TA indicator state at both points from signal_history.
+      Phase B: autopsy template — rule-based analysis: "Entry was with/against trend", "RSI was overbought at exit", "Stop was X ATR — optimal range is Y".
+      Phase C: /journal/:id/autopsy page — structured report card with entry/exit TA snapshots, verdict tags (good entry, early exit, etc.), and improvement suggestions.
+
 next_actions:
-  - "Public /strategies/leaderboard shipped; keep feeding it with more proof surfaces and distribution links to maximize trust and conversion."
-  - "Phase 32 defined. TC-162 spawned — GitHub Profile README widget (most viral hook)."
+  - "Phase 33 defined (TC-171..175): AI Operator Dashboard. Start with TC-171 (memory subsystem) — it unblocks TC-174 and TC-175."
+  - "Phase 34 defined (TC-176..178): Pro TradingAgents research stack. TC-176 (research spike) is prerequisite — evaluate TauricResearch/TradingAgents feasibility first."
+  - "Phase 35 defined (TC-179..183): SMB Capital Playbook. TC-179 (custom alerts) and TC-181 (journal) are independent entry points — can parallelize."
+  - "Public /strategies/leaderboard shipped; keep feeding it with more proof surfaces and distribution links."
   - "Migrate file-based JSON storage to PostgreSQL for production self-hosters."
   - "Deploy live demo instance and validate Docker Compose end-to-end."
   - "Add test suite (currently zero tests for 200+ pages)."
+
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
 
@@ -1755,7 +1901,6 @@ next_actions:
     status: done
     owner: pm-tradeclaw
     notes: "Added: code-size + discussions badges, flat-square tech stack badge row, 3-bullet 'Why TradeClaw?' skim section, Tech Stack table, Contributors section with contrib.rocks. Star history already existed."
-    notes: ""
 
   - id: TC-080
     title: "TradeClaw status page — /status shows uptime, last signal time, API health, version, and incident history"
@@ -1779,7 +1924,6 @@ next_actions:
     status: done
     owner: pm-tradeclaw
     notes: "translations.ts (EN/ES/ZH typed keys), locale-switcher.tsx (EN|ES|中文 pill), localized-landing.tsx (shared component), /es page (og:locale=es_ES), /zh page (og:locale=zh_CN), sitemap updated, hreflang alternates in layout. Build passes."
-    notes: ""
 
   - id: TC-083
     title: "GitHub sponsor page + /sponsor — OSS sustainability page with tiers, goals, and roadmap unlocks"

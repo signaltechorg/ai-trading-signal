@@ -23,6 +23,11 @@ function normalizeHubUrl(raw: string): string {
 }
 
 const HUB_URL = normalizeHubUrl(process.env.MARKET_DATA_HUB_URL ?? '');
+const HUB_API_KEY = process.env.MARKET_DATA_HUB_API_KEY ?? '';
+
+function hubHeaders(): HeadersInit {
+  return HUB_API_KEY ? { Authorization: `Bearer ${HUB_API_KEY}` } : {};
+}
 
 // US equity tickers stored on the hub as bare Twelve Data symbols (no slash).
 // TradeClaw uses the `<TICKER>USD` convention internally for consistency, but
@@ -122,7 +127,7 @@ export async function fetchHubCandles(
   const interval = toHubInterval(timeframe);
   const url = `${HUB_URL}/api/candles/${hubSymbol}?interval=${interval}&limit=${limit}`;
 
-  const data = await safeFetch<HubCandleResponse>(url, { timeoutMs: 6000 });
+  const data = await safeFetch<HubCandleResponse>(url, { timeoutMs: 6000, headers: hubHeaders() });
   if (!data?.values?.length) return [];
 
   return data.values.map((v) => ({
@@ -179,6 +184,7 @@ export async function fetchHubQuotes(): Promise<PriceQuote[]> {
 
   const data = await safeFetch<HubQuotesResponse>(`${HUB_URL}/api/quotes`, {
     timeoutMs: 5000,
+    headers: hubHeaders(),
   });
   if (!data?.data?.length) return [];
 
@@ -208,7 +214,7 @@ export async function fetchHubExchangeRates(): Promise<ForexRate[]> {
 
   const data = await safeFetch<HubExchangeRateResponse>(
     `${HUB_URL}/api/exchange-rates`,
-    { timeoutMs: 5000 },
+    { timeoutMs: 5000, headers: hubHeaders() },
   );
   if (!data?.data?.length) return [];
 
