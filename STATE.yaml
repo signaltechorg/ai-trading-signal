@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-05T13:30:00+08:00
+updated: 2026-05-16T22:08:49+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -963,6 +963,14 @@ tasks:
     owner: pm-tradeclaw
     notes: "Complete: /today page with TodayClient.tsx already built. 2026-03-30"
 
+  # ── Phase 24: Proof Surfaces + Conversion ──
+
+  - id: TC-116
+    title: "Track-record proof hook — surface the public strategy leaderboard inside /track-record so prospects can jump from audited performance into Sharpe-first ranked backtests"
+    status: done
+    owner: pm-tradeclaw
+    notes: "Hourly growth loop 2026-05-16. Added a compact leaderboard proof card/CTA to /track-record linking to /strategies/leaderboard and /strategies. npm run build in apps/web passed."
+
   # ── Phase 23: Real Distribution + Actual Star Acquisition ──
 
   - id: TC-114
@@ -1552,23 +1560,38 @@ tasks:
 
   - id: TC-164
     title: "Community strategy backtesting leaderboard — /strategies/leaderboard: users paste strategy JSON, it gets auto-backtested server-side (90-day seeded PRNG), ranked by Sharpe ratio in file-based JSON. Top 10 public board. Share your rank on X. Drives community engagement + organic stars."
-    status: pending
+    status: done
     owner: pm-tradeclaw
-    notes: ""
+    notes: >
+      Complete 2026-05-16. Added a public /strategies/leaderboard page/client with Sharpe-first ranking,
+      share/copy actions, and CTA links into Builder, Marketplace, and Pricing. Hardened /api/strategies with
+      zod validation, normalized create responses, and simulated performance fields, then added route tests and
+      sitemap/docs updates so the leaderboard is discoverable and build-safe. Verified with `npm run build` and
+      `npm test -- apps/web/app/api/strategies/__tests__/route.test.ts --runInBand`.
 
   - id: TC-165
     title: "AI signal copilot chat — /copilot: template-based conversational bot (no LLM API cost) that answers questions about current signals, which pair looks strongest, risk management. Uses live /api/signals data. Chat UI with signal card previews inline. Drives 10min+ sessions."
-    status: pending
+    status: done
     owner: pm-tradeclaw
-    notes: ""
+    notes: >
+      Complete 2026-05-16. Added a public /copilot page with template-based chat replies, live
+      /api/signals fetching, inline signal preview cards, quick prompts, and conversion CTAs into
+      Dashboard, Strategy Builder, Leaderboard, and Pricing. Added nav + sitemap discoverability.
+      Verified with `npm run build` in apps/web.
 
   - id: TC-166
     title: "TradeClaw Chrome extension — packages/tradeclaw-extension/: manifest.json v3, popup.html showing live BTC/ETH/XAU signal badges (direction + confidence), options page for custom base URL + pair selection, /api/widget/extension JSON endpoint. /chrome-extension page with screenshot, install guide, ZIP download. Chrome Web Store = passive discovery."
-    status: pending
+    status: done
     owner: pm-tradeclaw
-    notes: ""
+    notes: >
+      Complete 2026-05-16. Added packages/tradeclaw-extension/ with MV3 manifest, popup/options UI,
+      shared styles, and README install notes; created /api/widget/extension for live BTC/ETH/XAU
+      badge JSON; shipped /chrome-extension with screenshot, install steps, and ZIP download; added
+      navbar/mobile-nav/sitemap discoverability and generated a downloadable ZIP in
+      apps/web/public/downloads/tradeclaw-extension.zip. Verified with `npm run build`.
 
 next_actions:
+  - "Public /strategies/leaderboard shipped; keep feeding it with more proof surfaces and distribution links to maximize trust and conversion."
   - "Phase 32 defined. TC-162 spawned — GitHub Profile README widget (most viral hook)."
   - "Migrate file-based JSON storage to PostgreSQL for production self-hosters."
   - "Deploy live demo instance and validate Docker Compose end-to-end."

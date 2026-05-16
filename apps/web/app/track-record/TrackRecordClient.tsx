@@ -713,6 +713,32 @@ export function TrackRecordClient() {
           </div>
         </div>
 
+        {/* Strategy Leaderboard proof card — reinforces Sharpe-first ranking */}
+        <div className="glass-card rounded-2xl p-5 mb-8 border-l-2 border-emerald-500/50">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold mb-0.5">Compare Strategies by Sharpe</h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Public leaderboard ranks every strategy by risk-adjusted return. Backtests, equity curves, and trade logs — open for inspection.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href="/strategies/leaderboard"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 text-sm font-medium hover:bg-emerald-500/25 transition-colors"
+              >
+                View Leaderboard
+              </Link>
+              <Link
+                href="/strategies"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.06] text-[var(--foreground)] text-sm font-medium hover:bg-white/[0.1] transition-colors"
+              >
+                Browse Strategies
+              </Link>
+            </div>
+          </div>
+        </div>
+
         {/* Trailing-7d callout — Premium-band vs full-firehose side-by-side
            over the last week. Renders ABOVE the equity curve so the regime
            context lands before the long-form chart. Pro scope only — the

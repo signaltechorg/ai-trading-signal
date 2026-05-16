@@ -1,0 +1,43 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="160" y1="80" x2="1120" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617"/>
+      <stop offset="1" stop-color="#09111f"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="1280" height="720" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.082 0 1 0 0 0.73 0 0 1 0 0.53 0 0 0 0.36 0"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" rx="36" fill="url(#bg)"/>
+  <circle cx="330" cy="160" r="140" fill="#34D399" fill-opacity="0.12" filter="url(#glow)"/>
+  <circle cx="982" cy="526" r="180" fill="#3B82F6" fill-opacity="0.10" filter="url(#glow)"/>
+
+  <rect x="114" y="108" width="1052" height="504" rx="32" fill="#0B1220" fill-opacity="0.94" stroke="rgba(255,255,255,0.1)"/>
+
+  <text x="160" y="172" fill="#34D399" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="4">TRADECLAW EXTENSION</text>
+  <text x="160" y="224" fill="white" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="-1.6">Live signal badges in the browser toolbar</text>
+  <text x="160" y="270" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="24">BTCUSD, ETHUSD, and XAUUSD from your public demo or self-hosted TradeClaw instance.</text>
+
+  <rect x="160" y="322" width="244" height="60" rx="30" fill="url(#chip)"/>
+  <text x="202" y="360" fill="#04110C" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">BUY 82%</text>
+
+  <rect x="420" y="322" width="244" height="60" rx="30" fill="#FB7185"/>
+  <text x="460" y="360" fill="#2A0913" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">SELL 74%</text>
+
+  <rect x="680" y="322" width="244" height="60" rx="30" fill="#FBBF24"/>
+  <text x="716" y="360" fill="#422006" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">WAIT 0%</text>
+
+  <rect x="160" y="426" width="524" height="120" rx="24" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="190" y="464" fill="white" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">Options</text>
+  <text x="190" y="499" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="18">Set your base URL, request host access, and pin the badge to stay in the loop.</text>
+
+  <rect x="728" y="426" width="382" height="120" rx="24" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="760" y="464" fill="white" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">/api/widget/extension</text>
+  <text x="760" y="499" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="18">Single JSON endpoint for the popup and Chrome Web Store marketing surface.</text>
+</svg>

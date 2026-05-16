@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { Trophy } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import type { ReactNode } from 'react';
 
@@ -33,6 +34,17 @@ const MAIN_NAV = [
         <path d="M11 13.5 9 22" />
         <path d="M13 13.5 15 22" />
         <path d="M9 18h6" />
+      </svg>
+    ),
+  },
+  {
+    href: '/copilot',
+    label: 'Copilot',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3a9 9 0 1 0 9 9" />
+        <path d="M12 7v5l3 2" />
+        <path d="M8 18h8" />
       </svg>
     ),
   },
@@ -111,6 +123,11 @@ const MENU_SECTIONS: MenuSection[] = [
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         ),
+      },
+      {
+        href: '/strategies/leaderboard',
+        label: 'Strategy Leaderboard',
+        icon: <Trophy size={18} strokeWidth={1.6} />,
       },
       {
         href: '/replay',
@@ -193,6 +210,18 @@ const MENU_SECTIONS: MenuSection[] = [
         icon: (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24" />
+          </svg>
+        ),
+      },
+      {
+        href: '/chrome-extension',
+        label: 'Chrome Extension',
+        icon: (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="M8 4v16" />
+            <path d="M8 9h13" />
+            <path d="M13 14h5" />
           </svg>
         ),
       },

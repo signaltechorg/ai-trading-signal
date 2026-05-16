@@ -158,7 +158,7 @@ export default function StrategyBuilderPage() {
         <CodeBlock language="bash" code={`# List saved strategies (server-side)
 curl http://localhost:3000/api/strategies
 
-# Validate a strategy
+# Create a strategy
 curl -X POST http://localhost:3000/api/strategies \\
   -H "Content-Type: application/json" \\
   -d @golden-cross-strategy.json`} />

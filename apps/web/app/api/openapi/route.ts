@@ -205,6 +205,7 @@ export async function GET() {
                   name: 'My Strategy',
                   description: 'RSI reversal on H4',
                   indicators: [{ name: 'RSI', period: 14 }],
+                  symbols: ['BTCUSD', 'ETHUSD'],
                   timeframes: ['H1', 'H4'],
                   risk: { stopLossPct: 1.0, takeProfitPct: 2.0, riskRewardRatio: 2 },
                 },
@@ -212,7 +213,7 @@ export async function GET() {
             },
           },
           responses: {
-            '200': {
+            '201': {
               description: 'Created strategy',
               content: {
                 'application/json': {
@@ -791,12 +792,24 @@ export async function GET() {
         },
         CreateStrategyBody: {
           type: 'object',
-          required: ['name', 'indicators', 'timeframes'],
+          required: ['name', 'indicators', 'symbols', 'timeframes'],
           properties: {
             name: { type: 'string' },
             description: { type: 'string' },
             indicators: { type: 'array', items: { type: 'object' } },
+            symbols: { type: 'array', items: { type: 'string' } },
             timeframes: { type: 'array', items: { type: 'string' } },
+            riskManagement: {
+              type: 'object',
+              properties: {
+                maxRiskPercent: { type: 'number' },
+                leverage: { type: 'number' },
+                maxOpenTrades: { type: 'number' },
+                tpMode: { type: 'string', enum: ['fixed', 'fibonacci', 'atr'] },
+                slMode: { type: 'string', enum: ['fixed', 'atr', 'support_resistance'] },
+                fibLevels: { type: 'array', items: { type: 'number' } },
+              },
+            },
             risk: {
               type: 'object',
               properties: {

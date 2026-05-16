@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Settings, Trophy } from 'lucide-react';
 import { PageNavBar } from '../../components/PageNavBar';
 import { BackgroundDecor } from '../../components/background/BackgroundDecor';
 
@@ -206,6 +207,29 @@ export default function StrategiesPage() {
           <button className="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-sm hover:bg-emerald-500/30 transition-colors">
             + New Strategy
           </button>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/15 text-emerald-400">
+                <Trophy className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white">See the public leaderboard</div>
+                <p className="text-xs text-gray-400">
+                  Ranked backtests, shareable proof cards, and the fastest path to the top performers.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/strategies/leaderboard"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/30"
+            >
+              View leaderboard
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
         {/* Strategy List */}

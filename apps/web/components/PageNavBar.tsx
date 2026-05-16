@@ -19,6 +19,7 @@ import {
   Megaphone,
   Activity,
   ShieldCheck,
+  Trophy,
 } from 'lucide-react';
 import { TradeClawLogo } from './tradeclaw-logo';
 import { UserMenu } from './UserMenu';
@@ -48,6 +49,7 @@ interface PrimaryLink { href: string; label: string }
 
 const MEMBER_PRIMARY: PrimaryLink[] = [
   { href: '/dashboard', label: 'Signals' },
+  { href: '/copilot', label: 'Copilot' },
   { href: '/screener', label: 'Screener' },
   { href: '/backtest', label: 'Backtest' },
   { href: '/leaderboard', label: 'Leaderboard' },
@@ -59,6 +61,7 @@ const MEMBER_MORE: DropdownGroup[] = [
     label: 'Trading Tools',
     links: [
       { href: '/strategy-builder', label: 'Strategy Builder', icon: Wrench },
+      { href: '/strategies/leaderboard', label: 'Strategy Leaderboard', icon: Trophy },
       { href: '/multi-timeframe', label: 'Multi-TF', icon: Layers },
       { href: '/paper-trading', label: 'Paper Trading', icon: Crosshair },
     ],
