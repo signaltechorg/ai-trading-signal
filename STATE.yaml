@@ -1544,9 +1544,11 @@ tasks:
 
   - id: TC-163
     title: "Supabase one-click setup — /supabase page + docs/SUPABASE.md: migration guide from file-based JSON to Supabase (Postgres). schema.sql, SUPABASE_URL/ANON_KEY env config, one-liner migration script. Production-ready self-hosting = star conversions from serious devs."
-    status: pending
+    status: done
     owner: pm-tradeclaw
-    notes: ""
+    notes: >
+      Complete 2026-05-15. Tightened the Supabase onboarding hub by fixing the schema-run command to a valid Postgres connection-string template, aligning the migration step with NEXT_PUBLIC_SUPABASE_URL + service-role env usage, and cleaning docs/SUPABASE.md to remove the duplicate deploy section and clarify Railway/Vercel setup.
+      Verified with `npm run build` in apps/web (passed).
 
   - id: TC-164
     title: "Community strategy backtesting leaderboard — /strategies/leaderboard: users paste strategy JSON, it gets auto-backtested server-side (90-day seeded PRNG), ranked by Sharpe ratio in file-based JSON. Top 10 public board. Share your rank on X. Drives community engagement + organic stars."

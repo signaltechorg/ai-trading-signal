@@ -15,13 +15,13 @@ const STEPS = [
   {
     step: '2',
     title: 'Run the schema',
-    command: 'psql $SUPABASE_URL -f supabase/schema.sql',
-    desc: 'Or paste schema.sql into the Supabase SQL Editor. Creates all 20+ tables with indexes.',
+    command: 'psql "postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres" -f supabase/schema.sql',
+    desc: 'Recommended: paste schema.sql into the Supabase SQL Editor. If you prefer CLI, replace [PASSWORD] and [PROJECT-REF] with your database credentials.',
   },
   {
     step: '3',
     title: 'Migrate your data',
-    command: 'SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_ROLE_KEY=ey... node supabase/migrate.js',
+    command: 'NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_ROLE_KEY=ey... node supabase/migrate.js',
     desc: 'Reads your existing data/*.json files and upserts everything into Supabase. Safe to run multiple times.',
   },
 ];

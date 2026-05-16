@@ -10,16 +10,26 @@ export interface LockedTPProps {
   from?: string;
 }
 
+export function buildLockedTPFallbackHref(level: 2 | 3, from?: string): string {
+  const fromTag = from ? `tp${level}-${from}` : `tp${level}`;
+  const params = new URLSearchParams({
+    resume: 'checkout',
+    interval: 'monthly',
+    from: fromTag,
+  });
+  return `/pricing?${params.toString()}`;
+}
+
 /**
  * Inline row stub shown in place of a hidden TP2/TP3 value for free users.
- * Goes straight to Stripe checkout (Pro monthly, 7-day trial); falls back to
- * /pricing if the user is unauthenticated or checkout errors. The intent is to
- * cut the conversion path from 3 clicks (lock → /pricing → CTA → Stripe) to 1.
+ * It takes logged-out users through /signin and then back to /pricing with a
+ * resume=checkout hint so the pricing page can fire Stripe automatically.
+ * That keeps the upgrade path to a single click after auth instead of making
+ * users hunt for the CTA again.
  */
 export function LockedTP({ level, from }: LockedTPProps) {
   const [loading, setLoading] = useState(false);
-  const fromTag = from ? `tp${level}-${from}` : `tp${level}`;
-  const fallbackHref = `/pricing?from=${encodeURIComponent(fromTag)}`;
+  const fallbackHref = buildLockedTPFallbackHref(level, from);
 
   async function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (loading) return;
@@ -32,8 +42,7 @@ export function LockedTP({ level, from }: LockedTPProps) {
         body: JSON.stringify({ tier: 'pro', interval: 'monthly' }),
       });
       if (res.status === 401) {
-        const next = encodeURIComponent(fallbackHref);
-        window.location.href = `/signin?next=${next}&tier=pro&interval=monthly&from=${encodeURIComponent(fromTag)}`;
+        window.location.href = `/signin?next=${encodeURIComponent(fallbackHref)}`;
         return;
       }
       if (!res.ok) {

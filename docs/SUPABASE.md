@@ -40,7 +40,7 @@ Option A — SQL Editor (recommended):
 
 Option B — CLI:
 ```bash
-psql "postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres" -f supabase/schema.sql
+psql "postgresql://postgres:[PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres" -f supabase/schema.sql
 ```
 
 This creates 20+ tables with proper indexes and constraints.
@@ -170,13 +170,13 @@ CREATE POLICY "Service insert" ON signal_history
 
 1. Deploy TradeClaw on Railway: [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/naimkatiman/tradeclaw)
 2. Add your Supabase env vars to the Railway service
-3. Run schema.sql in your Supabase SQL Editor
+3. Run `schema.sql` in your Supabase SQL Editor
 
-### Railway
+### Vercel
 
-1. Deploy on Railway: [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/naimkatiman/tradeclaw)
-2. Add Supabase env vars in Railway project settings
-3. Run schema.sql in your Supabase SQL Editor
+1. Deploy the web app: [![Deploy on Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/naimkatiman/tradeclaw/tree/main/apps/web)
+2. Add your Supabase env vars in the Vercel project settings
+3. Run `schema.sql` in the Supabase SQL Editor
 
 ## Troubleshooting
 
