@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-17T01:15:00+08:00
+updated: 2026-05-17T07:06:14+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1595,13 +1595,15 @@ tasks:
 
   - id: TC-171
     title: "Operator memory subsystem — per-user persistent memory store (file-backed JSON → Postgres upgrade path). Stores user preferences, saved watchlists, alert history, and operator notes. /api/operator/memory CRUD endpoints + dashboard widget."
-    status: planned
+    status: in_progress
     owner: pm-tradeclaw
     phase: [db-schema, api-routes, dashboard-widget]
     notes: >
       Phase A: schema + migration for operator_memory table (user_id, key, value JSONB, updated_at).
       Phase B: /api/operator/memory GET/PUT/DELETE routes with session auth.
       Phase C: dashboard sidebar widget — quick notes, pinned pairs, recent activity.
+      2026-05-17: Phase A schema and initial API scaffold landed (migration 032, lib/operator-memory.ts,
+      /api/operator/memory route). Need verification + dashboard widget follow-up.
 
   - id: TC-172
     title: "Tools registry — connectable tool/indicator registry UI. Lists available TA indicators, signal generators, and external tool integrations with enable/disable toggles. /operator/tools page + /api/operator/tools endpoint."
