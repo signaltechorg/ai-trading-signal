@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Gauge,
   KeyRound,
+  Brain,
 } from 'lucide-react';
 import { requireAdmin } from '../../lib/admin-gate';
 import { query, queryOne } from '../../lib/db-pool';
@@ -170,6 +171,12 @@ export default async function AdminIndexPage() {
           Tools
         </h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <Tile
+            href="/admin/operator"
+            title="AI Operator"
+            body="Memory, tools registry, and connector health for the AI operator."
+            icon={Brain}
+          />
           <Tile
             href="/admin/ops"
             title="Ops Dashboard"
