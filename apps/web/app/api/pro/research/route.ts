@@ -5,7 +5,7 @@ import {
   getResearchJob,
   listResearchJobs,
 } from '../../../../lib/trading-agents/research-jobs';
-import { runMockResearch } from '../../../../lib/trading-agents/mock-pipeline';
+import { startResearchPipeline } from '../../../../lib/trading-agents/pipeline-runner';
 
 export async function POST(req: Request) {
   const session = readSessionFromRequest(req);
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   });
 
   // Fire and forget — pipeline runs in background
-  runMockResearch(job.id, symbol, timeframe).catch(() => {});
+  startResearchPipeline(job.id, symbol, timeframe);
 
   return NextResponse.json(job, { status: 201 });
 }

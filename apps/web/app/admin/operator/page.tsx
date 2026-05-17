@@ -7,6 +7,7 @@ import {
 import { requireAdmin } from '../../../lib/admin-gate';
 import { getConnectorStatuses, type ConnectorStatus } from '../../../lib/connector-health';
 import { getAccuracyTrends, getRecommendations, type Recommendation } from '../../../lib/signal-metrics';
+import { MemorySnapshot } from './memory-snapshot';
 
 export const metadata: Metadata = {
   title: 'Operator | TradeClaw Admin',
@@ -167,6 +168,11 @@ export default async function OperatorIndexPage() {
             body="Accuracy trends and improvement recommendations."
             icon={TrendingUp}
           />
+        </div>
+
+        {/* Memory snapshot */}
+        <div className="mt-8">
+          <MemorySnapshot />
         </div>
 
         {/* Recommendations feed */}
