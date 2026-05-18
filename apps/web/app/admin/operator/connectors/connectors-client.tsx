@@ -48,6 +48,10 @@ export function ConnectorsClient() {
     load();
   }, [load]);
 
+  const healthyCount = connectors.filter((c) => c.status === 'healthy').length;
+  const degradedCount = connectors.filter((c) => c.status === 'degraded').length;
+  const downCount = connectors.filter((c) => c.status === 'down').length;
+
   return (
     <div className="space-y-6">
       {error && (
@@ -56,14 +60,26 @@ export function ConnectorsClient() {
         </div>
       )}
 
-      <div className="flex items-center justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
+            {healthyCount} healthy
+          </span>
+          <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2.5 py-1 text-yellow-300">
+            {degradedCount} degraded
+          </span>
+          <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-red-300">
+            {downCount} down
+          </span>
+        </div>
+
         <button
           onClick={load}
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Refresh
+          Re-check now
         </button>
       </div>
 
@@ -79,7 +95,7 @@ export function ConnectorsClient() {
                 key={c.id}
                 className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <p className="font-semibold text-white">{c.name}</p>
                   <div
                     className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}
@@ -100,9 +116,12 @@ export function ConnectorsClient() {
                     </span>
                   </p>
                   {c.error && (
-                    <p className="text-red-400">
-                      Error: <span className="font-mono">{c.error}</span>
-                    </p>
+                    <details className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-red-300">
+                      <summary className="cursor-pointer select-none text-xs font-medium text-red-300">
+                        Error log
+                      </summary>
+                      <p className="mt-2 font-mono text-[11px] leading-5 text-red-200">{c.error}</p>
+                    </details>
                   )}
                 </div>
               </div>

@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-17T07:06:14+08:00
+updated: 2026-05-18T00:08:26+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1595,7 +1595,7 @@ tasks:
 
   - id: TC-171
     title: "Operator memory subsystem — per-user persistent memory store (file-backed JSON → Postgres upgrade path). Stores user preferences, saved watchlists, alert history, and operator notes. /api/operator/memory CRUD endpoints + dashboard widget."
-    status: in_progress
+    status: done
     owner: pm-tradeclaw
     phase: [db-schema, api-routes, dashboard-widget]
     notes: >
@@ -1603,38 +1603,46 @@ tasks:
       Phase B: /api/operator/memory GET/PUT/DELETE routes with session auth.
       Phase C: dashboard sidebar widget — quick notes, pinned pairs, recent activity.
       2026-05-17: Phase A schema and initial API scaffold landed (migration 032, lib/operator-memory.ts,
-      /api/operator/memory route). 2026-05-17 cycle update: added a compact Memory Snapshot widget to
-      /admin/operator and verified the web app still passes `npm run build`.
+      /api/operator/memory route). 2026-05-17 cycle update: added a compact Memory Snapshot widget,
+      inline edit controls, Escape-to-cancel, auto-focus, and Ctrl/Cmd+Enter save to
+      /admin/operator/memory. Follow-up cycle hardened the editor to allow JSON/plain-text fallback on save.
+      Phase C is now effectively a generic KV editor for notes/watchlists/activity, and the web app still
+      passes `npm run build`.
 
   - id: TC-172
     title: "Tools registry — connectable tool/indicator registry UI. Lists available TA indicators, signal generators, and external tool integrations with enable/disable toggles. /operator/tools page + /api/operator/tools endpoint."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [config-schema, api, ui-page]
     notes: >
       Phase A: tool registry config schema (id, name, category, enabled, config JSONB).
       Phase B: /api/operator/tools GET/PATCH — list tools, toggle enable state.
       Phase C: /operator/tools page — categorized grid (TA indicators, signal engines, external connectors) with toggle switches and config modals.
+      2026-05-17 cycle update: added a config editor modal to /admin/operator/tools that loads/saves JSON
+      config through the existing PATCH endpoint, kept enable/disable toggles working, added modal focus
+      trapping / escape handling, and verified `npm run build`.
 
   - id: TC-173
     title: "Connector status dashboard — real-time health monitoring for exchange APIs, market data feeds, and external integrations. /operator/connectors page with uptime badges, last-check timestamps, and error logs."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [health-check-service, api, ui-page]
     notes: >
       Phase A: health-check service — periodic ping of market-data-hub, exchange APIs, Telegram bot.
       Phase B: /api/operator/connectors GET — returns connector status array with uptime %, last_check, last_error.
       Phase C: /operator/connectors page — status cards with green/yellow/red badges, expandable error logs, manual re-check button.
+      2026-05-17 cycle update: added summary badges for healthy/degraded/down connectors, renamed the refresh control to Re-check now, and rendered connector errors inside expandable log panels on /admin/operator/connectors. Verified with `npm run build`.
 
   - id: TC-174
     title: "Continuous improvement controls — automated performance tracking with actionable suggestions. Tracks signal accuracy trends, strategy drift, and config staleness. /operator/insights page with recommendation cards."
-    status: planned
+    status: in_progress
     owner: pm-tradeclaw
     phase: [metrics-aggregation, recommendation-engine, ui-page]
     notes: >
       Phase A: metrics aggregation — daily rollup of signal accuracy, avg confidence, hit/miss ratio by pair and timeframe.
       Phase B: recommendation engine — rule-based suggestions (e.g. "XAUUSD accuracy dropped 15% this week — review TA thresholds").
       Phase C: /operator/insights page — trend charts, recommendation cards with dismiss/snooze/act actions.
+      2026-05-18 cycle update: added fetch-error handling and an inline retry state to /admin/operator/insights so API failures no longer render a blank panel; verified with `npm run build`.
 
   - id: TC-175
     title: "Unified operator dashboard — /operator landing page that stitches TC-171..174 into a single command-center view. Memory sidebar, tools summary, connector status strip, and insights feed. Pro-gated."

@@ -63,14 +63,20 @@ export function InsightsClient() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(7);
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (p: number) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/operator/insights?period=${p}`);
-      if (res.ok) {
-        setData(await res.json());
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
+      setData(await res.json());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load insights');
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -101,6 +107,20 @@ export function InsightsClient() {
 
       {loading && (
         <p className="text-sm text-zinc-500">Loading...</p>
+      )}
+
+      {!loading && error && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          <AlertTriangle size={16} />
+          <span>Failed to load insights ({error}).</span>
+          <button
+            type="button"
+            onClick={() => fetchData(period)}
+            className="ml-auto underline decoration-red-400/40 underline-offset-2 transition-colors hover:text-red-300"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       {!loading && data && (
