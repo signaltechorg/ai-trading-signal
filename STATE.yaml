@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-18T16:02:11+08:00
+updated: 2026-05-18T20:00:36+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -42,7 +42,7 @@ tasks:
     title: Docker Compose one-click deploy
     status: done
     owner: pm-tradeclaw
-    notes: "Quick Start simplified to 3 steps with docker compose. Deploy buttons added 2026-03-25"
+    notes: "Quick Start simplified to 3 steps with docker compose; README now also mentions the legacy docker-compose CLI alias. Build verified 2026-05-18. Deploy buttons added 2026-03-25"
 
   - id: TC-007
     title: Alpha Screener integration docs (SaaS upsell path)

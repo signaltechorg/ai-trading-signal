@@ -62,7 +62,7 @@ If you want to run your own paid tier on top of this code: set your own Stripe k
 git clone https://github.com/naimkatiman/tradeclaw
 cd tradeclaw
 cp .env.example .env   # edit DATABASE_URL + Telegram tokens
-docker compose up -d
+docker compose up -d   # or: docker-compose up -d on the legacy CLI
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
