@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Info, CheckCircle, X } from 'lucide-react';
 
 interface AccuracyTrend {
   date: string;
@@ -59,11 +59,23 @@ function BadgeIcon({ type }: { type: Recommendation['type'] }) {
   }
 }
 
+function recommendationKey(rec: Recommendation): string {
+  return `${rec.type}||${rec.symbol ?? ''}||${rec.message}`;
+}
+
+function winRateTone(value: number): string {
+  if (value >= 60) return 'text-emerald-400';
+  if (value < 40) return 'text-red-400';
+  return 'text-white';
+}
+
 export function InsightsClient() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(7);
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
 
   const fetchData = useCallback(async (p: number) => {
     setLoading(true);
@@ -74,6 +86,7 @@ export function InsightsClient() {
         throw new Error(`HTTP ${res.status}`);
       }
       setData(await res.json());
+      setLastRefreshedAt(new Date());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load insights');
       setData(null);
@@ -85,6 +98,30 @@ export function InsightsClient() {
   useEffect(() => {
     fetchData(period);
   }, [period, fetchData]);
+
+  const summary = useMemo(() => {
+    if (!data || data.trends.length === 0) {
+      return { totalSignals: 0, winRate4h: 0, winRate24h: 0, avgConfidence: 0 };
+    }
+    const totalSignals = data.trends.reduce((s, t) => s + t.totalSignals, 0);
+    const weighted = (key: 'winRate4h' | 'winRate24h' | 'avgConfidence'): number => {
+      if (totalSignals === 0) return 0;
+      return Math.round(
+        data.trends.reduce((s, t) => s + t[key] * t.totalSignals, 0) / totalSignals,
+      );
+    };
+    return {
+      totalSignals,
+      winRate4h: weighted('winRate4h'),
+      winRate24h: weighted('winRate24h'),
+      avgConfidence: weighted('avgConfidence'),
+    };
+  }, [data]);
+
+  const visibleRecs = data
+    ? data.recommendations.filter((r) => !dismissed.has(recommendationKey(r)))
+    : [];
+  const hiddenCount = data ? data.recommendations.length - visibleRecs.length : 0;
 
   return (
     <div className="mt-8 space-y-8">
@@ -125,6 +162,36 @@ export function InsightsClient() {
 
       {!loading && data && (
         <>
+          {/* Summary strip */}
+          <div className="flex flex-wrap items-stretch gap-3">
+            <div className="flex-1 min-w-[140px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Total Signals</p>
+              <p className="mt-1 text-2xl font-semibold text-white">{summary.totalSignals}</p>
+            </div>
+            <div className="flex-1 min-w-[140px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Avg Win Rate 4h</p>
+              <p className={`mt-1 text-2xl font-semibold ${winRateTone(summary.winRate4h)}`}>
+                {summary.winRate4h}%
+              </p>
+            </div>
+            <div className="flex-1 min-w-[140px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Avg Win Rate 24h</p>
+              <p className={`mt-1 text-2xl font-semibold ${winRateTone(summary.winRate24h)}`}>
+                {summary.winRate24h}%
+              </p>
+            </div>
+            <div className="flex-1 min-w-[140px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Avg Confidence</p>
+              <p className="mt-1 text-2xl font-semibold text-white">{summary.avgConfidence}%</p>
+            </div>
+            <div className="flex-1 min-w-[160px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Last refreshed</p>
+              <p className="mt-1 text-sm text-zinc-300">
+                {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString() : '—'}
+              </p>
+            </div>
+          </div>
+
           {/* Accuracy trends table */}
           <section>
             <h2 className="mb-3 text-lg font-semibold text-white">Accuracy Trends</h2>
@@ -258,9 +325,9 @@ export function InsightsClient() {
             <section>
               <h2 className="mb-3 text-lg font-semibold text-white">Recommendations</h2>
               <div className="flex flex-col gap-3">
-                {data.recommendations.map((rec, i) => (
+                {visibleRecs.map((rec) => (
                   <div
-                    key={i}
+                    key={recommendationKey(rec)}
                     className={`flex items-start gap-3 rounded-xl border p-4 ${badgeColor(rec.type)}`}
                   >
                     <BadgeIcon type={rec.type} />
@@ -270,8 +337,31 @@ export function InsightsClient() {
                         <p className="mt-1 text-xs opacity-60">{rec.symbol}</p>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDismissed((prev) => {
+                          const next = new Set(prev);
+                          next.add(recommendationKey(rec));
+                          return next;
+                        });
+                      }}
+                      aria-label={`Dismiss recommendation: ${rec.message}`}
+                      className="rounded-md p-1 opacity-60 transition-opacity hover:opacity-100"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 ))}
+                {hiddenCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setDismissed(new Set())}
+                    className="self-start text-xs text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300"
+                  >
+                    Restore {hiddenCount} hidden
+                  </button>
+                )}
               </div>
             </section>
           )}

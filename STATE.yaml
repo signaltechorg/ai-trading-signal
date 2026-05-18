@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-18T00:08:26+08:00
+updated: 2026-05-18T12:07:52+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1642,7 +1642,7 @@ tasks:
       Phase A: metrics aggregation — daily rollup of signal accuracy, avg confidence, hit/miss ratio by pair and timeframe.
       Phase B: recommendation engine — rule-based suggestions (e.g. "XAUUSD accuracy dropped 15% this week — review TA thresholds").
       Phase C: /operator/insights page — trend charts, recommendation cards with dismiss/snooze/act actions.
-      2026-05-18 cycle update: added fetch-error handling and an inline retry state to /admin/operator/insights so API failures no longer render a blank panel; verified with `npm run build`.
+      2026-05-18 cycle update: added fetch-error handling and an inline retry state to /admin/operator/insights so API failures no longer render a blank panel; added a selected-period summary strip, last-refreshed timestamp, and locally dismissible recommendation cards; verified with `npm run build`.
 
   - id: TC-175
     title: "Unified operator dashboard — /operator landing page that stitches TC-171..174 into a single command-center view. Memory sidebar, tools summary, connector status strip, and insights feed. Pro-gated."
