@@ -8,6 +8,7 @@ import {
   isOnboardingComplete,
   type OnboardingStep,
 } from '@/lib/onboarding-state';
+import { useUserSession } from '../../lib/hooks/use-user-tier';
 
 const STEPS: { id: OnboardingStep; label: string; hint: string }[] = [
   {
@@ -33,6 +34,8 @@ interface OnboardingOverlayProps {
 }
 
 export function OnboardingOverlay({ signalsLoaded }: OnboardingOverlayProps) {
+  const { status, session } = useUserSession();
+  const isFree = status === 'authenticated' && (session?.tier === 'free' || !session?.tier);
   const [state, setState] = useState(() => getOnboardingState());
   const [dismissed, setDismissed] = useState(false);
 
@@ -102,6 +105,20 @@ export function OnboardingOverlay({ signalsLoaded }: OnboardingOverlayProps) {
         >
           Set up alerts →
         </Link>
+      )}
+
+      {isFree && (
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <p className="text-[10px] text-zinc-600 mb-1.5">
+            Free plan: 6 symbols, 15-min delay, TP1 only
+          </p>
+          <Link
+            href="/pricing?from=onboarding"
+            className="block text-center text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Unlock all symbols + instant delivery →
+          </Link>
+        </div>
       )}
     </div>
   );

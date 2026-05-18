@@ -5,7 +5,8 @@ import { TradeClawLogo } from '../../../components/tradeclaw-logo';
 import type { Metadata } from 'next';
 import { getTrackedSignals } from '../../../lib/tracked-signals';
 import { getRecordByIdAsync, type SignalHistoryRecord } from '../../../lib/signal-history';
-import { resolveAccessContextFromCookies, getUserTier } from '../../../lib/tier';
+import { resolveAccessContextFromCookies, getUserTier, TIER_SYMBOLS } from '../../../lib/tier';
+import { isFreeSymbol } from '../../../lib/tier-client';
 import { readSessionFromCookies } from '../../../lib/user-session';
 import { SignalShareButtons } from '../../components/signal-share-buttons';
 import { EmbedButton } from '../../components/embed-button';
@@ -221,8 +222,6 @@ export default async function SignalPage(
   const taResult = await getTrackedSignals({ symbol, timeframe, direction, ctx });
   const liveSignal = taResult.signals[0] ?? null;
 
-  if (!record && !liveSignal) notFound();
-
   // Tier gate: this page is a public preview surface (SEO + conversion funnel),
   // so we render any symbol the teaser surfaces — but free/anon viewers see
   // TP2/TP3 masked. Price chart is also Pro-only (handled below).
@@ -230,6 +229,52 @@ export default async function SignalPage(
   const session = await readSessionFromCookies();
   const tier = session?.userId ? await getUserTier(session.userId) : 'free';
   const isPaid = tier !== 'free';
+
+  // If no signal data found AND the symbol is Pro-only for this user,
+  // show a descriptive gate instead of a generic 404.
+  if (!record && !liveSignal) {
+    const isProOnlySymbol = !isFreeSymbol(symbol) && TIER_SYMBOLS.pro.includes(symbol);
+    if (!isPaid && isProOnlySymbol) {
+      return (
+        <div className="min-h-[100dvh] bg-[#050505] text-white flex flex-col">
+          <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-xl">
+            <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-1.5 shrink-0">
+                <TradeClawLogo className="h-4 w-4 shrink-0" id="signal" />
+                <span className="text-sm font-semibold">Trade<span className="text-emerald-400">Claw</span></span>
+              </Link>
+              <Link href="/dashboard" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                View All Signals →
+              </Link>
+            </div>
+          </nav>
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="text-center max-w-sm">
+              <div className="mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                <Lock className="h-6 w-6 text-emerald-400" />
+              </div>
+              <h1 className="text-lg font-semibold text-white mb-2">{symbol} is a Pro symbol</h1>
+              <p className="text-sm text-zinc-400 mb-6">
+                Signals for {symbol} are available on the Pro plan. Free accounts cover 6 symbols: BTC, ETH, XAU, EUR, SPY, QQQ.
+              </p>
+              <Link
+                href="/pricing?from=pro-only-symbol"
+                className="inline-flex items-center rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors"
+              >
+                Upgrade to Pro -- $29/mo
+              </Link>
+              <div className="mt-3">
+                <Link href="/dashboard" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+                  Back to free signals
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    notFound();
+  }
 
   const baseSignal: TradingSignal = record
     ? buildHistoricalSignal(record, liveSignal?.indicators ?? null)

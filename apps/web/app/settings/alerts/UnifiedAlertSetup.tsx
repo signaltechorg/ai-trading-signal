@@ -166,6 +166,7 @@ export default function UnifiedAlertSetup() {
       className="min-h-screen bg-[#050505] text-white"
       style={{ fontFamily: 'var(--font-geist-sans, sans-serif)' }}
     >
+      {upgradeModal}
       <div className="border-b border-[#1a1a1a]">
         <div className="max-w-3xl mx-auto px-6 py-6">
           <Link
