@@ -36,6 +36,7 @@ interface InsightsData {
 }
 
 const PERIODS = [7, 14, 30] as const;
+const DISMISSED_STORAGE_PREFIX = 'tc_operator_insights_dismissed_';
 
 function badgeColor(type: Recommendation['type']): string {
   switch (type) {
@@ -63,6 +64,10 @@ function recommendationKey(rec: Recommendation): string {
   return `${rec.type}||${rec.symbol ?? ''}||${rec.message}`;
 }
 
+function dismissedStorageKey(period: number): string {
+  return `${DISMISSED_STORAGE_PREFIX}${period}`;
+}
+
 function winRateTone(value: number): string {
   if (value >= 60) return 'text-emerald-400';
   if (value < 40) return 'text-red-400';
@@ -76,6 +81,7 @@ export function InsightsClient() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [hydratedPeriod, setHydratedPeriod] = useState<number | null>(null);
 
   const fetchData = useCallback(async (p: number) => {
     setLoading(true);
@@ -98,6 +104,37 @@ export function InsightsClient() {
   useEffect(() => {
     fetchData(period);
   }, [period, fetchData]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(dismissedStorageKey(period));
+      if (!stored) {
+        setDismissed(new Set());
+      } else {
+        const parsed = JSON.parse(stored);
+        setDismissed(
+          new Set(
+            Array.isArray(parsed)
+              ? parsed.filter((value): value is string => typeof value === 'string')
+              : [],
+          ),
+        );
+      }
+    } catch {
+      setDismissed(new Set());
+    } finally {
+      setHydratedPeriod(period);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    if (hydratedPeriod !== period) return;
+    try {
+      localStorage.setItem(dismissedStorageKey(period), JSON.stringify([...dismissed]));
+    } catch {
+      // Ignore storage errors — the page still functions without persistence.
+    }
+  }, [dismissed, period, hydratedPeriod]);
 
   const summary = useMemo(() => {
     if (!data || data.trends.length === 0) {
