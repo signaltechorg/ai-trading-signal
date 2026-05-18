@@ -358,11 +358,28 @@ export function InsightsClient() {
           </section>
 
           {/* Recommendations */}
-          {data.recommendations.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-semibold text-white">Recommendations</h2>
-              <div className="flex flex-col gap-3">
-                {visibleRecs.map((rec) => (
+          <section>
+            <h2 className="mb-3 text-lg font-semibold text-white">Recommendations</h2>
+            <div className="flex flex-col gap-3">
+              {visibleRecs.length === 0 ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-zinc-400"
+                >
+                  {data.recommendations.length === 0 ? (
+                    <Info size={16} className="text-zinc-500" />
+                  ) : (
+                    <CheckCircle size={16} className="text-zinc-500" />
+                  )}
+                  <span>
+                    {data.recommendations.length === 0
+                      ? 'No recommendations for this period.'
+                      : 'All recommendations dismissed for this period.'}
+                  </span>
+                </div>
+              ) : (
+                visibleRecs.map((rec) => (
                   <div
                     key={recommendationKey(rec)}
                     className={`flex items-start gap-3 rounded-xl border p-4 ${badgeColor(rec.type)}`}
@@ -389,19 +406,19 @@ export function InsightsClient() {
                       <X size={14} />
                     </button>
                   </div>
-                ))}
-                {hiddenCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setDismissed(new Set())}
-                    className="self-start text-xs text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300"
-                  >
-                    Restore {hiddenCount} hidden
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
+                ))
+              )}
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDismissed(new Set())}
+                  className="self-start text-xs text-zinc-500 underline underline-offset-2 transition-colors hover:text-zinc-300"
+                >
+                  Restore {hiddenCount} hidden
+                </button>
+              )}
+            </div>
+          </section>
         </>
       )}
     </div>

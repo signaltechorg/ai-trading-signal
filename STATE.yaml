@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-18T13:03:29+08:00
+updated: 2026-05-18T16:02:11+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1635,7 +1635,7 @@ tasks:
 
   - id: TC-174
     title: "Continuous improvement controls — automated performance tracking with actionable suggestions. Tracks signal accuracy trends, strategy drift, and config staleness. /operator/insights page with recommendation cards."
-    status: in_progress
+    status: done
     owner: pm-tradeclaw
     phase: [metrics-aggregation, recommendation-engine, ui-page]
     notes: >
