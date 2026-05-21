@@ -15,9 +15,10 @@ export interface SignalOutcome {
   price: number;
   pnlPct: number;
   hit: boolean;
+  target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired';
 }
 
-// Auto-expire writes `{ pnlPct: 0, hit: false }` when a signal window elapses
+// Auto-expire writes `{ pnlPct: 0, hit: false, target: 'expired' }` when a signal window elapses
 // without TP/SL/close resolution. Those are not real trade outcomes and must
 // be excluded from hit-rate and pnl aggregations.
 export function isRealOutcome(o: SignalOutcome | null | undefined): o is SignalOutcome {
@@ -592,7 +593,7 @@ export function resolveFromCandles(
   candles: OHLCV[],
   windowComplete = false,
 ): ResolvedWithMae | null {
-  if (!r.tp1 || !r.sl || candles.length === 0) return null;
+  if (r.tp1 == null || r.sl == null || candles.length === 0) return null;
 
   let mae = 0;
 
@@ -623,11 +624,11 @@ export function resolveFromCandles(
         const rawFill = candle.open <= r.sl ? candle.open : r.sl;
         const fillPrice = Math.max(rawFill, minFillPrice);
         const pnlPct = +((fillPrice - r.entryPrice) / r.entryPrice * 100).toFixed(2);
-        return { outcome: { price: fillPrice, pnlPct, hit: false }, maxAdverseExcursion: mae };
+        return { outcome: { price: fillPrice, pnlPct, hit: false, target: 'SL' }, maxAdverseExcursion: mae };
       }
       if (tpHit) {
         const pnlPct = +((r.tp1 - r.entryPrice) / r.entryPrice * 100).toFixed(2);
-        return { outcome: { price: r.tp1, pnlPct, hit: true }, maxAdverseExcursion: mae };
+        return { outcome: { price: r.tp1, pnlPct, hit: true, target: 'TP1' }, maxAdverseExcursion: mae };
       }
     } else {
       const adverse = candle.high - r.entryPrice;
@@ -642,11 +643,11 @@ export function resolveFromCandles(
         const rawFill = candle.open >= r.sl ? candle.open : r.sl;
         const fillPrice = Math.min(rawFill, maxFillPrice);
         const pnlPct = +((r.entryPrice - fillPrice) / r.entryPrice * 100).toFixed(2);
-        return { outcome: { price: fillPrice, pnlPct, hit: false }, maxAdverseExcursion: mae };
+        return { outcome: { price: fillPrice, pnlPct, hit: false, target: 'SL' }, maxAdverseExcursion: mae };
       }
       if (tpHit) {
         const pnlPct = +((r.entryPrice - r.tp1) / r.entryPrice * 100).toFixed(2);
-        return { outcome: { price: r.tp1, pnlPct, hit: true }, maxAdverseExcursion: mae };
+        return { outcome: { price: r.tp1, pnlPct, hit: true, target: 'TP1' }, maxAdverseExcursion: mae };
       }
     }
   }
@@ -658,7 +659,7 @@ export function resolveFromCandles(
       ? +((lastClose - r.entryPrice) / r.entryPrice * 100).toFixed(2)
       : +((r.entryPrice - lastClose) / r.entryPrice * 100).toFixed(2);
     return {
-      outcome: { price: lastClose, pnlPct, hit: pnlPct > 0 },
+      outcome: { price: lastClose, pnlPct, hit: pnlPct > 0, target: 'expired' },
       maxAdverseExcursion: mae,
     };
   }
@@ -710,7 +711,7 @@ export async function resolveRealOutcomes(): Promise<void> {
         const resolved = resolveFromCandles(r, window, age >= FOUR_H);
         outcome4h = resolved?.outcome ?? outcome4h;
         if (!outcome4h && age >= FOUR_H * 2) {
-          outcome4h = { price: r.entryPrice, pnlPct: 0, hit: false };
+          outcome4h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         }
       }
       if (needs24h) {
@@ -720,7 +721,7 @@ export async function resolveRealOutcomes(): Promise<void> {
         outcome24h = resolved?.outcome ?? outcome24h;
         mae24h = resolved?.maxAdverseExcursion ?? null;
         if (!outcome24h && age >= TWENTY_FOUR_H * 2) {
-          outcome24h = { price: r.entryPrice, pnlPct: 0, hit: false };
+          outcome24h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         }
       }
 
@@ -794,7 +795,7 @@ export async function resolveRealOutcomes(): Promise<void> {
         r.lastVerified = now;
         changed = true;
       } else if (age >= FOUR_H * 2) {
-        r.outcomes['4h'] = { price: r.entryPrice, pnlPct: 0, hit: false };
+        r.outcomes['4h'] = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         r.lastVerified = now;
         changed = true;
       }
@@ -809,7 +810,7 @@ export async function resolveRealOutcomes(): Promise<void> {
         r.lastVerified = now;
         changed = true;
       } else if (age >= TWENTY_FOUR_H * 2) {
-        r.outcomes['24h'] = { price: r.entryPrice, pnlPct: 0, hit: false };
+        r.outcomes['24h'] = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         r.lastVerified = now;
         changed = true;
       }
@@ -832,6 +833,8 @@ export async function getPendingRecordsAsync(): Promise<SignalHistoryRecord[]> {
       `SELECT * FROM signal_history
        WHERE is_simulated = FALSE
          AND (outcome_4h IS NULL OR outcome_24h IS NULL)
+         AND tp1 IS NOT NULL
+         AND sl IS NOT NULL
          AND created_at > NOW() - INTERVAL '30 days'
        ORDER BY created_at DESC`,
     );
@@ -841,9 +844,17 @@ export async function getPendingRecordsAsync(): Promise<SignalHistoryRecord[]> {
 }
 
 export function getPendingRecords(): SignalHistoryRecord[] {
-  return readHistoryFile().filter(
-    r => !r.isSimulated && (r.outcomes['4h'] === null || r.outcomes['24h'] === null),
-  );
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return readHistoryFile()
+    .filter(
+      r =>
+        !r.isSimulated &&
+        (r.outcomes['4h'] === null || r.outcomes['24h'] === null) &&
+        r.tp1 != null &&
+        r.sl != null &&
+        r.timestamp > cutoff,
+    )
+    .sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export async function getRecentRecordForSymbolAsync(

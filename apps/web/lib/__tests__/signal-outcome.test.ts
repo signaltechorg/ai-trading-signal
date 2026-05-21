@@ -58,6 +58,11 @@ describe('deriveHistoricalOutcomeStatus', () => {
     expect(deriveHistoricalOutcomeStatus({ hit: true, pnlPct: 1.75 })).toBe('hit_tp1');
   });
 
+  it('preserves explicit TP2 and TP3 targets from historical resolvers', () => {
+    expect(deriveHistoricalOutcomeStatus({ hit: true, pnlPct: 2.2, target: 'TP2' })).toBe('hit_tp2');
+    expect(deriveHistoricalOutcomeStatus({ hit: true, pnlPct: 3.7, target: 'TP3' })).toBe('hit_tp3');
+  });
+
   it('returns stopped for resolved losing outcomes', () => {
     expect(deriveHistoricalOutcomeStatus({ hit: false, pnlPct: -1.25 })).toBe('stopped');
   });

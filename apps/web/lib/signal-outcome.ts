@@ -23,10 +23,26 @@ export interface SignalOutcome {
   hitTarget: 'TP1' | 'TP2' | 'TP3' | 'SL' | null;
 }
 
+export type HistoricalOutcome =
+  | { hit: boolean; pnlPct: number; target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired' }
+  | null
+  | undefined;
+
+const HISTORICAL_TARGET_STATUS: Record<'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired', OutcomeStatus> = {
+  TP1: 'hit_tp1',
+  TP2: 'hit_tp2',
+  TP3: 'hit_tp3',
+  SL: 'stopped',
+  expired: 'expired',
+};
+
 export function deriveHistoricalOutcomeStatus(
-  outcome: { hit: boolean; pnlPct: number } | null | undefined,
+  outcome: HistoricalOutcome,
 ): OutcomeStatus {
   if (outcome == null) return 'active';
+  if (outcome.target && outcome.target in HISTORICAL_TARGET_STATUS) {
+    return HISTORICAL_TARGET_STATUS[outcome.target];
+  }
   if (outcome.pnlPct === 0 && !outcome.hit) return 'expired';
   return outcome.hit ? 'hit_tp1' : 'stopped';
 }

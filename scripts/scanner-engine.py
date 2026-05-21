@@ -20,9 +20,7 @@ from uuid import uuid4
 
 import pandas as pd
 import requests
-from tradingview_screener import cfd as cfd_query, crypto as crypto_query, forex as forex_query
-from tradingview_screener.column import Column
-from tradingview_screener.query import Query
+from tradingview_screener.query import Query, URL
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
@@ -107,6 +105,28 @@ TARGET_SYMBOLS = {
         "symbols": ["XAUUSD", "XAGUSD"],
     },
 }
+
+
+def build_market_query(market: str) -> Query:
+    """Build a market-scoped TradingView query without helper exports.
+
+    The system Python environment ships a slimmer `tradingview_screener`
+    build that does not expose the convenience `crypto()/forex()/cfd()`
+    helpers. `Query(market)` also defaults to stock-screening filters, so we
+    reset the payload to the minimal market-only shape here.
+    """
+
+    q = Query()
+    q.url = URL.format(market=market)
+    q.query = {
+        "markets": [market],
+        "symbols": {},
+        "options": {"lang": "en"},
+        "columns": [],
+        "range": [0, 50],
+        "ignore_unknown_fields": False,
+    }
+    return q
 
 TF_COLS = {
     "M5":  "Recommend.All|5",
@@ -500,21 +520,21 @@ def fetch_market(market, info, max_retries=3):
     ]
 
     symbol_pattern = "^(" + "|".join(re.escape(sym) for sym in info["symbols"]) + ")(?:\\..*)?$"
-    market_query = {
-        "crypto": crypto_query,
-        "forex": forex_query,
-        "cfd": cfd_query,
-    }.get(market, Query)
-
     last_exc = None
     for attempt in range(max_retries):
         try:
-            q = market_query() if callable(market_query) else market_query.set_markets(market)
+            q = build_market_query(market)
             q = q.select(*cols)
-            q = q.where(Column("name").like(symbol_pattern))
             q = q.order_by("volume", ascending=False)
-            q = q.limit(50)
+            market_limits = {
+                "crypto": 5000,
+                "forex": 2000,
+                "cfd": 1000,
+            }
+            q = q.limit(market_limits.get(market, 2000))
             _, df = q.get_scanner_data()
+            if "name" in df.columns:
+                df = df[df["name"].astype(str).str.match(symbol_pattern, na=False)]
             return df
         except Exception as e:
             last_exc = e

@@ -120,7 +120,6 @@ async function readLiveSignalsFromFile(): Promise<{
   const possiblePaths = [
     join(process.cwd(), 'data', 'signals-live.json'),
     join(process.cwd(), '..', '..', 'data', 'signals-live.json'),
-    '/home/naim/.openclaw/workspace/tradeclaw/data/signals-live.json',
   ];
 
   for (const filePath of possiblePaths) {

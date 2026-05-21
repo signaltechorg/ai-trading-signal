@@ -58,6 +58,7 @@ describe('resolveFromCandles MAE tracking', () => {
     const res = resolve(r, candles, false);
     expect(res).not.toBeNull();
     expect(res!.outcome.hit).toBe(false);
+    expect(res!.outcome.target).toBe('SL');
     expect(res!.maxAdverseExcursion).toBe(6); // entry - 94
   });
 
@@ -71,6 +72,7 @@ describe('resolveFromCandles MAE tracking', () => {
     const res = resolve(r, candles, false);
     expect(res).not.toBeNull();
     expect(res!.outcome.hit).toBe(true);
+    expect(res!.outcome.target).toBe('TP1');
     // TP candle's own low of 101 is above entry, so no new MAE contribution.
     expect(res!.maxAdverseExcursion).toBe(4);
   });
@@ -85,6 +87,7 @@ describe('resolveFromCandles MAE tracking', () => {
     const res = resolve(r, candles, false);
     expect(res).not.toBeNull();
     expect(res!.outcome.hit).toBe(false);
+    expect(res!.outcome.target).toBe('SL');
     expect(res!.maxAdverseExcursion).toBe(7); // 107 - 100
   });
 
@@ -98,6 +101,7 @@ describe('resolveFromCandles MAE tracking', () => {
     const res = resolve(r, candles, true);
     expect(res).not.toBeNull();
     expect(res!.outcome.hit).toBe(false);
+    expect(res!.outcome.target).toBe('expired');
     expect(res!.maxAdverseExcursion).toBe(4);
   });
 
@@ -110,6 +114,7 @@ describe('resolveFromCandles MAE tracking', () => {
     const res = resolve(r, candles, false);
     expect(res).not.toBeNull();
     expect(res!.outcome.hit).toBe(true);
+    expect(res!.outcome.target).toBe('TP1');
     expect(res!.maxAdverseExcursion).toBe(0);
   });
 

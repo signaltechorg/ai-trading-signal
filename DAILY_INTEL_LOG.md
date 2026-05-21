@@ -97,3 +97,6 @@ Append-only. Cron job `a2e2195c-f133-4e0e-90a0-fc8acb559d79` reads the last 14 d
 4. [Feature] Build `/operator/connectors` backed by `/api/operator/connectors` with uptime badges, last-check timestamps, and a manual re-check action, so the new operator layer exposes exchange, market-data-hub, and Telegram bot health before failures spill into user-facing surfaces. — source: `STATE.yaml` TC-173 planned
 5. [Feature] Ship `/operator/insights` cards that flag pair/timeframe accuracy drift from tracked outcomes and `signal_run_log`, so operators get actionable recommendations instead of raw observability only. — source: `STATE.yaml` TC-174 planned + commit `1cf37354`
 6. [Feature] Finish the connector dashboard polish by adding summary pills, expandable error logs, and a clearer re-check control on `/admin/operator/connectors`, so the operator command center surfaces failures faster for admins. — source: current `TC-173` implementation cycle
+
+## 2026-05-21
+1. [Fix] Replace the placeholder exposure math in `apps/web/app/allocation/AllocationClient.tsx` with live gross/net exposure from `/api/widget/portfolio`, so the Current Exposure and Headroom cards track the paper-trading snapshot instead of a fake 60% fill; verified with `npm run build`. — source: `apps/web/app/allocation/AllocationClient.tsx` TODO

@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-21T04:35:19Z
+updated: 2026-05-21T15:28:35Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -144,6 +144,12 @@ tasks:
       tracked. Build passes 28/28 pages. 1071 lines added. 2026-03-27
       2026-05-21: normalized outcome status labels to shared hit_tp* naming in
       web outcome rendering + docs; verified with npm test and npm run build.
+      2026-05-21: pending resolver queue now excludes rows missing tp1/sl so
+      cron no longer churns on unresolvable leftovers; verified with npm test
+      and npm run build.
+      2026-05-21: historical outcome records now preserve explicit target metadata
+      (TP1/SL/expired) so the close-flow surface can render more faithfully;
+      verified with npm test and npm run build.
 
   - id: TC-016
     title: "SEO landing page redesign — conversion-optimized with social proof"
@@ -376,9 +382,19 @@ tasks:
       2026-05-20: scanner-engine.py switched to tradingview_screener helper
       queries for crypto/forex/cfd with regex name filtering, which fixed the
       runtime `market_cap_basic` scanner errors; direct run now exits 0 with 0 errors.
+      2026-05-21: scanner-engine.py now uses a reset market query plus larger
+      per-market scan windows (crypto/forex/cfd), which restored target symbol
+      coverage; direct run now reports crypto (5 symbols) got 28 rows,
+      forex (3 symbols) got 69 rows, cfd (2 symbols) got 12 rows, and exits 0.
       2026-05-21: outcome tracker surfaced in the public history/track-record
       surfaces via the shared pending/expired helpers; verified with build +
       targeted signal-history/outcome tests and marked the sprint TODO complete.
+      2026-05-21: pending queue parity tightened with 30-day cutoff/order in the
+      file fallback plus null-safe tp1/sl checks; verified with npm test and
+      npm run build.
+      2026-05-21: scanner-engine.py now runs cleanly end-to-end against the bulk
+      screener adapter (crypto/forex/cfd coverage restored); verified with a
+      direct python3 scripts/scanner-engine.py run.
 
   - id: TC-031
     title: "Plugin system — custom indicators via user-defined JS modules"
@@ -1805,6 +1821,7 @@ tasks:
       from the core journal surface. Verified with `npm run build`.
 
 next_actions:
+  - "2026-05-21: allocation dashboard now pulls live gross/net exposure from /api/widget/portfolio instead of placeholder math, so Current Exposure and Headroom reflect the paper-trading snapshot; verified with npm run build."
   - "2026-05-21: added a small client-side debug panel to /alerts that reuses usePriceStream and existing alerts state to show the last triggered alert or the closest active alert with live distance/reasoning; verified with npm run build."
   - "2026-05-20: onboarding overlay moved from bottom-right to a top-center Quick Start strip so first-visit dashboard CTA clutter is less intrusive; verified with npm run build and apps/web/lib/__tests__/onboarding-state.test.ts."
   - "Phase 33 defined (TC-171..175): AI Operator Dashboard. Start with TC-171 (memory subsystem) — it unblocks TC-174 and TC-175."

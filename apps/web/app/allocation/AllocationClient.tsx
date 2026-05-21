@@ -23,6 +23,13 @@ interface AllocationRule {
   tightenStops: boolean;
 }
 
+interface PortfolioSnapshot {
+  grossExposurePct: number;
+  netExposurePct: number;
+  openPositions: number;
+  updatedAt: string;
+}
+
 // ─── Constants ───────────────────────────────────────────────
 
 const REGIME_COLORS: Record<RegimeName, { color: string; bg: string; border: string }> = {
@@ -65,15 +72,33 @@ function getRegimeIcon(regime: RegimeName) {
 
 export function AllocationClient() {
   const [regimeData, setRegimeData] = useState<RegimeEntry[]>([]);
+  const [portfolioSnapshot, setPortfolioSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/regime');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success) {
-        setRegimeData(json.data);
+      const [regimeResult, portfolioResult] = await Promise.allSettled([
+        fetch('/api/v1/regime'),
+        fetch('/api/widget/portfolio'),
+      ]);
+
+      if (regimeResult.status === 'fulfilled' && regimeResult.value.ok) {
+        const json = await regimeResult.value.json();
+        if (json.success) {
+          setRegimeData(json.data);
+        }
+      }
+
+      if (portfolioResult.status === 'fulfilled' && portfolioResult.value.ok) {
+        const json = await portfolioResult.value.json();
+        setPortfolioSnapshot({
+          grossExposurePct: Number(json.grossExposurePct ?? 0),
+          netExposurePct: Number(json.netExposurePct ?? 0),
+          openPositions: Number(json.openPositions ?? 0),
+          updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : new Date().toISOString(),
+        });
+      } else {
+        setPortfolioSnapshot(null);
       }
     } finally {
       setLoading(false);
@@ -96,9 +121,8 @@ export function AllocationClient() {
 
   // Calculate current allocation summary
   const maxExposureNum = activeRule ? parseInt(activeRule.maxExposure) : 50;
-  // TODO: replace with real portfolio allocation from API
-  const currentExposure = maxExposureNum > 0 ? Math.round(maxExposureNum * 0.6) : 0;
-  const headroom = maxExposureNum - currentExposure;
+  const currentExposure = portfolioSnapshot?.grossExposurePct ?? null;
+  const headroom = currentExposure !== null ? +(maxExposureNum - currentExposure).toFixed(1) : null;
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-20 md:pb-8">
@@ -140,18 +164,20 @@ export function AllocationClient() {
                 <ShieldCheck className="w-4 h-4 text-[var(--text-secondary)]" />
                 <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Current Exposure</span>
               </div>
-              <p className="text-2xl font-bold text-[var(--foreground)]">{currentExposure}%</p>
+              <p className="text-2xl font-bold text-[var(--foreground)]">
+                {currentExposure === null ? 'N/A' : `${currentExposure.toFixed(1)}%`}
+              </p>
               <div className="h-1.5 rounded-full bg-[var(--glass-bg)] overflow-hidden mt-2">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
-                    width: `${maxExposureNum > 0 ? (currentExposure / maxExposureNum) * 100 : 0}%`,
+                    width: `${maxExposureNum > 0 && currentExposure !== null ? Math.min((currentExposure / maxExposureNum) * 100, 100) : 0}%`,
                     backgroundColor: REGIME_COLORS[dominant].color,
                   }}
                 />
               </div>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1 font-mono">
-                of {maxExposureNum}% max
+                {currentExposure === null ? 'waiting for portfolio snapshot' : `of ${maxExposureNum}% max`}
               </p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
@@ -159,11 +185,13 @@ export function AllocationClient() {
                 <TrendingUp className="w-4 h-4 text-[var(--text-secondary)]" />
                 <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Headroom</span>
               </div>
-              <p className={`text-2xl font-bold ${headroom > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {headroom}%
+              <p className={`text-2xl font-bold ${headroom === null ? 'text-[var(--foreground)]' : headroom > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {headroom === null ? 'N/A' : `${headroom.toFixed(1)}%`}
               </p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                Available for new positions
+                {portfolioSnapshot
+                  ? `Snapshot: ${portfolioSnapshot.openPositions} open · gross ${portfolioSnapshot.grossExposurePct.toFixed(1)}% · net ${portfolioSnapshot.netExposurePct.toFixed(1)}%`
+                  : 'Available for new positions'}
               </p>
             </div>
           </div>
