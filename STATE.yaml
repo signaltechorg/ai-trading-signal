@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-21T03:10:28Z
+updated: 2026-05-21T04:35:19Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2244,3 +2244,15 @@ next_actions:
       shareable without losing other URL params. Updated apps/web/app/embed/track-record/page.tsx
       to accept the same band param and render the matching 30d summary, with the embed CTA now
       carrying the current band through. Verified with npm run build.
+
+  - id: TC-178
+    title: "Rolling win-rate snapshots — expose 7d/30d/90d in the equity API and track-record UI"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-21. Added additive rolling win-rate snapshots to
+      apps/web/app/api/signals/equity/route.ts and rendered 7d/30d/90d rolling win-rate cards
+      in apps/web/app/track-record/TrackRecordClient.tsx. The snapshots are computed from the
+      same resolved/countable signal set as the equity summary so the new data stays consistent
+      with the existing historical methodology. Verified with
+      npm test -- apps/web/app/api/signals/equity/route.test.ts --runInBand and npm run build.

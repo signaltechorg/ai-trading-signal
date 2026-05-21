@@ -20,6 +20,7 @@ interface UsageData {
   keyId: string;
   keyName: string;
   status: string;
+  tier: 'free' | 'pro';
   scopes: string[];
   requestsThisHour: number;
   requestsToday: number;
@@ -156,6 +157,8 @@ export default function APIUsageClient() {
     e.preventDefault();
     fetchUsage(apiKey);
   }
+
+  const isProKey = usage?.tier === 'pro';
 
   // Mock per-endpoint breakdown
   const endpoints: EndpointBreakdown[] = usage
@@ -346,8 +349,12 @@ export default function APIUsageClient() {
             {/* Pro tier */}
             <div className="rounded-2xl border border-purple-500/20 bg-[var(--bg-card)] p-6 relative overflow-hidden">
               <div className="absolute top-3 right-3">
-                <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-medium">
-                  Coming Soon
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                  isProKey
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'bg-purple-500/10 text-purple-400'
+                }`}>
+                  {isProKey ? 'Live Pro key' : 'Upgrade available'}
                 </span>
               </div>
               <div className="flex items-center gap-2 mb-3">
@@ -355,26 +362,40 @@ export default function APIUsageClient() {
                   <Shield className="w-4 h-4 text-purple-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[var(--foreground)]">Pro Tier</div>
-                  <div className="text-[10px] text-[var(--text-secondary)]">For power users</div>
+                  <div className="text-sm font-semibold text-[var(--foreground)]">
+                    {isProKey ? 'Pro Tier Active' : 'Pro Tier'}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-secondary)]">
+                    {isProKey
+                      ? 'This key is already on the Pro tier.'
+                      : 'Unlock higher throughput and priority support.'}
+                  </div>
                 </div>
               </div>
               <div className="space-y-2 text-xs text-[var(--text-secondary)]">
                 <div className="flex justify-between">
-                  <span>Daily requests</span>
-                  <span className="text-[var(--foreground)] font-medium">1,000 / day</span>
+                  <span>Current tier</span>
+                  <span className="text-[var(--foreground)] font-medium">
+                    {usage ? usage.tier : 'free'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Rate limit</span>
-                  <span className="text-[var(--foreground)] font-medium">60 req / min</span>
+                  <span className="text-[var(--foreground)] font-medium">
+                    {usage ? `${usage.rateLimit.toLocaleString()} / hr` : '1,000 / hr'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Endpoints</span>
-                  <span className="text-[var(--foreground)] font-medium">All v1 + v2 API</span>
+                  <span>Requests today</span>
+                  <span className="text-[var(--foreground)] font-medium">
+                    {usage ? usage.requestsToday.toLocaleString() : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Priority support</span>
-                  <span className="text-purple-400 font-medium">✓</span>
+                  <span>Upgrade CTA</span>
+                  <Link href="/pricing?from=api-usage" className="text-purple-400 font-medium hover:text-purple-300">
+                    {isProKey ? 'Manage plan →' : 'Go Pro →'}
+                  </Link>
                 </div>
               </div>
             </div>

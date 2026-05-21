@@ -20,7 +20,7 @@ jest.mock('../../../../lib/signal-slice', () => ({
   getResolvedSlice: jest.fn(),
 }));
 
-import { GET } from '../route';
+import { GET } from './route';
 
 const mockedGetResolvedSlice = getResolvedSlice as jest.MockedFunction<typeof getResolvedSlice>;
 
