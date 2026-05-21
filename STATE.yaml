@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-18T20:00:36+08:00
+updated: 2026-05-21T03:10:28Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -142,6 +142,8 @@ tasks:
       bars, sparkline trends, P&L. Pair detail modal with full signal breakdown.
       OG images: /api/og/leaderboard + /api/og/leaderboard/[pair]. 10 asset pairs
       tracked. Build passes 28/28 pages. 1071 lines added. 2026-03-27
+      2026-05-21: normalized outcome status labels to shared hit_tp* naming in
+      web outcome rendering + docs; verified with npm test and npm run build.
 
   - id: TC-016
     title: "SEO landing page redesign — conversion-optimized with social proof"
@@ -169,6 +171,8 @@ tasks:
       30msg/s), GET /api/telegram/status (bot info + webhook state + subscriber count).
       apps/web/app/telegram/page.tsx settings UI — status badge, subscriber count,
       webhook config with curl snippet, test send, commands reference, API reference.
+      4-TF confluence alerts now reuse the private EXEC_TELEGRAM_CHAT_ID path from
+      apps/web/app/api/signals/multi-tf/route.ts so aligned setups notify the operator.
       .env.example updated with TELEGRAM_BOT_TOKEN + TELEGRAM_WEBHOOK_URL. 2026-03-27
 
   - id: TC-018
@@ -351,6 +355,30 @@ tasks:
       distribution bar, filterable signal table with 4h+24h outcome badges, P&L
       per signal, pagination. Mobile nav entry. Transparency note pointing to
       data/signal-history.json. Build passes clean. Committed 88c2d339. 2026-03-27
+      2026-05-19: pending stats now age out at 24h so stale unresolved rows are
+      surfaced as expired instead of making the tracker look permanently pending.
+      2026-05-20: backfilled 55 blacklisted-combo rows to LEGACY; non-LEGACY
+      tracker baseline now 244 total / 137 wins / 56.1% win rate.
+      2026-05-20: outcome-resolution now uses the signal's own supported timeframe
+      (M5/M15/H1/H4/D1) instead of forcing H1, so the 4h/24h resolver stays
+      aligned with the bar granularity that emitted the signal.
+      2026-05-20: local win-rate fix cycle landed in scripts/scanner-engine.py and
+      scripts/signal-outcome-checker.py; scanner smoke test now returns 0 errors,
+      yfinance OHLC fallback verified on XAUUSD, and the outcome-based baseline
+      reads 299 total / 152 wins / 50.8% win rate on non-LEGACY rows.
+      2026-05-20: outcome=pending filter and resolved-first sorting now use the
+      same age-aware pending predicate, so stale unresolved rows no longer leak
+      back into the public history list.
+      2026-05-20: /usr/bin/python3 compatibility restored for scripts/scanner-engine.py
+      by removing the tradingview_screener.screeners import path and using
+      Query().set_markets(...) directly; direct /usr/bin/python3 runtime and
+      run-signal-engine-cron.sh both now exit 0.
+      2026-05-20: scanner-engine.py switched to tradingview_screener helper
+      queries for crypto/forex/cfd with regex name filtering, which fixed the
+      runtime `market_cap_basic` scanner errors; direct run now exits 0 with 0 errors.
+      2026-05-21: outcome tracker surfaced in the public history/track-record
+      surfaces via the shared pending/expired helpers; verified with build +
+      targeted signal-history/outcome tests and marked the sprint TODO complete.
 
   - id: TC-031
     title: "Plugin system — custom indicators via user-defined JS modules"
@@ -752,6 +780,20 @@ tasks:
       groups. Mobile nav slide-up sheet reorganized into sectioned categories with headers.
       All routes preserved. Build passes 108 pages. 2026-03-28
 
+  - id: TC-066
+    title: "Signal reliability pass — threshold 55, 100-candle guard, 2-category confluence, dataQuality propagation"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete: tightened apps/web/app/lib/signal-generator.ts so the classic profile now uses a 55
+      signal threshold, refuses candles.length < 100, requires at least two agreeing indicator categories
+      (momentum/trend/volatility) before emitting BUY/SELL signals, and preserves OHLCV source metadata
+      on generated signals via dataQuality/source. Aligned apps/web/app/lib/signals.ts with the same
+      100-candle minimum so the outer orchestrator no longer fetches data that the generator will
+      reject. Added focused unit coverage for the new guard, confluence gate, and metadata propagation.
+      Verified with targeted Jest tests, npm run build, and python3 -m py_compile scripts/scanner-engine.py
+      scripts/signal-outcome-checker.py.
+
   # ── Phase 19: Sustained Virality + Trust ──
 
   - id: TC-094
@@ -1099,7 +1141,7 @@ tasks:
     title: "TradingView Pine Script alert receiver — /api/tradingview/webhook accepts Pine Script webhook alerts (JSON payload) and routes to Telegram/Discord/browser notifications. /tradingview-alerts docs page with setup guide, Pine Script template snippets, and live alert log. Bridges TradeClaw to TradingView's 50M users."
     status: done
     owner: pm-tradeclaw
-    notes: "Complete: lib/tradingview-alerts.ts (normalizeSymbol/normalizeAction/CRUD/stats/seed), POST /api/tradingview/webhook (rate limit 60/min/IP, Telegram+Discord routing), GET /api/tradingview/alerts, /tradingview-alerts page (TVAlertsClient.tsx: hero, webhook URL card, stats bar, live alert log 30s refresh, accordion setup guide 4 steps, 3 Pine Script templates with copy). Navbar TV Alerts + sitemap. Committed edd82d43. 2026-03-30."
+    notes: "Complete: lib/tradingview-alerts.ts (normalizeSymbol/normalizeAction/CRUD/stats/seed), POST /api/tradingview/webhook (rate limit 60/min/IP, Telegram+Discord routing), GET /api/tradingview/alerts, /tradingview-alerts page (TVAlertsClient.tsx: hero, webhook URL card, stats bar, live alert log 30s refresh, accordion setup guide 4 steps, 3 Pine Script templates with copy). Navbar TV Alerts + sitemap. Committed edd82d43. 2026-03-30. 2026-05-20: added Jest coverage for /api/webhooks/tradingview (secret gate, strategy allowlist, insert args, default confidence)."
 
   - id: TC-126
     title: "Multi-language README pack — README.zh.md (Chinese), README.ja.md (Japanese), README.ko.md (Korean) with full translations of hero/features/quickstart. LANGUAGES.md translation index. Add language badge row to main README linking each translation. Targets Chinese/Japanese/Korean GitHub communities who heavily star OSS."
@@ -1646,112 +1688,136 @@ tasks:
 
   - id: TC-175
     title: "Unified operator dashboard — /operator landing page that stitches TC-171..174 into a single command-center view. Memory sidebar, tools summary, connector status strip, and insights feed. Pro-gated."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [layout, widget-integration, pro-gate]
     notes: >
       Phase A: /operator layout — responsive grid with sidebar (memory) + main area (tools summary, connectors, insights).
       Phase B: integrate TC-171..174 widgets into unified view with shared loading states.
       Phase C: Pro-gate via tier check — free users see a preview/upgrade CTA.
+      2026-05-19 cycle update: added a new /operator route with a Pro preview state and a live Pro dashboard that composes memory, tools, connector health, and signal-insights data in one responsive view; verified with `npm run build`.
 
   # ── Phase 34: Pro-tier TradingAgents Research Stack ──
   # TauricResearch/TradingAgents as the advanced research/orchestration layer for power users.
 
   - id: TC-176
     title: "TradingAgents integration scaffold — evaluate TauricResearch/TradingAgents repo, document integration points, create packages/trading-agents/ wrapper with typed interfaces for analyst/risk/PM agent roles."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [research-spike, package-scaffold, typed-interfaces]
     notes: >
-      Phase A: research spike — clone TauricResearch/TradingAgents, document architecture, identify integration surface (Python agents, LLM calls, data feeds).
-      Phase B: packages/trading-agents/ scaffold — TypeScript wrapper that shells out to Python agents or calls their API.
-      Phase C: typed interfaces — AnalystAgent, RiskAgent, PortfolioManagerAgent with input/output schemas.
+      Phase A: research spike — cloned TauricResearch/TradingAgents and documented the upstream
+      architecture, entrypoint, schemas, and config defaults in docs/trading-agents-integration.md.
+      Phase B: packages/trading-agents/ scaffold — added a typed TypeScript bridge package with a
+      configurable transport command builder for Python-module, stdio-json, or http-json shims.
+      Phase C: typed interfaces — exported analyst, risk, and portfolio-manager request/response
+      contracts plus research-plan and command types for the future /pro/research pipeline.
+      2026-05-19 cycle update: verified package build with `npm run build --workspace=packages/trading-agents`.
 
   - id: TC-177
     title: "Multi-agent research pipeline — orchestrated analyst→risk→PM workflow that produces a structured research report for any symbol. /api/pro/research endpoint + background job queue."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [job-queue, pipeline-orchestration, api-endpoint]
     notes: >
       Phase A: simple job queue (pg-based) for long-running research tasks.
       Phase B: pipeline orchestration — analyst gathers data + TA, risk scores the setup, PM produces go/no-go with sizing.
       Phase C: /api/pro/research POST {symbol, timeframe} → returns job_id; GET /api/pro/research/:id → returns structured report.
+      2026-05-20: GET job lookup is now scoped to the requesting session user (404 for jobs owned by other users).
+      2026-05-20 cycle update: /api/pro/research now enqueues jobs without blocking; added /api/cron/pro/research to drain queued jobs with a pg advisory lock, and added path-based GET /api/pro/research/[id]. npm run build passes. 2026-05-20 follow-up: research jobs now claim a 15-minute lease, track attempt_count/next_attempt_at, and automatically re-queue transient failures with backoff; bridge-aware runner now prefers the TradingAgents CLI when available and falls back to the existing synthetic pipeline until the live upstream bridge is validated.
+      2026-05-20 verification: npm run build passed after the research pipeline update.
 
   - id: TC-178
     title: "Pro research dashboard — /pro/research page with research request form, job status tracker, and rendered research reports. Includes agent activity timeline showing analyst→risk→PM progression."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [ui-page, job-tracker, report-renderer]
     notes: >
       Phase A: /pro/research page — symbol input, timeframe selector, "Run Research" button.
       Phase B: job tracker — real-time status updates (queued → analyst → risk → pm → complete), SSE or polling.
       Phase C: report renderer — structured markdown/card view of the final research output with charts.
+      2026-05-20 cycle update: server-side Pro access checks now protect /api/pro/research and /api/pro/research/[id], closing the auth bypass so direct API calls from free users return 403. Added route coverage for unauthenticated, free, and Pro callers; verified with `npm test -- apps/web/app/api/pro/research/__tests__/route.test.ts --runInBand` and `npm run build`.
+      2026-05-20 verification: /pro/research page, API auth gates, and research job tracker all built successfully; the route tests passed.
 
   # ── Phase 35: SMB Capital Playbook ──
   # Guided workflows inspired by SMB Capital methodology: alerts, pre-market, journal, custom logic, autopsy.
 
   - id: TC-179
     title: "Custom price alerts — user-defined alert conditions (price crosses level, RSI threshold, signal fired). /alerts page with alert builder, active alerts list, and delivery via in-app + Telegram. File-backed JSON store."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [alert-schema, evaluation-engine, ui-page, delivery]
     notes: >
-      Phase A: alert schema — {id, user_id, symbol, condition_type, threshold, enabled, triggered_at}.
-      Phase B: evaluation engine — runs on each signal/price update, checks active alerts, marks triggered.
-      Phase C: /alerts page — alert builder form (pair, condition, threshold), active alerts table with enable/disable/delete.
-      Phase D: delivery — in-app toast + optional Telegram push via existing bot integration.
+      Complete: existing DB-backed alert builder + active alerts table already shipped at /alerts,
+      and delivery now includes optional Telegram DM fan-out for users with linked Telegram IDs.
+      Added Telegram formatting + notifier helper in apps/web/lib/price-alerts.ts so the cron sweep
+      can DM triggered alerts while browser notifications continue to fire in-app. Added unit tests
+      covering message formatting and linked-vs-unlinked Telegram delivery. Build + targeted Jest
+      test passed 2026-05-20.
 
   - id: TC-180
     title: "Pre-market game plan automation — daily pre-market briefing generator. Pulls overnight moves, key levels, scheduled news events, and current signal state into a structured game plan. /game-plan page with auto-generated daily brief."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [data-aggregation, plan-template, ui-page, scheduled-generation]
     notes: >
-      Phase A: data aggregation — overnight price changes, key S/R levels from TA engine, upcoming news (if news feed available).
-      Phase B: plan template — structured markdown: "Key Levels | Active Signals | Overnight Moves | Today's Focus Pairs".
-      Phase C: /game-plan page — today's plan with historical plan archive.
-      Phase D: scheduled generation — cron job (pre-market hours) that auto-generates the daily plan.
+      Complete 2026-05-20. Added a CRON_SECRET-gated /api/cron/game-plan endpoint that
+      refreshes the demo briefing from the public widget user, and wired the daily sync
+      loop to call it during the 07:45 UTC pre-market window. The generator now groups
+      last-24h signals into a richer watchlist summary with focus pairs and key-level
+      notes, and the route is covered by Jest. Verified with `npm test -- apps/web/app/api/cron/game-plan/__tests__/route.test.ts --runInBand`
+      and `npm run build`.
 
   - id: TC-181
     title: "Trading journal + analysis — structured trade logging with performance analytics. /journal page with trade entry form (pair, direction, entry, exit, notes), trade history table, and aggregate stats (win rate, avg R, best/worst)."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [journal-schema, api-routes, ui-page, analytics]
     notes: >
-      Phase A: journal schema — {id, user_id, symbol, direction, entry_price, exit_price, stop_loss, take_profit, notes, tags, outcome, r_multiple, created_at}.
-      Phase B: /api/journal CRUD — create, list (with filters), update, delete.
-      Phase C: /journal page — trade entry form, filterable history table, quick-tag system (setup type, emotion, mistake).
-      Phase D: analytics dashboard — win rate, avg R, profit factor, equity curve, tag-based breakdown.
+      Complete: DB-backed journal stack is already in place in apps/web/app/journal/ and
+      apps/web/lib/trade-journal-db.ts. /journal now loads the loader page, /api/journal supports
+      CRUD + stats, /api/journal/autopsy renders saved autopsies, and the analytics helpers compute
+      win rate / avg P&L / best-worst / profit factor from the journal table. Verified with
+      `npm run build` on 2026-05-20.
 
   - id: TC-182
     title: "Custom entry/exit logic — visual rule builder for user-defined trade entry and exit conditions. Combines TA indicators with boolean logic (AND/OR). /strategy-rules page with drag-drop rule builder and backtest preview."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [rule-schema, evaluation-engine, ui-builder, backtest-hook]
     notes: >
-      Phase A: rule schema — tree structure {operator: AND/OR, conditions: [{indicator, comparator, value}]}.
-      Phase B: evaluation engine — takes rule tree + current TA data, returns boolean match.
-      Phase C: /strategy-rules page — visual builder with indicator dropdowns, comparator selects, AND/OR grouping.
-      Phase D: backtest hook — wire rule evaluation into existing backtest engine for preview results.
+      Done 2026-05-20. Added apps/web/lib/strategy-rules.ts with nested AND/OR rule-tree
+      schema plus evaluation/explanation helpers, shipped /strategy-rules as a live
+      builder with separate entry/exit trees, drag-and-drop blocks, and a historical
+      backtest preview sourced from /api/backtest, wired nav links in desktop/mobile
+      menus, and added unit coverage for the evaluator. Verified with `npm run build`
+      and root `npm test -- --runInBand --modulePathIgnorePatterns='<rootDir>/apps/web/.next/standalone'
+      apps/web/lib/__tests__/strategy-rules.test.ts`.
 
   - id: TC-183
     title: "AI trade autopsy — post-trade AI analysis that reviews what went right/wrong. Takes a completed journal entry, pulls chart context (TA state at entry/exit), and generates a structured review. Template-based (no LLM API cost). /journal/:id/autopsy page."
-    status: planned
+    status: done
     owner: pm-tradeclaw
     phase: [context-retrieval, autopsy-template, ui-page]
     notes: >
-      Phase A: context retrieval — given a trade's entry/exit timestamps, pull TA indicator state at both points from signal_history.
-      Phase B: autopsy template — rule-based analysis: "Entry was with/against trend", "RSI was overbought at exit", "Stop was X ATR — optimal range is Y".
-      Phase C: /journal/:id/autopsy page — structured report card with entry/exit TA snapshots, verdict tags (good entry, early exit, etc.), and improvement suggestions.
+      Complete 2026-05-20. The journal list now exposes an "Open Autopsy" CTA on each trade row,
+      linking directly into /journal/autopsy?tradeId=... so the existing autopsy flow is discoverable
+      from the core journal surface. Verified with `npm run build`.
 
 next_actions:
+  - "2026-05-21: added a small client-side debug panel to /alerts that reuses usePriceStream and existing alerts state to show the last triggered alert or the closest active alert with live distance/reasoning; verified with npm run build."
+  - "2026-05-20: onboarding overlay moved from bottom-right to a top-center Quick Start strip so first-visit dashboard CTA clutter is less intrusive; verified with npm run build and apps/web/lib/__tests__/onboarding-state.test.ts."
   - "Phase 33 defined (TC-171..175): AI Operator Dashboard. Start with TC-171 (memory subsystem) — it unblocks TC-174 and TC-175."
   - "Phase 34 defined (TC-176..178): Pro TradingAgents research stack. TC-176 (research spike) is prerequisite — evaluate TauricResearch/TradingAgents feasibility first."
   - "Phase 35 defined (TC-179..183): SMB Capital Playbook. TC-179 (custom alerts) and TC-181 (journal) are independent entry points — can parallelize."
   - "Public /strategies/leaderboard shipped; keep feeding it with more proof surfaces and distribution links."
   - "Migrate file-based JSON storage to PostgreSQL for production self-hosters."
   - "Deploy live demo instance and validate Docker Compose end-to-end."
-  - "Add test suite (currently zero tests for 200+ pages)."
+  - "Expand test coverage for the remaining untested routes/pages and edge-case helpers."
+  - "Signal detail pages now derive historical status badges from resolved 24h outcomes (active / expired / stopped / tp1_hit) and include vitest coverage; build verified 2026-05-20."
+  - "Normalized lingering web/lib and app/lib unit tests to Jest globals so the root npm test command passes for the research-route and signal helper suites."
+  - "Root Jest now ignores Playwright e2e, .next/standalone copies, and the ws-server workspace so `npm test -- --runInBand` passes cleanly while ws-server keeps its own Vitest command."
+  - "2026-05-20: Pro audit execution follow-up closed — pricing now quotes all-time track-record numbers, T-3d trial reminders include missed-P&L, and Elite waitlist / WTP capture is live. Verified with `npm run build` and targeted Jest on pricing-stats, elite-interest, and transactional-email."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2101,3 +2167,80 @@ next_actions:
       Both DROP TABLE statements returned cleanly. Post-apply verification:
       SELECT to_regclass('public.strategy_licenses'), to_regclass('public.strategy_license_grants');
       both returned NULL. monetization-consolidation.md Phase E status footer updated to APPLIED.
+
+  - id: TC-171
+    title: "Signal win-rate plan task 1 — tighten local scanner TP/SL geometry"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Completed 2026-05-19 in scripts/scanner-engine.py and scripts/signal-outcome-checker.py.
+      Zaky-strategy TP1 changed from 1.5×ATR to 2.0×ATR; confluence TP1/TP2 changed from
+      3.0/4.5×ATR to 2.0/3.0×ATR; outcome-window comment updated to match. Verified with
+      npm run build, python3 -m py_compile scripts/scanner-engine.py scripts/signal-outcome-checker.py,
+      and grep checks confirming no 4.5×ATR multipliers remain. Direct runtime smoke test of
+      scripts/scanner-engine.py was blocked locally because pandas is not installed in this
+      workspace Python environment.
+
+  - id: TC-172
+    title: "Track-record freshness cue — add resolution heartbeat / staleness badge to the public /track-record page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-19. Added a live/stale resolution-heartbeat capsule to
+      apps/web/app/track-record/TrackRecordClient.tsx using the leaderboard's lastUpdated
+      timestamp so viewers can see when the outcome tracker last refreshed. The badge turns
+      amber when the feed is older than 15 minutes. Verified with npm run build.
+
+  - id: TC-173
+    title: "Signal win-rate stats — count EXPIRED_PROFIT as wins and drive cooldown off outcomes"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Completed 2026-05-19 in scripts/scanner-engine.py and scripts/signal-outcome-checker.py.
+      Replaced accuracy-threshold win counting with outcome-based logic so TP1_HIT and
+      EXPIRED_PROFIT count as wins, SL_HIT and EXPIRED_LOSS count as losses, and the
+      scanner cooldown now keys off the last outcome instead of partial accuracy. Verified
+      with python3 -m py_compile scripts/scanner-engine.py scripts/signal-outcome-checker.py,
+      a SQLite win-rate query (total=295 wins=152 win_rate=51.5%), python3 scripts/signal-outcome-checker.py,
+      and npm run build.
+
+  - id: TC-174
+    title: "Reframe Pro feature copy around outcomes on the pricing page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-19. Reworded the Pro pricing copy in apps/web/lib/stripe-tiers.ts and
+      apps/web/app/pricing/page.tsx to emphasize live-move delivery, confluence-gated entries,
+      and entry/exit/outcome audit language. Verified with npm run build.
+
+  - id: TC-175
+    title: "Historical signal status polish — expire stale unresolved rows after the resolution window"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-20. Added apps/web/lib/signal-history-status.ts to centralize pending vs
+      expired logic for historical outcomes, then updated the dashboard history filter, track-record
+      24h status labels, and signal detail outcome banner so old unresolved rows no longer read as
+      perpetual pending. Added unit coverage for the shared helper and verified with targeted Jest
+      tests plus npm run build.
+
+  - id: TC-176
+    title: "Show per-symbol win rate badges on public signal cards"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-20. Updated apps/web/components/showcase/ShowcaseClient.tsx so the live
+      signal snapshot now pulls /api/v1/win-rates and renders a WR badge beside each public signal
+      card's timeframe. This makes the frontend signal cards surface outcome quality alongside
+      confidence. Verified with npm run build.
+
+  - id: TC-177
+    title: "Make the premium-band track record deep-linkable and carry band state into the embed"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-20. Updated apps/web/app/track-record/TrackRecordClient.tsx to read and
+      write the equity-band query param (band=all|premium|standard) so the selected curve is
+      shareable without losing other URL params. Updated apps/web/app/embed/track-record/page.tsx
+      to accept the same band param and render the matching 30d summary, with the embed CTA now
+      carrying the current band through. Verified with npm run build.

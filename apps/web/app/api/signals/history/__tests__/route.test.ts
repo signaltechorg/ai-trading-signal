@@ -70,6 +70,65 @@ describe('GET /api/signals/history category filtering', () => {
     jest.clearAllMocks();
   });
 
+  it('treats stale unresolved rows as expired instead of pending', async () => {
+    const now = Date.now();
+    primeSlice([
+      record({
+        id: 'recent-open',
+        timestamp: now - (23 * 60 * 60 * 1000),
+        outcomes: { '4h': null, '24h': null },
+      }),
+      record({
+        id: 'stale-open',
+        timestamp: now - (25 * 60 * 60 * 1000),
+        outcomes: { '4h': null, '24h': null },
+      }),
+      record({
+        id: 'auto-expired',
+        timestamp: now - (49 * 60 * 60 * 1000),
+        outcomes: { '4h': { price: 100, pnlPct: 0, hit: false }, '24h': { price: 100, pnlPct: 0, hit: false } },
+      }),
+    ]);
+
+    const res = await GET(makeReq('/api/signals/history'));
+    const body = await res.json();
+
+    expect(body.stats.totalSignals).toBe(3);
+    expect(body.stats.pending).toBe(1);
+    expect(body.stats.expired).toBe(2);
+    expect(body.stats.resolved).toBe(0);
+  });
+
+  it('excludes stale open rows from outcome=pending filters', async () => {
+    const now = Date.now();
+    primeSlice([
+      record({
+        id: 'recent-open',
+        timestamp: now - (12 * 60 * 60 * 1000),
+        outcomes: { '4h': null, '24h': null },
+      }),
+      record({
+        id: 'stale-open',
+        timestamp: now - (26 * 60 * 60 * 1000),
+        outcomes: { '4h': null, '24h': null },
+      }),
+      record({
+        id: 'resolved-win',
+        timestamp: now - (26 * 60 * 60 * 1000),
+        outcomes: { '4h': { price: 101, pnlPct: 1, hit: true }, '24h': { price: 102, pnlPct: 2, hit: true } },
+      }),
+    ]);
+
+    const res = await GET(makeReq('/api/signals/history?outcome=pending'));
+    const body = await res.json();
+
+    expect(body.records.map((r: SignalHistoryRecord) => r.id)).toEqual(['recent-open']);
+    expect(body.stats.totalSignals).toBe(1);
+    expect(body.stats.pending).toBe(1);
+    expect(body.stats.expired).toBe(0);
+    expect(body.stats.resolved).toBe(0);
+  });
+
   it('returns only thematic records for category=thematic', async () => {
     primeSlice([
       record({ id: 'btc-1', pair: 'BTCUSD' }),

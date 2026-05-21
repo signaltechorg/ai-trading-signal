@@ -11,6 +11,7 @@ Architecture:
 import json
 import os
 import random
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -19,7 +20,9 @@ from uuid import uuid4
 
 import pandas as pd
 import requests
-from tradingview_screener import Query, Column
+from tradingview_screener import cfd as cfd_query, crypto as crypto_query, forex as forex_query
+from tradingview_screener.column import Column
+from tradingview_screener.query import Query
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
@@ -288,15 +291,15 @@ def zaky_strategy_signal(row, symbol_name, candle_statuses=None, win_rates=None,
         if confidence < MIN_CONFIDENCE:
             continue
 
-        # TP/SL from ATR — R:R = 1:1 / 1:2 (risk 1.5 ATR to gain 1.5/3.0 ATR).
-        # TP1 was 3.0*ATR — unreachable inside the 8h outcome window, so most
-        # directionally-correct signals expired below the "win" threshold.
+        # TP/SL from ATR — R:R = 1:1.33 / 1:2 (risk 1.5 ATR to gain 2.0/3.0 ATR).
+        # Tightened on 2026-04-21 so TP1 can be reached inside the 8h outcome
+        # window instead of expiring below the "win" threshold.
         if direction == "BUY":
-            tp1 = round(close + atr * 1.5, 6)
+            tp1 = round(close + atr * 2.0, 6)
             tp2 = round(close + atr * 3.0, 6)
             sl  = round(close - atr * 1.5, 6)
         else:
-            tp1 = round(close - atr * 1.5, 6)
+            tp1 = round(close - atr * 2.0, 6)
             tp2 = round(close - atr * 3.0, 6)
             sl  = round(close + atr * 1.5, 6)
 
@@ -401,7 +404,7 @@ def cross_validate_price(symbol: str, tv_price: float, binance_prices: dict[str,
 def get_win_rates(conn: sqlite3.Connection) -> dict[str, dict]:
     """
     Calculate historical win rate per symbol+direction from signals.db.
-    A "win" = TP1_HIT, EXPIRED_PROFIT, or accuracy >= 0.5 (partial progress).
+    A "win" = TP1_HIT or EXPIRED_PROFIT.
     win_rate = wins / total (not avg accuracy — that understated profitable expiries).
     Blacklisted combos are excluded so legacy bad signals don't poison new scores.
     Returns: { "BTCUSDT_BUY": { "wins": 5, "losses": 2, "total": 7, "win_rate": 71.4 }, ... }
@@ -420,10 +423,9 @@ def get_win_rates(conn: sqlite3.Connection) -> dict[str, dict]:
         cursor = conn.execute(f"""
             SELECT symbol, signal,
                    COUNT(*) as total,
-                   SUM(CASE WHEN outcome IN ('TP1_HIT', 'EXPIRED_PROFIT')
-                                 OR accuracy >= 0.5 THEN 1 ELSE 0 END) as wins,
+                   SUM(CASE WHEN outcome IN ('TP1_HIT', 'EXPIRED_PROFIT') THEN 1 ELSE 0 END) as wins,
                    SUM(CASE WHEN outcome = 'SL_HIT'
-                                 OR (outcome = 'EXPIRED_LOSS' AND accuracy < 0.5)
+                                 OR outcome = 'EXPIRED_LOSS'
                              THEN 1 ELSE 0 END) as losses
             FROM signals
             WHERE outcome IS NOT NULL AND outcome != 'LEGACY'
@@ -497,17 +499,20 @@ def fetch_market(market, info, max_retries=3):
         "Recommend.All|60", "Recommend.All|240",
     ]
 
+    symbol_pattern = "^(" + "|".join(re.escape(sym) for sym in info["symbols"]) + ")(?:\\..*)?$"
+    market_query = {
+        "crypto": crypto_query,
+        "forex": forex_query,
+        "cfd": cfd_query,
+    }.get(market, Query)
+
     last_exc = None
     for attempt in range(max_retries):
         try:
-            q = Query().set_markets(market).select(*cols)
-            if info["exchange"]:
-                q = q.where(
-                    Column("exchange").isin([info["exchange"]]),
-                    Column("name").isin(info["symbols"]),
-                )
-            else:
-                q = q.where(Column("name").isin(info["symbols"]))
+            q = market_query() if callable(market_query) else market_query.set_markets(market)
+            q = q.select(*cols)
+            q = q.where(Column("name").like(symbol_pattern))
+            q = q.order_by("volume", ascending=False)
             q = q.limit(50)
             _, df = q.get_scanner_data()
             return df
@@ -642,15 +647,16 @@ def calculate_confluence(row, symbol_name, candle_statuses=None, win_rates=None,
             entry = row.get("close", 0) or 0
             atr = row.get("ATR") or (entry * 0.01)
 
-            # TP/SL scaled for 4h outcome window:
-            # TP1 = 3.0x ATR, TP2 = 4.5x ATR, SL = 1.5x ATR → R:R = 1:2 / 1:3
+            # TP/SL scaled for 8h outcome window:
+            # TP1 = 2.0x ATR, TP2 = 3.0x ATR, SL = 1.5x ATR → R:R = 1:1.33 / 1:2
+            # Tightened on 2026-04-21 — old TP1 was unreachable in-window.
             if direction == "BUY":
-                tp1 = round(entry + atr * 3.0, 6)
-                tp2 = round(entry + atr * 4.5, 6)
+                tp1 = round(entry + atr * 2.0, 6)
+                tp2 = round(entry + atr * 3.0, 6)
                 sl  = round(entry - atr * 1.5, 6)
             else:
-                tp1 = round(entry - atr * 3.0, 6)
-                tp2 = round(entry - atr * 4.5, 6)
+                tp1 = round(entry - atr * 2.0, 6)
+                tp2 = round(entry - atr * 3.0, 6)
                 sl  = round(entry + atr * 1.5, 6)
 
             reasons = [f"TF confluence: {', '.join(agreeing)} all {direction}"]
@@ -884,7 +890,11 @@ def main():
         best_rows = {}
         for _, row in df.iterrows():
             raw_name = str(row.get("name", ""))
-            sym = raw_name.replace("BINANCE:", "").replace("FX:", "").replace("OANDA:", "").replace("FXCM:", "")
+            sym = re.sub(
+                r"\..*$",
+                "",
+                raw_name.replace("BINANCE:", "").replace("FX:", "").replace("OANDA:", "").replace("FXCM:", ""),
+            )
             # Count how many TFs have a clear signal (not neutral)
             tf_count = sum(1 for col in TF_COLS.values() if row.get(col) is not None and abs(row.get(col, 0)) >= 0.5)
             if sym not in best_rows or tf_count > best_rows[sym][1]:
@@ -939,11 +949,11 @@ def main():
                 # Dynamic cooldown: extend to 12h if last signal was a loser
                 cooldown_hours = COOLDOWN_HOURS_BASE
                 last_outcome = conn.execute("""
-                    SELECT outcome, accuracy FROM signals
+                    SELECT outcome FROM signals
                     WHERE symbol = ? AND signal = ? AND outcome IS NOT NULL
                     ORDER BY fired_at DESC LIMIT 1
                 """, (s["symbol"], s["signal"])).fetchone()
-                if last_outcome and last_outcome[1] is not None and last_outcome[1] < 0.3:
+                if last_outcome and last_outcome[0] in ("SL_HIT", "EXPIRED_LOSS"):
                     cooldown_hours = 12  # extend cooldown after a loss
 
                 # Check cooldown: was this symbol+direction fired recently?

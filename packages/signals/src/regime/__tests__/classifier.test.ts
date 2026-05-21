@@ -7,9 +7,9 @@ import {
   getDefaultModel,
   classifyRegime,
   setModel,
-} from '../classifier';
-import type { PriceBar } from '../classifier';
-import type { HMMModelParams, MarketRegime } from '../types';
+} from '../classifier.js';
+import type { PriceBar } from '../classifier.js';
+import type { HMMModelParams, MarketRegime } from '../types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

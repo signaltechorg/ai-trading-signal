@@ -4,6 +4,7 @@ import {
   STRATEGY_PROFILES,
 } from '../signal-generator';
 import { calculateAllIndicators } from '../ta-engine';
+import type { AllIndicators } from '../ta-engine';
 import type { OHLCV } from '../ohlcv';
 
 // Build a deterministic synthetic OHLCV series. BTCUSD is crypto (24/7 market
@@ -46,6 +47,45 @@ function buildFixture(count: number, seed: number): OHLCV[] {
   return candles;
 }
 
+function buildBullishIndicators(candles: OHLCV[]): AllIndicators {
+  const indicators = calculateAllIndicators(candles);
+  const currentPrice = candles[candles.length - 1].close;
+
+  indicators.rsi.current = 45;
+  indicators.stochastic.current = { k: 35, d: 30 };
+
+  if (indicators.macd.histogram.length >= 2) {
+    indicators.macd.histogram[indicators.macd.histogram.length - 2] = -1;
+    indicators.macd.histogram[indicators.macd.histogram.length - 1] = 1;
+  }
+  indicators.macd.current.histogram = 1;
+
+  indicators.ema.ema20 = candles.map((_, i) => currentPrice - 80 + i * 0.5);
+  indicators.ema.ema50 = candles.map((_, i) => currentPrice - 110 + i * 0.45);
+  indicators.ema.ema200 = candles.map((_, i) => currentPrice - 140 + i * 0.3);
+  indicators.ema.current = {
+    ema20: indicators.ema.ema20[indicators.ema.ema20.length - 1],
+    ema50: indicators.ema.ema50[indicators.ema.ema50.length - 1],
+    ema200: indicators.ema.ema200[indicators.ema.ema200.length - 1],
+  };
+
+  indicators.bollinger.current = {
+    upper: currentPrice + 40,
+    middle: currentPrice,
+    lower: currentPrice - 40,
+    bandwidth: 8,
+  };
+
+  indicators.adx.current = { adx: 30, plusDI: 24, minusDI: 16 };
+
+  indicators.volume.currentVolume = 1200;
+  indicators.volume.currentSMA = 1000;
+  indicators.volume.ratio = 1.2;
+  indicators.volume.isSynthetic = false;
+
+  return indicators;
+}
+
 describe('signal-generator — STRATEGY_PROFILES contract', () => {
   it("'classic' profile is the only registered profile in Phase 1", () => {
     expect(Object.keys(STRATEGY_PROFILES)).toEqual(['classic']);
@@ -56,7 +96,7 @@ describe('signal-generator — STRATEGY_PROFILES contract', () => {
     // If anyone touches the engine threshold without going through the
     // STRATEGY_PROFILES table, this test forces them to update both places
     // intentionally.
-    expect(STRATEGY_PROFILES.classic.signalThreshold).toBe(22);
+    expect(STRATEGY_PROFILES.classic.signalThreshold).toBe(55);
     expect(STRATEGY_PROFILES.classic.minConfidence).toBe(55);
     expect(STRATEGY_PROFILES.classic.signalThresholdScalp).toBe(30);
     expect(STRATEGY_PROFILES.classic.minConfidenceScalp).toBe(58);
@@ -123,5 +163,35 @@ describe('generateSignalsFromTA — classic profile produces byte-identical outp
     const after = generateSignalsFromTA('BTCUSD', indicators, 'M15', 'real', ts, 'classic');
 
     expect(after).toEqual(before);
+  });
+
+  it('returns no signal when fewer than 100 candles are available', () => {
+    const candles = buildFixture(99, 31415);
+    const indicators = buildBullishIndicators(candles);
+    const ts = candles[candles.length - 1].timestamp;
+
+    expect(generateSignalsFromTA('BTCUSD', indicators, 'H1', 'real', ts)).toEqual([]);
+  });
+
+  it('emits a BUY signal only when at least two indicator categories agree and carries source metadata', () => {
+    const candles = buildFixture(120, 2718);
+    const indicators = buildBullishIndicators(candles);
+    const ts = candles[candles.length - 1].timestamp;
+
+    const realSignals = generateSignalsFromTA('BTCUSD', indicators, 'H1', 'real', ts);
+    expect(realSignals).toHaveLength(1);
+    expect(realSignals[0]).toMatchObject({
+      direction: 'BUY',
+      dataQuality: 'real',
+      source: 'real',
+    });
+
+    const syntheticSignals = generateSignalsFromTA('BTCUSD', indicators, 'H1', 'synthetic', ts);
+    expect(syntheticSignals).toHaveLength(1);
+    expect(syntheticSignals[0]).toMatchObject({
+      direction: 'BUY',
+      dataQuality: 'synthetic',
+      source: 'fallback',
+    });
   });
 });

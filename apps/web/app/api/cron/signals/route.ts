@@ -10,6 +10,7 @@ import {
   updateRecordsAsync,
   markTelegramPosted,
   resolveFromCandles,
+  getOutcomeResolutionTimeframe,
   getUnpostedProSignalsAsync,
   type SignalHistoryRecord,
 } from '../../../../lib/signal-history';
@@ -131,7 +132,7 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
     let candles: Array<{ timestamp: number; high: number; low: number; close: number; open: number; volume: number }> = [];
 
     try {
-      const result = await getOHLCV(record.pair, 'H1');
+      const result = await getOHLCV(record.pair, getOutcomeResolutionTimeframe(record));
       candles = result.candles;
     } catch (err) {
       const msg = `OHLCV fetch failed for ${record.pair}: ${err instanceof Error ? err.message : String(err)}`;

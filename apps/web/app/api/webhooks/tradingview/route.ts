@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
-import { execute } from '@/lib/db-pool';
+import { execute } from '../../../../lib/db-pool';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = validate(body);
-  if (!parsed.ok) {
+  if (!('data' in parsed)) {
     return NextResponse.json({ error: 'invalid_payload', field: parsed.error }, { status: 400 });
   }
 

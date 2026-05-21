@@ -9,8 +9,8 @@
  * close_all is always enforced as the ultimate safety net.
  */
 
-import type { MarketRegime } from '../regime/types';
-import type { BreakerType, RiskState, VetoResult } from './types';
+import type { MarketRegime } from '../regime/types.js';
+import type { BreakerType, RiskState, VetoResult } from './types.js';
 
 export interface VetoSignalInput {
   symbol: string;

@@ -59,12 +59,18 @@ export async function GET(request: NextRequest): Promise<Response> {
     results.telegram = await callInternal('/api/cron/telegram', request);
   }
 
-  // 3. Daily digest — once at 08:00 UTC
+  // 3. Pre-market game plan — once daily at 07:45 UTC.
+  //    Generates the demo briefing before the New York / London overlap gets busy.
+  if (hour === 7 && minute >= 45 && minute < 50) {
+    results.gamePlan = await callInternal('/api/cron/game-plan', request);
+  }
+
+  // 4. Daily digest — once at 08:00 UTC
   if (hour === 8 && minute < 10) {
     results.dailyDigest = await callInternal('/api/cron/daily-digest', request);
   }
 
-  // 3b. Trial-ending reminder — once daily at 09:00 UTC. Catches anyone
+  // 4b. Trial-ending reminder — once daily at 09:00 UTC. Catches anyone
   //     whose 7-day trial expires in roughly 24 hours.
   if (hour === 9 && minute < 10) {
     results.trialReminders = await callInternal('/api/cron/trial-reminders', request);

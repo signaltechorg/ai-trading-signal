@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { PageNavBar } from '@/components/PageNavBar';
 import { useUserTier } from '@/lib/hooks/use-user-tier';
@@ -12,6 +12,7 @@ import { BackgroundDecor } from '@/components/background/BackgroundDecor';
 import { InfoHint } from '@/components/InfoHint';
 import { STAT_HINTS } from '@/lib/stat-hints';
 import { FREE_HISTORY_DAYS, FREE_SYMBOLS } from '@/lib/tier-client';
+import { isExpiredHistoricalOutcome, isPendingHistoricalOutcome } from '@/lib/signal-history-status';
 import { symbolsForCategory, type CategoryFilter } from '@/app/lib/symbol-config';
 import { EmbedButton } from '../components/embed-button';
 import { ShareOnX } from '../components/share-on-x';
@@ -33,6 +34,34 @@ const CATEGORY_OPTIONS: { value: CategoryFilter; label: string }[] = [
   { value: 'majors', label: 'Majors' },
   { value: 'thematic', label: 'Thematic' },
 ];
+
+const RESOLUTION_HEARTBEAT_STALE_MS = 15 * 60 * 1000;
+
+function formatHeartbeatAge(lastUpdated: number): string {
+  const ageMs = Math.max(0, Date.now() - lastUpdated);
+  const totalMinutes = Math.max(1, Math.round(ageMs / 60_000));
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m ago`;
+  }
+
+  const hours = Math.round(totalMinutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function getResolutionHeartbeat(lastUpdated: number | null | undefined) {
+  if (!lastUpdated) return null;
+
+  const ageMs = Math.max(0, Date.now() - lastUpdated);
+  return {
+    ageLabel: formatHeartbeatAge(lastUpdated),
+    isStale: ageMs > RESOLUTION_HEARTBEAT_STALE_MS,
+  };
+}
 
 /** Periods where the window pre-dates the earliest recorded signal are
  * disabled. Showing "5Y" on 26 days of history fabricates depth we don't
@@ -177,6 +206,20 @@ function pageNumbers(current: number, total: number): (number | null)[] {
   return pages;
 }
 
+type EquityBand = 'all' | 'premium' | 'standard';
+
+function parseEquityBand(raw: string | null): EquityBand {
+  if (raw === 'premium' || raw === 'standard' || raw === 'all') return raw;
+  return 'all';
+}
+
+function buildTrackRecordUrl(pathname: string, searchParams: URLSearchParams, band: EquityBand): string {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('band', band);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 type DirectionFilter = 'ALL' | 'BUY' | 'SELL';
 type Scope = 'pro' | 'free';
 
@@ -186,6 +229,15 @@ interface CategorySnapshot {
   totalSignals: number;
   breakEvenWinRate: number | null;
 }
+
+interface RollingWinRateSnapshot {
+  totalSignals: number;
+  resolvedSignals: number;
+  winRate: number;
+}
+
+type RollingWindow = '7d' | '30d' | '90d';
+type RollingWinRates = Record<RollingWindow, RollingWinRateSnapshot>;
 
 /**
  * Side-by-side WR / expectancy comparison across All / Majors / Thematic.
@@ -315,6 +367,8 @@ function CategoryBreakdownRow({
 
 export function TrackRecordClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const tier = useUserTier();
   const isPaidUser = tier !== null && tier !== 'free';
   // Default tab: Pro track record. Everyone sees the full product's
@@ -323,12 +377,7 @@ export function TrackRecordClient() {
   const [scope, setScope] = useState<Scope>('pro');
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [period, setPeriod] = useState<Period>('all');
-  // Equity band toggle is local to the curve — doesn't affect the rest of
-  // the page (history table, per-symbol breakdown, etc). 'all' is the
-  // default so newcomers see the firehose first; opt-in to the premium-only
-  // view via the toggle on the equity card. Typed as the full EquityBand
-  // union to match the prop contract — UI only surfaces all/premium today.
-  const [equityBand, setEquityBand] = useState<'all' | 'premium' | 'standard'>('all');
+  const equityBand = parseEquityBand(searchParams.get('band'));
   const [pairFilter, setPairFilter] = useState<string>('ALL');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('ALL');
   const [stats, setStats] = useState<HistoryStats | null>(null);
@@ -337,12 +386,13 @@ export function TrackRecordClient() {
   const [offset, setOffset] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rollingWinRates, setRollingWinRates] = useState<RollingWinRates | null>(null);
   // Earliest signal we have data for in the current scope. Used to grey out
   // period buttons whose window pre-dates any recorded signal — a 5Y button
   // on 26 days of data would be a fabrication.
   const [earliestTimestamp, setEarliestTimestamp] = useState<number | null>(null);
 
-  const fetchData = useCallback(async (p: Period, off: number, pair: string, direction: DirectionFilter, s: Scope, c: CategoryFilter) => {
+  const fetchData = useCallback(async (p: Period, off: number, pair: string, direction: DirectionFilter, s: Scope, c: CategoryFilter, band: EquityBand) => {
     setLoading(true);
     try {
       const historyParams = new URLSearchParams({
@@ -358,9 +408,13 @@ export function TrackRecordClient() {
       const leaderboardParams = new URLSearchParams({ period: p, scope: s });
       if (c !== 'all') leaderboardParams.set('category', c);
 
-      const [historyRes, leaderboardRes] = await Promise.allSettled([
+      const equityParams = new URLSearchParams({ period: p, scope: s, band });
+      if (c !== 'all') equityParams.set('category', c);
+
+      const [historyRes, leaderboardRes, equityRes] = await Promise.allSettled([
         fetch(`/api/signals/history?${historyParams.toString()}`),
         fetch(`/api/leaderboard?${leaderboardParams.toString()}`),
+        fetch(`/api/signals/equity?${equityParams.toString()}`),
       ]);
 
       if (historyRes.status === 'fulfilled' && historyRes.value.ok) {
@@ -375,7 +429,15 @@ export function TrackRecordClient() {
         const data = await leaderboardRes.value.json();
         setLeaderboard(data);
       }
+
+      if (equityRes.status === 'fulfilled' && equityRes.value.ok) {
+        const data = await equityRes.value.json();
+        setRollingWinRates(data.rollingWinRates ?? null);
+      } else {
+        setRollingWinRates(null);
+      }
     } catch {
+      setRollingWinRates(null);
       // silently fail
     } finally {
       setLoading(false);
@@ -383,8 +445,8 @@ export function TrackRecordClient() {
   }, []);
 
   useEffect(() => {
-    fetchData(period, offset, pairFilter, directionFilter, scope, category);
-  }, [period, offset, pairFilter, directionFilter, scope, category, fetchData]);
+    fetchData(period, offset, pairFilter, directionFilter, scope, category, equityBand);
+  }, [period, offset, pairFilter, directionFilter, scope, category, equityBand, fetchData]);
 
   useEffect(() => {
     setOffset(0);
@@ -399,6 +461,10 @@ export function TrackRecordClient() {
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pages = useMemo(() => pageNumbers(currentPage, totalPages), [currentPage, totalPages]);
+  const resolutionHeartbeat = useMemo(
+    () => getResolutionHeartbeat(leaderboard?.overall.lastUpdated),
+    [leaderboard?.overall.lastUpdated],
+  );
   const freeCategoryHasSymbols = useMemo(() => {
     if (scope !== 'free' || category === 'all') return true;
     const freeSet = new Set<string>(FREE_SYMBOLS);
@@ -421,6 +487,13 @@ export function TrackRecordClient() {
     setCategory(nextCategory);
     setPairFilter('ALL');
   };
+
+  const handleBandChange = useCallback((nextBand: EquityBand) => {
+    const nextUrl = buildTrackRecordUrl(pathname, new URLSearchParams(searchParams.toString()), nextBand);
+    router.replace(nextUrl, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const embeddedBand = scope === 'pro' ? equityBand : 'all';
 
   return (
     <div className="relative isolate min-h-[100dvh] overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -472,9 +545,30 @@ export function TrackRecordClient() {
                 <InfoHint text={STAT_HINTS.resolved} label="What resolved signals means" />
               </span>
             </div>
+            {resolutionHeartbeat && (
+              <div
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono ${
+                  resolutionHeartbeat.isStale
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    resolutionHeartbeat.isStale ? 'bg-amber-400' : 'bg-emerald-400'
+                  }`}
+                />
+                <span>
+                  {resolutionHeartbeat.isStale ? 'Resolution feed stale' : 'Outcome tracker live'}
+                </span>
+                <span className="text-[var(--text-secondary)]">
+                  updated {resolutionHeartbeat.ageLabel}
+                </span>
+              </div>
+            )}
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <EmbedButton embedPath="/embed/track-record" label="Embed this" width={600} height={360} />
+            <EmbedButton embedPath={`/embed/track-record?band=${embeddedBand}`} label="Embed this" width={600} height={360} />
             <ShareOnX
               winRate={stats?.winRate}
               resolved={stats?.resolved}
@@ -487,6 +581,34 @@ export function TrackRecordClient() {
             what a real subscriber would actually earn. Two views, same trades. Resolved trades only —
             gate-blocked and expired rows are surfaced separately, not folded in.
           </p>
+          {rollingWinRates && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {(['7d', '30d', '90d'] as const).map((window) => {
+                const snap = rollingWinRates[window];
+                const winTone = snap.winRate >= 55
+                  ? 'text-emerald-400'
+                  : snap.winRate >= 45
+                    ? 'text-zinc-300'
+                    : 'text-red-400';
+                return (
+                  <div key={window} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] font-mono">
+                      Rolling win rate · {window}
+                    </div>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <div className={`text-2xl font-bold tabular-nums ${winTone}`}>
+                        {snap.resolvedSignals > 0 ? `${snap.winRate}%` : '—'}
+                      </div>
+                      <div className="text-right text-[10px] font-mono text-[var(--text-secondary)]">
+                        <div>{snap.resolvedSignals} resolved</div>
+                        <div>{snap.totalSignals} total</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Period Filter — buttons whose window exceeds available history are
@@ -749,12 +871,12 @@ export function TrackRecordClient() {
            Scope mirrors the tab above so Pro vs Free are clearly distinct charts.
            Band toggle is exposed only on Pro scope; Free scope is a narrow free-tier
            slice where a premium split isn't meaningful. */}
-        <EquityCurve
+          <EquityCurve
           period={period === '7d' || period === '30d' ? period : 'all'}
           scope={scope}
           category={category}
           band={scope === 'pro' ? equityBand : 'all'}
-          onBandChange={scope === 'pro' ? setEquityBand : undefined}
+          onBandChange={scope === 'pro' ? handleBandChange : undefined}
         />
 
         {/* Per-Symbol Breakdown */}
@@ -916,7 +1038,10 @@ export function TrackRecordClient() {
                     const outcome24h = r.outcomes['24h'];
                     const outcome4h = r.outcomes['4h'];
                     const pnl = outcome24h?.pnlPct ?? outcome4h?.pnlPct ?? null;
-                    const isPending = outcome24h == null && outcome4h == null;
+                    const now = Date.now();
+                    const isPending24h = isPendingHistoricalOutcome(outcome24h, r.timestamp, 24 * 60 * 60 * 1000, now);
+                    const isExpired24h = isExpiredHistoricalOutcome(outcome24h, r.timestamp, 24 * 60 * 60 * 1000, now);
+                    const isPending = isPending24h && outcome4h == null;
                     return (
                       <tr
                         key={r.id}
@@ -949,7 +1074,7 @@ export function TrackRecordClient() {
                         </td>
                         <td className="px-3 py-2.5 text-center">
                           {outcome24h == null ? (
-                            <span className="text-zinc-600">{isPending ? '…' : '—'}</span>
+                            <span className="text-zinc-600">{isPending24h ? '…' : isExpired24h ? 'expired' : '—'}</span>
                           ) : outcome24h.hit ? (
                             <span className="text-emerald-400 font-semibold">TP</span>
                           ) : (
@@ -959,7 +1084,7 @@ export function TrackRecordClient() {
                         <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${
                           pnl == null ? 'text-zinc-600' : pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                         }`}>
-                          {pnl == null ? (isPending ? 'pending' : '—') : `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`}
+                          {pnl == null ? (isPending ? 'pending' : isExpired24h ? 'expired' : '—') : `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`}
                         </td>
                       </tr>
                     );

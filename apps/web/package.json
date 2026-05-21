@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "@tradeclaw/signals": "*",
     "@tradeclaw/strategies": "*",
+    "@tradeclaw/trading-agents": "*",
     "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
     "@types/web-push": "^3.6.4",

@@ -6,8 +6,8 @@
  * trades have room to reach TP3, and tighter limits in adverse conditions.
  */
 
-import type { MarketRegime } from '../regime/types';
-import type { BreakerConfig, BreakerType } from './types';
+import type { MarketRegime } from '../regime/types.js';
+import type { BreakerConfig, BreakerType } from './types.js';
 
 export const DEFAULT_BREAKERS: BreakerConfig[] = [
   {

@@ -8,7 +8,7 @@ export type {
   RegimeClassification,
   RegimeFeatures,
   HMMModelParams,
-} from './types';
+} from './types.js';
 
 // Classifier
 export {
@@ -17,12 +17,12 @@ export {
   loadModel,
   getDefaultModel,
   setModel,
-} from './classifier';
-export type { PriceBar } from './classifier';
+} from './classifier.js';
+export type { PriceBar } from './classifier.js';
 
 // Viterbi (exposed for advanced usage / testing)
 export {
   computeGaussianLogPdf,
   forwardAlgorithm,
   viterbiDecode,
-} from './viterbi';
+} from './viterbi.js';

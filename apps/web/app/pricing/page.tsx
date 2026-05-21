@@ -19,15 +19,15 @@ const FREE_HISTORY_LABEL = TIER_HISTORY_DAYS.free
   : 'Full history';
 
 const FEATURES: Feature[] = [
-  { label: 'Signal delivery', free: 'Delayed 15 min — moves often played out by then', pro: 'Instant — alert fires while the entry is still live' },
+  { label: 'Signal delivery', free: 'Delayed 15 min — moves often played out by then', pro: 'Instant — alert fires while the move is still live' },
   {
     label: 'Symbols covered',
     free: `${FREE_SYMBOLS.length} pairs across crypto, FX, gold, indices`,
-    pro: 'Every traded pair — FX, crypto, gold/silver, oil, US mega-caps, indices',
+    pro: 'The whole market you actually watch — FX, crypto, metals, oil, US mega-caps, indices',
   },
-  { label: 'Telegram group', free: 'Public @tradeclawwin', pro: 'Private Pro group — same signals you see in the dashboard, no scroll lag' },
-  { label: 'Risk levels', free: 'TP1 only', pro: 'TP1, TP2, TP3 + Stop Loss — full exit plan before you enter' },
-  { label: 'Entry signal', free: 'Basic (RSI, EMA)', pro: 'Higher-conviction setups — multiple indicators must align across H1/H4/D1 before a signal fires' },
+  { label: 'Telegram group', free: 'Public @tradeclawwin', pro: 'Private Pro group — same live signals, no scroll lag' },
+  { label: 'Risk levels', free: 'TP1 only', pro: 'TP1, TP2, TP3 + Stop Loss — exit plan before you enter' },
+  { label: 'Entry signal', free: 'Basic (RSI, EMA)', pro: 'Confluence-gated entries — multiple indicators must align across H1/H4/D1' },
   { label: 'Track record', free: 'Audit our public Postgres yourself', pro: 'Every entry, exit, and outcome is recorded in our public Postgres archive' },
   { label: 'Signal history', free: FREE_HISTORY_LABEL, pro: 'Unlimited real outcomes for backtests, audits, and strategy checks' },
   { label: 'Support', free: 'Community', pro: 'Email (24h response)' },

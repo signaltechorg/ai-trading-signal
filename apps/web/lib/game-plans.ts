@@ -95,17 +95,21 @@ export async function listPlans(userId: string, limit = 7): Promise<GamePlan[]> 
 interface SignalRow {
   symbol: string;
   direction: string;
-  confidence: number;
+  maxConfidence: number;
   cnt: string;
 }
 
 export async function generateBriefing(userId: string): Promise<GamePlan> {
   const rows = await query<SignalRow>(
-    `SELECT symbol, direction, confidence, COUNT(*)::text AS cnt
+    `SELECT
+       symbol,
+       direction,
+       MAX(confidence)::int AS "maxConfidence",
+       COUNT(*)::text AS cnt
      FROM signal_history
      WHERE created_at > NOW() - INTERVAL '24 hours'
-     GROUP BY symbol, direction, confidence
-     ORDER BY COUNT(*) DESC
+     GROUP BY symbol, direction
+     ORDER BY COUNT(*) DESC, MAX(confidence) DESC, symbol ASC
      LIMIT 5`,
     [],
   );
@@ -113,13 +117,21 @@ export async function generateBriefing(userId: string): Promise<GamePlan> {
   const watchlist: WatchlistItem[] = rows.map((r) => ({
     symbol: r.symbol,
     bias: r.direction === 'BUY' ? 'Bullish' : r.direction === 'SELL' ? 'Bearish' : 'Neutral',
-    keyLevels: `${Number(r.cnt)} signals (${r.confidence}% conf)`,
+    keyLevels: `${Number(r.cnt)} signals · top ${r.maxConfidence}% confidence`,
   }));
 
   const today = new Date().toISOString().slice(0, 10);
+  const focusPairs = watchlist.map((item) => item.symbol).filter(Boolean).join(', ');
+
   return upsertPlan(userId, {
     date: today,
     watchlist,
-    notes: `Auto-generated briefing from ${rows.length} top symbols in the last 24h.`,
+    notes: watchlist.length > 0
+      ? [
+        'Auto-generated pre-market briefing from the last 24h signal tape.',
+        focusPairs ? `Focus pairs: ${focusPairs}.` : null,
+        'Review key levels before the session opens.',
+      ].filter(Boolean).join('\n')
+      : 'Auto-generated pre-market briefing from the last 24h signal tape. No high-conviction signals found yet.',
   });
 }

@@ -169,6 +169,7 @@ function MockDashboard({ accentColor }: { accentColor: string }) {
 export function ShowcaseClient() {
   const [stars, setStars] = useState<number | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [winRates, setWinRates] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_tick, setTick] = useState(0);
@@ -177,6 +178,18 @@ export function ShowcaseClient() {
     fetch('/api/github-stars')
       .then((r) => r.json())
       .then((d) => setStars(d.stars ?? d.stargazers_count ?? null))
+      .catch(() => {});
+
+    fetch('/api/v1/win-rates')
+      .then((r) => r.json())
+      .then((d) => {
+        const next: Record<string, number> = {};
+        for (const entry of Array.isArray(d.win_rates) ? d.win_rates : []) {
+          if (!entry?.symbol || !entry?.direction || typeof entry.win_rate !== 'number') continue;
+          next[`${entry.symbol}_${entry.direction}`] = entry.win_rate;
+        }
+        setWinRates(next);
+      })
       .catch(() => {});
 
     const fetchSignals = () => {
@@ -387,9 +400,25 @@ export function ShowcaseClient() {
                     </div>
                     <span className="text-white/50 text-xs">{sig.confidence}%</span>
                   </div>
-                  {sig.timeframe && (
-                    <div className="text-white/30 text-[10px] mt-1">{sig.timeframe}</div>
-                  )}
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-white/30">
+                    <span>{sig.timeframe ?? '—'}</span>
+                    <span
+                      className={`font-semibold ${
+                        winRates[`${sig.pair}_${sig.direction}`] !== undefined
+                          ? winRates[`${sig.pair}_${sig.direction}`] >= 60
+                            ? 'text-emerald-400'
+                            : winRates[`${sig.pair}_${sig.direction}`] >= 50
+                              ? 'text-zinc-300'
+                              : 'text-rose-400'
+                          : 'text-white/25'
+                      }`}
+                    >
+                      WR{' '}
+                      {winRates[`${sig.pair}_${sig.direction}`] !== undefined
+                        ? `${winRates[`${sig.pair}_${sig.direction}`]}%`
+                        : '—'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

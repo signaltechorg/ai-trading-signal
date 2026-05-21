@@ -1,0 +1,148 @@
+import { NextRequest } from 'next/server';
+
+jest.mock('../../../../../lib/db-pool', () => ({
+  execute: jest.fn(),
+}));
+
+import { execute } from '../../../../../lib/db-pool';
+import { POST } from '../route';
+
+const mockedExecute = execute as jest.MockedFunction<typeof execute>;
+
+describe('POST /api/webhooks/tradingview', () => {
+  const ORIGINAL_SECRET = process.env.TV_WEBHOOK_SECRET;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.TV_WEBHOOK_SECRET = 'super-secret-test-token-1234567890';
+  });
+
+  afterAll(() => {
+    process.env.TV_WEBHOOK_SECRET = ORIGINAL_SECRET;
+  });
+
+  function makeReq(body: unknown, secret?: string) {
+    return new NextRequest('http://localhost/api/webhooks/tradingview', {
+      method: 'POST',
+      headers: secret ? { 'x-tv-secret': secret } : undefined,
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('rejects requests without the configured secret', async () => {
+    const res = await POST(
+      new NextRequest('http://localhost/api/webhooks/tradingview', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: 'unauthorized' });
+    expect(mockedExecute).not.toHaveBeenCalled();
+  });
+
+  it('rejects disallowed strategy ids before touching the DB', async () => {
+    const res = await POST(
+      makeReq(
+        {
+          source_id: 'tv-evil-1',
+          strategy_id: 'not-allowed',
+          symbol: 'XAUUSD',
+          timeframe: 'H1',
+          direction: 'BUY',
+          entry: 2321.5,
+          signal_ts: '2026-05-20T10:00:00.000Z',
+        },
+        process.env.TV_WEBHOOK_SECRET,
+      ),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_payload', field: 'strategy_id_not_allowed' });
+    expect(mockedExecute).not.toHaveBeenCalled();
+  });
+
+  it('persists a valid TradingView signal and returns ok', async () => {
+    mockedExecute.mockResolvedValueOnce(undefined);
+
+    const payload = {
+      source_id: 'hafiz-xauusd-h1-1716208800',
+      strategy_id: 'tv-hafiz-synergy',
+      symbol: 'xauusd',
+      timeframe: 'h1',
+      direction: 'BUY',
+      confidence: 87,
+      entry: 2321.5,
+      stop_loss: 2310.25,
+      take_profit_1: 2332.75,
+      take_profit_2: 2344.5,
+      signal_ts: '2026-05-20T10:00:00.000Z',
+    };
+
+    const res = await POST(makeReq(payload, process.env.TV_WEBHOOK_SECRET));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    expect(mockedExecute).toHaveBeenCalledTimes(1);
+    expect(mockedExecute).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO premium_signals'),
+      [
+        'hafiz-xauusd-h1-1716208800',
+        'tv-hafiz-synergy',
+        'XAUUSD',
+        'H1',
+        'BUY',
+        87,
+        2321.5,
+        2310.25,
+        2332.75,
+        2344.5,
+        JSON.stringify({
+          ...payload,
+          symbol: 'XAUUSD',
+          timeframe: 'H1',
+        }),
+        new Date('2026-05-20T10:00:00.000Z'),
+      ],
+    );
+  });
+
+  it('defaults confidence to 90 when omitted', async () => {
+    mockedExecute.mockResolvedValueOnce(undefined);
+
+    const payload = {
+      source_id: 'zaky-btcusd-h4-1716208801',
+      strategy_id: 'tv-zaky-classic',
+      symbol: 'BTCUSD',
+      timeframe: 'H4',
+      direction: 'SELL',
+      entry: 64500,
+      signal_ts: '2026-05-20T10:05:00.000Z',
+    };
+
+    const res = await POST(makeReq(payload, process.env.TV_WEBHOOK_SECRET));
+
+    expect(res.status).toBe(200);
+    const [, args] = mockedExecute.mock.calls[0];
+    expect(args).toEqual([
+      'zaky-btcusd-h4-1716208801',
+      'tv-zaky-classic',
+      'BTCUSD',
+      'H4',
+      'SELL',
+      90,
+      64500,
+      null,
+      null,
+      null,
+      JSON.stringify({
+        ...payload,
+        symbol: 'BTCUSD',
+        timeframe: 'H4',
+      }),
+      new Date('2026-05-20T10:05:00.000Z'),
+    ]);
+  });
+});

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   BookOpen, Plus, X, Trash2, ChevronDown, ChevronUp,
-  TrendingUp, TrendingDown, ArrowLeft, Filter,
+  TrendingUp, TrendingDown, ArrowLeft, Filter, Brain,
 } from 'lucide-react';
 
 interface TradeEntry {
@@ -336,9 +336,19 @@ function TradeRow({
                 ))}
               </div>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="flex items-center gap-1 text-[10px] text-rose-400/60 hover:text-rose-400 transition-colors">
-              <Trash2 className="w-3 h-3" /> Delete
-            </button>
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/journal/autopsy?tradeId=${trade.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-[10px] text-emerald-400/70 hover:text-emerald-400 transition-colors"
+              >
+                <Brain className="w-3 h-3" />
+                Open Autopsy
+              </Link>
+              <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="flex items-center gap-1 text-[10px] text-rose-400/60 hover:text-rose-400 transition-colors">
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            </div>
           </td>
         </tr>
       )}

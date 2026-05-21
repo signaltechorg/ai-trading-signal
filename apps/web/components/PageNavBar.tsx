@@ -20,6 +20,7 @@ import {
   Activity,
   ShieldCheck,
   Trophy,
+  GitBranch,
 } from 'lucide-react';
 import { TradeClawLogo } from './tradeclaw-logo';
 import { UserMenu } from './UserMenu';
@@ -62,6 +63,7 @@ const MEMBER_MORE: DropdownGroup[] = [
     label: 'Trading Tools',
     links: [
       { href: '/strategy-builder', label: 'Strategy Builder', icon: Wrench },
+      { href: '/strategy-rules', label: 'Strategy Rules', icon: GitBranch },
       { href: '/strategies/leaderboard', label: 'Strategy Leaderboard', icon: Trophy },
       { href: '/multi-timeframe', label: 'Multi-TF', icon: Layers },
       { href: '/paper-trading', label: 'Paper Trading', icon: Crosshair },

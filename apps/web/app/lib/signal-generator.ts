@@ -63,7 +63,7 @@ const WEIGHTS = {
 // Matches packages/signals/src/indicators.ts → DEFAULT_SQUEEZE_THRESHOLD.
 const BB_SQUEEZE_THRESHOLD = 4;
 
-const SIGNAL_THRESHOLD = 22; // Calibrated floor — avoids an empty feed while still filtering weak setups
+const SIGNAL_THRESHOLD = 55; // Calibrated floor for the classic profile
 const MIN_CONFIDENCE = 55; // Keeps the lowest-conviction band out, but restores viable swing signals
 // Scalp mode (M5/M15) stays stricter than swing because short timeframes are noisier,
 // but no longer starves the engine after the April threshold tightening.
@@ -79,7 +79,7 @@ const MIN_CONFIDENCE_SCALP = 58;
  */
 export const STRATEGY_PROFILES = {
   classic: {
-    signalThreshold: SIGNAL_THRESHOLD,           // 22
+    signalThreshold: SIGNAL_THRESHOLD,           // 55
     minConfidence: MIN_CONFIDENCE,               // 55
     signalThresholdScalp: SIGNAL_THRESHOLD_SCALP, // 30
     minConfidenceScalp: MIN_CONFIDENCE_SCALP,    // 58
@@ -656,8 +656,8 @@ export function generateSignalsFromTA(
   profileId: StrategyProfileId = 'classic',
 ): TradingSignal[] {
   const tf = timeframe as TradingSignal['timeframe'];
-  // Minimum candle count guard — require at least 50 candles for reliable signals
-  if (indicators.closes.length < 50) return [];
+  // Minimum candle count guard — require at least 100 candles for reliable signals
+  if (indicators.closes.length < 100) return [];
 
   const profile = STRATEGY_PROFILES[profileId];
 
@@ -688,13 +688,13 @@ export function generateSignalsFromTA(
 
   const publishedAt = new Date(signalTimestamp).toISOString();
 
+  const signalSource = source === 'synthetic' ? 'fallback' : 'real';
+
   // Generate BUY signal
   const buyingCategoryCount = [buyCategories.momentum, buyCategories.trend, buyCategories.volatility]
     .filter(v => v > 0).length;
   const buyGate = passesDirectionGate('BUY', indicators, marketQuality, buyScore, sellScore);
-  // Require 2 categories for high confidence, 1 category for moderate signals
-  const buyMinCategories = buyScore >= 40 ? 2 : 1;
-  if (buyScore >= signalThreshold && buyScore > sellScore && buyingCategoryCount >= buyMinCategories && buyGate.passes) {
+  if (buyScore >= signalThreshold && buyScore > sellScore && buyingCategoryCount >= 2 && buyGate.passes) {
     let confidence = scaleConfidence(buyScore, buyGate.confidenceBoost, source);
     const buyAtrMultiplier = getCachedAtrMultiplier(symbol);
     const slDistance = atr * buyAtrMultiplier;
@@ -744,6 +744,7 @@ export function generateSignalsFromTA(
       timeframe: tf,
       timestamp: publishedAt,
       status: 'active',
+      source: signalSource,
       dataQuality: source,
       atrCalibration: buyCalibration
         ? { multiplier: buyCalibration.multiplier, confidence: buyCalibration.confidence }
@@ -757,8 +758,7 @@ export function generateSignalsFromTA(
   const sellingCategoryCount = [sellCategories.momentum, sellCategories.trend, sellCategories.volatility]
     .filter(v => v > 0).length;
   const sellGate = passesDirectionGate('SELL', indicators, marketQuality, sellScore, buyScore);
-  const sellMinCategories = sellScore >= 40 ? 2 : 1;
-  if (sellScore >= signalThreshold && sellScore > buyScore && sellingCategoryCount >= sellMinCategories && sellGate.passes) {
+  if (sellScore >= signalThreshold && sellScore > buyScore && sellingCategoryCount >= 2 && sellGate.passes) {
     let confidence = scaleConfidence(sellScore, sellGate.confidenceBoost, source);
     const sellAtrMultiplier = getCachedAtrMultiplier(symbol);
     const slDistance = atr * sellAtrMultiplier;
@@ -808,6 +808,7 @@ export function generateSignalsFromTA(
       timeframe: tf,
       timestamp: publishedAt,
       status: 'active',
+      source: signalSource,
       dataQuality: source,
       atrCalibration: sellCalibration
         ? { multiplier: sellCalibration.multiplier, confidence: sellCalibration.confidence }
@@ -863,7 +864,7 @@ export async function generateMultiTFSignal(
   const settled = await Promise.allSettled(
     mtfSet.map(async (tf): Promise<TFEntry | null> => {
       const { candles, source } = await getOHLCV(symbol, tf);
-      if (candles.length < 50) return null;
+      if (candles.length < 100) return null;
       const indicators = calculateAllIndicators(candles);
       return { tf, indicators, source };
     })

@@ -11,8 +11,8 @@
  * - Crash: minimal exposure, shorts only, capital preservation
  */
 
-import type { MarketRegime } from '../regime/types';
-import type { AllocationRules } from './types';
+import type { MarketRegime } from '../regime/types.js';
+import type { AllocationRules } from './types.js';
 
 export const REGIME_ALLOCATION_RULES: Record<MarketRegime, AllocationRules> = {
   crash: {

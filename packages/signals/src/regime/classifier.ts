@@ -6,14 +6,14 @@
  * current market regime.
  */
 
-import { getSymbolCategory } from '../symbols';
-import { forwardAlgorithm, viterbiDecode } from './viterbi';
+import { getSymbolCategory } from '../symbols.js';
+import { forwardAlgorithm, viterbiDecode } from './viterbi.js';
 import type {
   HMMModelParams,
   MarketRegime,
   RegimeClassification,
   RegimeFeatures,
-} from './types';
+} from './types.js';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 

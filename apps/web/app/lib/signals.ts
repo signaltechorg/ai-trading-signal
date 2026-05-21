@@ -103,7 +103,7 @@ async function generateRealSignals(
   for (const sym of symbols) {
     const data = ohlcvData.get(sym.symbol);
 
-    if (!data || data.candles.length < 50) {
+    if (!data || data.candles.length < 100) {
       // Not enough data — skip this symbol entirely
       continue;
     }

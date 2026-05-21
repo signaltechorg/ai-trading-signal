@@ -6,8 +6,8 @@ import {
   computeGaussianLogPdf,
   forwardAlgorithm,
   viterbiDecode,
-} from '../viterbi';
-import type { HMMModelParams } from '../types';
+} from '../viterbi.js';
+import type { HMMModelParams } from '../types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -23,6 +23,14 @@ const CSV_HEADERS = [
   'outcome24hPnlPct',
 ] as const;
 
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+function isPendingOutcome(record: SignalHistoryRecord): boolean {
+  if (record.isSimulated || record.gateBlocked) return false;
+  if (record.outcomes['24h']) return false;
+  return (Date.now() - record.timestamp) < TWENTY_FOUR_HOURS_MS;
+}
+
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
   const raw = value instanceof Date ? value.toISOString() : String(value);
@@ -107,12 +115,12 @@ export async function GET(request: NextRequest) {
     if (direction === 'BUY' || direction === 'SELL') records = records.filter(r => r.direction === direction);
     if (outcome === 'win') records = records.filter(r => r.outcomes['24h']?.hit === true);
     if (outcome === 'loss') records = records.filter(r => r.outcomes['24h']?.hit === false);
-    if (outcome === 'pending') records = records.filter(r => !r.outcomes['24h']);
+    if (outcome === 'pending') records = records.filter(isPendingOutcome);
 
     const sort = searchParams.get('sort');
     if (sort === 'resolved-first') {
       const resolvedSorted = records.filter(r => r.outcomes['24h'] !== null).sort((a, b) => b.timestamp - a.timestamp);
-      const pending = records.filter(r => r.outcomes['24h'] === null).sort((a, b) => b.timestamp - a.timestamp);
+      const pending = records.filter(isPendingOutcome).sort((a, b) => b.timestamp - a.timestamp);
       records = [...resolvedSorted, ...pending];
     } else {
       records.sort((a, b) => b.timestamp - a.timestamp);
@@ -150,11 +158,25 @@ export async function GET(request: NextRequest) {
       : 0;
 
     // Excluded buckets — surfaced for transparency, not folded into win-rate.
-    const expired = records.filter(r =>
-      !r.isSimulated && !r.gateBlocked && r.outcomes['24h'] && !isRealOutcome(r.outcomes['24h'])
-    ).length;
+    // Pending is intentionally age-aware: once a trade has crossed the 24h
+    // outcome window without a 24h result, it is no longer "pending" even if
+    // the background resolver has not yet written the final placeholder row.
+    // Those stale-open rows are counted as expired so the public stats don't
+    // make the tracker look stuck on "pending" forever.
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+    const expired = records.filter(r => {
+      if (r.isSimulated || r.gateBlocked) return false;
+      if (r.outcomes['24h'] && !isRealOutcome(r.outcomes['24h'])) return true;
+      return !r.outcomes['24h'] && (now - r.timestamp) >= TWENTY_FOUR_HOURS_MS;
+    }).length;
     const gateBlocked = records.filter(r => r.gateBlocked).length;
-    const pending = records.filter(r => !r.isSimulated && !r.gateBlocked && !r.outcomes['24h']).length;
+    const pending = records.filter(r =>
+      !r.isSimulated
+      && !r.gateBlocked
+      && !r.outcomes['24h']
+      && (now - r.timestamp) < TWENTY_FOUR_HOURS_MS
+    ).length;
 
     let bestSignal: { pair: string; pnlPct: number } | null = null;
     for (const r of resolved) {

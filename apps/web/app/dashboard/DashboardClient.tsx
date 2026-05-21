@@ -31,6 +31,7 @@ import { usePriceStream } from '../../lib/hooks/use-price-stream';
 import { BackgroundDecor } from '../../components/background/BackgroundDecor';
 import { InfoHint } from '../../components/InfoHint';
 import { STAT_HINTS } from '../../lib/stat-hints';
+import { isPendingHistoricalSignal } from '../../lib/signal-history-status';
 import type { TradingSignal } from '@tradeclaw/signals';
 import type { LockedSignalStub } from '../../lib/tier';
 import type { TFDirection } from '../lib/signal-generator';
@@ -415,10 +416,11 @@ function LockedSignalCard({ stub }: { stub: LockedSignalStub }) {
 }
 
 const OUTCOME_STYLE: Record<OutcomeStatus, { label: string; cls: string; icon: string }> = {
-  tp3_hit:  { label: 'TP3 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
-  tp2_hit:  { label: 'TP2 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
-  tp1_hit:  { label: 'TP1 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
+  hit_tp3:  { label: 'TP3 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
+  hit_tp2:  { label: 'TP2 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
+  hit_tp1:  { label: 'TP1 hit',  cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40', icon: '✅' },
   stopped:  { label: 'Stopped',  cls: 'bg-rose-500/15 text-rose-300 border-rose-500/40',          icon: '🛑' },
+  expired:  { label: 'Expired',   cls: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/30',          icon: '⌛' },
   active:   { label: 'Active',   cls: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/30',          icon: '⏳' },
   unknown:  { label: '—',         cls: 'bg-transparent text-zinc-500 border-transparent',          icon: '·' },
 };
@@ -784,9 +786,10 @@ function SignalHistory() {
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         if (data?.records) {
+          const now = Date.now();
           // Show up to 10 resolved + up to 5 pending = 15 max
           const resolved = (data.records as HistoryRecord[]).filter((r: HistoryRecord) => r.outcomes['24h'] !== null).slice(0, 10);
-          const pending = (data.records as HistoryRecord[]).filter((r: HistoryRecord) => r.outcomes['24h'] === null).slice(0, 5);
+          const pending = (data.records as HistoryRecord[]).filter((r: HistoryRecord) => isPendingHistoricalSignal(r, now)).slice(0, 5);
           setRecords([...resolved, ...pending]);
         }
         if (data?.stats) setHistoryStats(data.stats);

@@ -1,12 +1,25 @@
 import { query } from '../../../lib/db-pool';
+import { PRO_PREMIUM_MIN_CONFIDENCE } from '../../../lib/tier';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
 
+type Band = 'all' | 'premium' | 'standard';
+
 interface Stats { total: number; wins: number; winRate: number; totalPnl: number }
 
-async function loadStats(): Promise<Stats> {
+function parseBand(raw: string | undefined): Band {
+  if (raw === 'premium' || raw === 'standard' || raw === 'all') return raw;
+  return 'all';
+}
+
+async function loadStats(band: Band): Promise<Stats> {
+  const bandClause = band === 'premium'
+    ? `AND confidence >= ${PRO_PREMIUM_MIN_CONFIDENCE}`
+    : band === 'standard'
+      ? `AND confidence < ${PRO_PREMIUM_MIN_CONFIDENCE}`
+      : '';
   const rows = await query<{ total: string; wins: string; win_rate: string; total_pnl: string }>(`
     SELECT
       COUNT(*) FILTER (WHERE outcome_24h IS NOT NULL)::text AS total,
@@ -17,18 +30,20 @@ async function loadStats(): Promise<Stats> {
         ELSE '0' END AS win_rate,
       COALESCE(ROUND(SUM((outcome_24h->>'pnlPct')::numeric) FILTER (WHERE outcome_24h IS NOT NULL), 2)::text, '0') AS total_pnl
     FROM signal_history
-    WHERE is_simulated = false AND created_at >= NOW() - INTERVAL '30 days'
+    WHERE is_simulated = false AND created_at >= NOW() - INTERVAL '30 days' ${bandClause}
   `);
   const r = rows[0] ?? { total: '0', wins: '0', win_rate: '0', total_pnl: '0' };
   return { total: +r.total, wins: +r.wins, winRate: +r.win_rate, totalPnl: +r.total_pnl };
 }
 
-export default async function TrackRecordEmbedPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
-  const { theme } = await searchParams;
+export default async function TrackRecordEmbedPage({ searchParams }: { searchParams: Promise<{ theme?: string; band?: string }> }) {
+  const { theme, band: rawBand } = await searchParams;
+  const band = parseBand(rawBand);
   const dark = theme !== 'light';
-  const s = await loadStats();
+  const s = await loadStats(band);
   const pnlColor = s.totalPnl >= 0 ? '#10b981' : '#f43f5e';
   const borderColor = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const bandLabel = band === 'premium' ? 'premium band' : band === 'standard' ? 'standard band' : 'all signals';
 
   return (
     <main
@@ -46,7 +61,7 @@ export default async function TrackRecordEmbedPage({ searchParams }: { searchPar
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
-          TradeClaw — verified track record (30d)
+          {`TradeClaw — verified track record (30d, ${bandLabel})`}
         </div>
         <a href="https://tradeclaw.win/track-record" target="_blank" rel="noopener" style={{ fontSize: '11px', color: '#10b981', textDecoration: 'none' }}>
           tradeclaw.win →

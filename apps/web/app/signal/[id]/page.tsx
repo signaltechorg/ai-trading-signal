@@ -16,6 +16,8 @@ import { SignalChartSection } from './SignalChartSection';
 import { SYMBOLS, type TradingSignal } from '../../lib/signals';
 import { InfoHint } from '../../../components/InfoHint';
 import { STAT_HINTS } from '../../../lib/stat-hints';
+import { deriveHistoricalOutcomeStatus } from '../../../lib/signal-outcome';
+import { isExpiredHistoricalOutcome, isPendingHistoricalOutcome } from '../../../lib/signal-history-status';
 
 const HINT_ENTRY = 'Mid-price at signal emission. Slippage and spread are applied later when computing P&L.';
 const HINT_STOP_LOSS = 'Risk anchor — sized at ATR × multiplier from entry. SL hit = -1R, TP1 hit = +1R reference for the equity card.';
@@ -161,7 +163,7 @@ function buildHistoricalSignal(
     indicators: liveIndicators ?? STUB_INDICATORS,
     timeframe: record.timeframe as TradingSignal['timeframe'],
     timestamp: new Date(record.timestamp).toISOString(),
-    status: 'active',
+    status: deriveHistoricalOutcomeStatus(record.outcomes['24h']),
     source: 'real',
     dataQuality: 'real',
     entryAtr: record.entryAtr,
@@ -328,6 +330,29 @@ export default async function SignalPage(
                   {signal.direction}
                 </span>
                 <span className="text-zinc-500 text-sm font-mono">{signal.timeframe}</span>
+                <span
+                  className={`px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-wider font-mono ${
+                    signal.status === 'expired'
+                      ? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                      : signal.status === 'stopped'
+                        ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                        : signal.status === 'hit_tp1' || signal.status === 'hit_tp2' || signal.status === 'hit_tp3'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                  }`}
+                >
+                  {signal.status === 'expired'
+                    ? 'expired'
+                    : signal.status === 'stopped'
+                      ? 'stopped'
+                      : signal.status === 'hit_tp1'
+                        ? 'TP1 hit'
+                        : signal.status === 'hit_tp2'
+                          ? 'TP2 hit'
+                          : signal.status === 'hit_tp3'
+                            ? 'TP3 hit'
+                            : 'active'}
+                </span>
                 <span className="text-zinc-700 text-xs font-mono">
                   {new Date(signal.timestamp).toLocaleString([], {
                     month: 'short', day: 'numeric',
@@ -372,7 +397,10 @@ export default async function SignalPage(
                 { label: '4h', outcome: outcome4h },
                 { label: '24h', outcome: outcome24h },
               ].map(({ label, outcome }) => {
-                const pending = outcome == null;
+                const windowMs = label === '4h' ? 4 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const pending = isPendingHistoricalOutcome(outcome, record.timestamp, windowMs, now);
+                const expired = isExpiredHistoricalOutcome(outcome, record.timestamp, windowMs, now);
                 const hit = outcome?.hit === true;
                 const tone = pending
                   ? 'text-zinc-500 border-white/5'
@@ -388,7 +416,7 @@ export default async function SignalPage(
                       {label} outcome
                     </div>
                     <div className="text-sm font-semibold font-mono mt-0.5">
-                      {pending ? 'pending' : hit ? 'TP hit' : 'SL hit'}
+                      {pending ? 'pending' : expired ? 'expired' : hit ? 'TP hit' : 'SL hit'}
                       {outcome?.pnlPct != null && (
                         <span className="ml-2 text-xs opacity-80 tabular-nums">
                           {outcome.pnlPct > 0 ? '+' : ''}

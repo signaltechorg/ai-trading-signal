@@ -1,17 +1,32 @@
 import { NextResponse } from 'next/server';
 import { readSessionFromRequest } from '../../../../lib/user-session';
+import { getUserTier } from '../../../../lib/tier';
 import {
   createResearchJob,
   getResearchJob,
   listResearchJobs,
 } from '../../../../lib/trading-agents/research-jobs';
-import { startResearchPipeline } from '../../../../lib/trading-agents/pipeline-runner';
 
-export async function POST(req: Request) {
+async function assertProAccess(req: Request) {
   const session = readSessionFromRequest(req);
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
+
+  const tier = await getUserTier(session.userId);
+  if (tier !== 'pro' && tier !== 'elite' && tier !== 'custom') {
+    return { error: NextResponse.json({ error: 'Pro access required' }, { status: 403 }) };
+  }
+
+  return { session };
+}
+
+export async function POST(req: Request) {
+  const access = await assertProAccess(req);
+  if ('error' in access) {
+    return access.error;
+  }
+  const { session } = access;
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body.symbol !== 'string' || !body.symbol.trim()) {
@@ -30,24 +45,29 @@ export async function POST(req: Request) {
     requestedBy: session.userId,
   });
 
-  // Fire and forget — pipeline runs in background
-  startResearchPipeline(job.id, symbol, timeframe);
-
-  return NextResponse.json(job, { status: 201 });
+  return NextResponse.json(
+    {
+      ...job,
+      queued: true,
+      note: 'Queued for background processing',
+    },
+    { status: 201 },
+  );
 }
 
 export async function GET(req: Request) {
-  const session = readSessionFromRequest(req);
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const access = await assertProAccess(req);
+  if ('error' in access) {
+    return access.error;
   }
+  const { session } = access;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
 
   if (id) {
     const job = await getResearchJob(id);
-    if (!job) {
+    if (!job || job.request.requestedBy !== session.userId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     return NextResponse.json(job);

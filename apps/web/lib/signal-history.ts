@@ -71,6 +71,24 @@ export interface SignalHistoryRecord {
   };
 }
 
+const SUPPORTED_OHLCV_TIMEFRAMES = new Set(['M5', 'M15', 'H1', 'H4', 'D1']);
+
+/**
+ * Pick the candle timeframe to use when resolving a signal outcome.
+ *
+ * Prefer the signal's own timeframe when the feed supports it; fall back to
+ * H1 for legacy or malformed rows so we still resolve rather than stalling.
+ */
+export function getOutcomeResolutionTimeframe(record: Pick<SignalHistoryRecord, 'timeframe' | 'mode'>): string {
+  if (SUPPORTED_OHLCV_TIMEFRAMES.has(record.timeframe)) {
+    return record.timeframe;
+  }
+
+  // Legacy rows occasionally have empty/unknown timeframes. H1 is the safest
+  // general-purpose fallback because all of our historical providers can serve it.
+  return 'H1';
+}
+
 export type SignalMode = 'swing' | 'scalp';
 
 export function modeFromTimeframe(timeframe: string): SignalMode {
@@ -676,7 +694,7 @@ export async function resolveRealOutcomes(): Promise<void> {
       let candles: import('../app/lib/ohlcv').OHLCV[] = [];
 
       try {
-        const result = await getOHLCV(r.pair, 'H1');
+        const result = await getOHLCV(r.pair, getOutcomeResolutionTimeframe(r));
         candles = result.candles;
       } catch (err) {
         console.error(`[signal-history] OHLCV fetch failed for ${r.pair}: ${err instanceof Error ? err.message : String(err)}`);
@@ -761,7 +779,7 @@ export async function resolveRealOutcomes(): Promise<void> {
     let candles: import('../app/lib/ohlcv').OHLCV[] = [];
 
     try {
-      const result = await getOHLCV(r.pair, 'H1');
+      const result = await getOHLCV(r.pair, getOutcomeResolutionTimeframe(r));
       candles = result.candles;
     } catch (err) {
       console.error(`[signal-history] OHLCV fetch failed for ${r.pair}: ${err instanceof Error ? err.message : String(err)}`);
