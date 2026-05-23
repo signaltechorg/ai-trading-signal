@@ -54,6 +54,10 @@ describe('deriveHistoricalOutcomeStatus', () => {
     expect(deriveHistoricalOutcomeStatus({ hit: false, pnlPct: 0 })).toBe('expired');
   });
 
+  it('preserves explicit expired targets from the historical resolver', () => {
+    expect(deriveHistoricalOutcomeStatus({ hit: false, pnlPct: 0, target: 'expired' })).toBe('expired');
+  });
+
   it('returns hit_tp1 for resolved winning outcomes', () => {
     expect(deriveHistoricalOutcomeStatus({ hit: true, pnlPct: 1.75 })).toBe('hit_tp1');
   });

@@ -7,6 +7,7 @@ import {
   STRATEGIES,
   ASSETS,
   RESULTS,
+  VALIDATION_SUMMARY,
   generateEquityCurve,
   type StrategyId,
   type AssetId,
@@ -205,6 +206,11 @@ export function ResultsClient() {
       return b.result.metrics.winRate - a.result.metrics.winRate;
     });
 
+  const validationBestSharpeStrategy = STRATEGIES.find((s) => s.id === VALIDATION_SUMMARY.bestSharpe.strategyId)?.name ?? VALIDATION_SUMMARY.bestSharpe.strategyId;
+  const validationBestSharpeAsset = ASSETS.find((a) => a.id === VALIDATION_SUMMARY.bestSharpe.assetId)?.symbol ?? VALIDATION_SUMMARY.bestSharpe.assetId;
+  const validationBestReturnStrategy = STRATEGIES.find((s) => s.id === VALIDATION_SUMMARY.bestReturn.strategyId)?.name ?? VALIDATION_SUMMARY.bestReturn.strategyId;
+  const validationBestReturnAsset = ASSETS.find((a) => a.id === VALIDATION_SUMMARY.bestReturn.assetId)?.symbol ?? VALIDATION_SUMMARY.bestReturn.assetId;
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       <div className="max-w-5xl mx-auto px-4 pt-28 pb-24">
@@ -222,6 +228,34 @@ export function ResultsClient() {
             Pre-computed performance across 5 strategies and 3 major assets.
             All results generated on 12 months of historical data with realistic slippage and fees.
           </p>
+          <div className="mx-auto mt-5 grid max-w-4xl grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Validation window</div>
+              <div className="mt-1 font-mono text-sm font-semibold text-white">
+                {VALIDATION_SUMMARY.windowStart} &rarr; {VALIDATION_SUMMARY.windowEnd}
+              </div>
+              <div className="mt-1 text-[11px] text-zinc-500">12-month public backtest snapshot</div>
+            </div>
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Coverage</div>
+              <div className="mt-1 font-mono text-sm font-semibold text-white">
+                {VALIDATION_SUMMARY.strategyRuns} strategy/asset runs · {VALIDATION_SUMMARY.totalTrades.toLocaleString()} trades
+              </div>
+              <div className="mt-1 text-[11px] text-zinc-500">Across {VALIDATION_SUMMARY.assetCount} assets with slippage + fees</div>
+            </div>
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Performance snapshot</div>
+              <div className="mt-1 font-mono text-sm font-semibold text-white">
+                {VALIDATION_SUMMARY.weightedWinRate.toFixed(1)}% win rate · Sharpe {VALIDATION_SUMMARY.averageSharpe.toFixed(2)}
+              </div>
+              <div className="mt-1 text-[11px] text-zinc-500">
+                Best Sharpe: {validationBestSharpeStrategy} / {validationBestSharpeAsset} ({VALIDATION_SUMMARY.bestSharpe.value.toFixed(2)})
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-zinc-500 text-center">
+            Best return: {validationBestReturnStrategy} / {validationBestReturnAsset} (+{VALIDATION_SUMMARY.bestReturn.value.toFixed(1)}%) · Avg drawdown {VALIDATION_SUMMARY.averageMaxDrawdown.toFixed(1)}%
+          </div>
           <div className="flex items-center justify-center gap-1.5 mt-3 text-[11px] text-zinc-400/80">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Simulated results. Past performance does not guarantee future returns.</span>

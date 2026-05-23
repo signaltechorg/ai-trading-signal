@@ -15,6 +15,7 @@ import {
   TrendingUp,
   RefreshCw,
 } from 'lucide-react';
+import { buildScopeAccessRows, getUsageAccessSummary } from '@/lib/api-usage';
 
 interface UsageData {
   keyId: string;
@@ -27,14 +28,6 @@ interface UsageData {
   requestsTotal: number;
   rateLimit: number;
   resetAt: string;
-}
-
-interface EndpointBreakdown {
-  name: string;
-  path: string;
-  requests: number;
-  limit: number;
-  color: string;
 }
 
 function GaugeChart({ used, limit, label }: { used: number; limit: number; label: string }) {
@@ -91,6 +84,34 @@ function QuotaBar({ name, used, limit, color }: { name: string; used: number; li
         <div
           className="h-full rounded-full transition-all duration-700 ease-out"
           style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScopeAccessCard({ name, path, enabled, helperText }: { name: string; path: string; enabled: boolean; helperText: string }) {
+  const statusLabel = enabled ? 'Enabled' : 'Locked';
+  const statusClass = enabled
+    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+    : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/60 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">{name}</div>
+          <div className="text-[10px] font-mono text-[var(--text-secondary)]">{path}</div>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusClass}`}>
+          {statusLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-xs text-[var(--text-secondary)]">{helperText}</p>
+      <div className="mt-3 h-2 rounded-full bg-[var(--background)] border border-[var(--border)] overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${enabled ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+          style={{ width: enabled ? '100%' : '18%' }}
         />
       </div>
     </div>
@@ -159,16 +180,8 @@ export default function APIUsageClient() {
   }
 
   const isProKey = usage?.tier === 'pro';
-
-  // Mock per-endpoint breakdown
-  const endpoints: EndpointBreakdown[] = usage
-    ? [
-        { name: 'Signals', path: '/api/v1/signals', requests: Math.floor(usage.requestsToday * 0.55), limit: usage.rateLimit, color: '#10b981' },
-        { name: 'Leaderboard', path: '/api/v1/leaderboard', requests: Math.floor(usage.requestsToday * 0.25), limit: usage.rateLimit, color: '#8b5cf6' },
-        { name: 'Health', path: '/api/v1/health', requests: Math.floor(usage.requestsToday * 0.12), limit: usage.rateLimit, color: '#3b82f6' },
-        { name: 'Badge', path: '/api/v1/badge', requests: Math.floor(usage.requestsToday * 0.08), limit: usage.rateLimit, color: '#a1a1aa' },
-      ]
-    : [];
+  const accessRows = usage ? buildScopeAccessRows(usage.scopes) : [];
+  const accessSummary = usage ? getUsageAccessSummary(usage.scopes) : { enabledCount: 0, totalCount: 0, allEnabled: false };
 
   return (
     <div className="min-h-screen bg-[var(--background)] pt-24 pb-20 md:pb-16 px-4">
@@ -285,15 +298,26 @@ export default function APIUsageClient() {
               </div>
             </div>
 
-            {/* Per-endpoint breakdown */}
+            {/* Scope access breakdown */}
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
-              <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-purple-400" />
-                Per-Endpoint Breakdown
-              </h3>
-              <div className="space-y-3">
-                {endpoints.map((ep) => (
-                  <QuotaBar key={ep.path} name={`${ep.name} (${ep.path})`} used={ep.requests} limit={ep.limit} color={ep.color} />
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h3 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-purple-400" />
+                  Scope Access
+                </h3>
+                <span
+                  className={`px-2 py-1 rounded-full text-[10px] font-medium border ${
+                    accessSummary.allEnabled
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                  }`}
+                >
+                  {accessSummary.enabledCount}/{accessSummary.totalCount} scopes enabled
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {accessRows.map((row) => (
+                  <ScopeAccessCard key={row.path} {...row} />
                 ))}
               </div>
             </div>

@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Check, X, Clock } from 'lucide-react';
 import { DataProvenanceBadge, getDataProvenance } from '@/components/data-provenance-badge';
 import { MetricMeta } from '@/components/metric-meta';
+import {
+  isExpiredHistoricalSignal,
+  isPendingHistoricalSignal,
+} from '../../lib/signal-history-status';
 
 /* ── Types ── */
 interface SignalOutcome {
@@ -120,7 +124,7 @@ export function AccuracyClient() {
   );
 
   const openCount = useMemo(
-    () => records.filter((r) => r.outcomes['24h'] === null && !r.isSimulated).length,
+    () => records.filter((r) => isPendingHistoricalSignal(r)).length,
     [records],
   );
 
@@ -224,7 +228,7 @@ export function AccuracyClient() {
             <MetricMeta
               align="right"
               sampleSize={timelineEvents.length}
-              openCount={timelineEvents.filter((r) => r.outcomes['24h'] === null).length}
+              openCount={timelineEvents.filter((r) => isPendingHistoricalSignal(r)).length}
               lastUpdated={lastUpdated}
               sampleLabel="shown"
             />
@@ -234,9 +238,15 @@ export function AccuracyClient() {
               const o24 = r.outcomes['24h'];
               const o4 = r.outcomes['4h'];
               const resolved = o24 ?? o4;
-              const status: 'win' | 'loss' | 'open' = resolved
+              const pending = isPendingHistoricalSignal(r);
+              const expired = !resolved && isExpiredHistoricalSignal(r);
+              const status: 'win' | 'loss' | 'open' | 'expired' = resolved
                 ? resolved.hit ? 'win' : 'loss'
-                : 'open';
+                : pending
+                  ? 'open'
+                  : expired
+                    ? 'expired'
+                    : 'open';
               const dotColor =
                 status === 'win'
                   ? 'bg-emerald-400'
@@ -267,9 +277,13 @@ export function AccuracyClient() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
                         <Check className="inline h-3 w-3" /> WIN
                       </span>
-                    ) : (
+                    ) : status === 'loss' ? (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400">
                         <X className="inline h-3 w-3" /> LOSS
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-500/15 text-zinc-500">
+                        EXPIRED
                       </span>
                     )}
                     {resolved && (

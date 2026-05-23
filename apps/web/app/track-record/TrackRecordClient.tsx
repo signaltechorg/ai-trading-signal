@@ -13,6 +13,7 @@ import { InfoHint } from '@/components/InfoHint';
 import { STAT_HINTS } from '@/lib/stat-hints';
 import { FREE_HISTORY_DAYS, FREE_SYMBOLS } from '@/lib/tier-client';
 import { isExpiredHistoricalOutcome, isPendingHistoricalOutcome } from '@/lib/signal-history-status';
+import { deriveHistoricalOutcomeStatus } from '@/lib/signal-outcome';
 import { symbolsForCategory, type CategoryFilter } from '@/app/lib/symbol-config';
 import { EmbedButton } from '../components/embed-button';
 import { ShareOnX } from '../components/share-on-x';
@@ -53,10 +54,10 @@ function formatHeartbeatAge(lastUpdated: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function getResolutionHeartbeat(lastUpdated: number | null | undefined) {
+function getResolutionHeartbeat(lastUpdated: number | null | undefined, now: number) {
   if (!lastUpdated) return null;
 
-  const ageMs = Math.max(0, Date.now() - lastUpdated);
+  const ageMs = Math.max(0, now - lastUpdated);
   return {
     ageLabel: formatHeartbeatAge(lastUpdated),
     isStale: ageMs > RESOLUTION_HEARTBEAT_STALE_MS,
@@ -83,8 +84,8 @@ interface HistoryRecord {
   tp1?: number;
   sl?: number;
   outcomes: {
-    '4h': { hit: boolean; pnlPct: number } | null;
-    '24h': { hit: boolean; pnlPct: number } | null;
+    '4h': { hit: boolean; pnlPct: number; target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired' } | null;
+    '24h': { hit: boolean; pnlPct: number; target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired' } | null;
   };
 }
 
@@ -206,19 +207,28 @@ function pageNumbers(current: number, total: number): (number | null)[] {
   return pages;
 }
 
-type EquityBand = 'all' | 'premium' | 'standard';
+function formatOutcomeCell(
+  outcome: { hit: boolean; pnlPct: number; target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired' } | null,
+  status: ReturnType<typeof deriveHistoricalOutcomeStatus> | null,
+  isPendingWindow: boolean,
+  isExpiredWindow: boolean,
+) {
+  if (outcome == null) {
+    return {
+      text: isPendingWindow ? '…' : isExpiredWindow ? 'expired' : '—',
+      className: 'text-zinc-600',
+    };
+  }
 
-function parseEquityBand(raw: string | null): EquityBand {
-  if (raw === 'premium' || raw === 'standard' || raw === 'all') return raw;
-  return 'all';
+  if (status === 'expired') {
+    return { text: 'expired', className: 'text-zinc-600' };
+  }
+
+  return outcome.hit
+    ? { text: 'TP', className: 'text-emerald-400 font-semibold' }
+    : { text: 'SL', className: 'text-red-400 font-semibold' };
 }
 
-function buildTrackRecordUrl(pathname: string, searchParams: URLSearchParams, band: EquityBand): string {
-  const params = new URLSearchParams(searchParams.toString());
-  params.set('band', band);
-  const query = params.toString();
-  return query ? `${pathname}?${query}` : pathname;
-}
 
 type DirectionFilter = 'ALL' | 'BUY' | 'SELL';
 type Scope = 'pro' | 'free';
@@ -387,10 +397,16 @@ export function TrackRecordClient() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [rollingWinRates, setRollingWinRates] = useState<RollingWinRates | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   // Earliest signal we have data for in the current scope. Used to grey out
   // period buttons whose window pre-dates any recorded signal — a 5Y button
   // on 26 days of data would be a fabrication.
   const [earliestTimestamp, setEarliestTimestamp] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const fetchData = useCallback(async (p: Period, off: number, pair: string, direction: DirectionFilter, s: Scope, c: CategoryFilter, band: EquityBand) => {
     setLoading(true);
@@ -462,8 +478,8 @@ export function TrackRecordClient() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pages = useMemo(() => pageNumbers(currentPage, totalPages), [currentPage, totalPages]);
   const resolutionHeartbeat = useMemo(
-    () => getResolutionHeartbeat(leaderboard?.overall.lastUpdated),
-    [leaderboard?.overall.lastUpdated],
+    () => getResolutionHeartbeat(leaderboard?.overall.lastUpdated, now),
+    [leaderboard?.overall.lastUpdated, now],
   );
   const freeCategoryHasSymbols = useMemo(() => {
     if (scope !== 'free' || category === 'all') return true;
@@ -1037,11 +1053,20 @@ export function TrackRecordClient() {
                   {records.map(r => {
                     const outcome24h = r.outcomes['24h'];
                     const outcome4h = r.outcomes['4h'];
+                    const outcome4hStatus = outcome4h != null ? deriveHistoricalOutcomeStatus(outcome4h) : null;
+                    const outcome24hStatus = outcome24h != null ? deriveHistoricalOutcomeStatus(outcome24h) : null;
                     const pnl = outcome24h?.pnlPct ?? outcome4h?.pnlPct ?? null;
                     const now = Date.now();
                     const isPending24h = isPendingHistoricalOutcome(outcome24h, r.timestamp, 24 * 60 * 60 * 1000, now);
                     const isExpired24h = isExpiredHistoricalOutcome(outcome24h, r.timestamp, 24 * 60 * 60 * 1000, now);
                     const isPending = isPending24h && outcome4h == null;
+                    const outcome4hCell = formatOutcomeCell(
+                      outcome4h,
+                      outcome4hStatus,
+                      isPending,
+                      isExpiredHistoricalOutcome(outcome4h, r.timestamp, 4 * 60 * 60 * 1000, now),
+                    );
+                    const outcome24hCell = formatOutcomeCell(outcome24h, outcome24hStatus, isPending24h, isExpired24h);
                     return (
                       <tr
                         key={r.id}
@@ -1064,27 +1089,23 @@ export function TrackRecordClient() {
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)] hidden sm:table-cell">{formatPrice(r.entryPrice)}</td>
                         <td className="px-3 py-2.5 text-center">
-                          {outcome4h == null ? (
-                            <span className="text-zinc-600">{isPending ? '…' : '—'}</span>
-                          ) : outcome4h.hit ? (
-                            <span className="text-emerald-400 font-semibold">TP</span>
-                          ) : (
-                            <span className="text-red-400 font-semibold">SL</span>
-                          )}
+                          <span className={outcome4hCell.className}>
+                            {outcome4hCell.text}
+                          </span>
                         </td>
                         <td className="px-3 py-2.5 text-center">
-                          {outcome24h == null ? (
-                            <span className="text-zinc-600">{isPending24h ? '…' : isExpired24h ? 'expired' : '—'}</span>
-                          ) : outcome24h.hit ? (
-                            <span className="text-emerald-400 font-semibold">TP</span>
-                          ) : (
-                            <span className="text-red-400 font-semibold">SL</span>
-                          )}
+                          <span className={outcome24hCell.className}>
+                            {outcome24hCell.text}
+                          </span>
                         </td>
                         <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${
                           pnl == null ? 'text-zinc-600' : pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                         }`}>
-                          {pnl == null ? (isPending ? 'pending' : isExpired24h ? 'expired' : '—') : `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`}
+                          {outcome24hStatus === 'expired'
+                            ? 'expired'
+                            : pnl == null
+                            ? (isPending ? 'pending' : isExpired24h ? 'expired' : '—')
+                            : `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`}
                         </td>
                       </tr>
                     );

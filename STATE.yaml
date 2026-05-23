@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-21T15:28:35Z
+updated: 2026-05-22T06:03:11Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -150,6 +150,12 @@ tasks:
       2026-05-21: historical outcome records now preserve explicit target metadata
       (TP1/SL/expired) so the close-flow surface can render more faithfully;
       verified with npm test and npm run build.
+      2026-05-21: track-record table now renders expired historical outcomes via
+      the shared outcome helper instead of treating them as active SL/0.00%;
+      verified with npm test and npm run build.
+      2026-05-22: accuracy tracker now uses the canonical age-aware pending/
+      expired helpers so stale unresolved rows no longer read as OPEN in the
+      recent-outcomes carousel; verified with npm test and npm run build.
 
   - id: TC-016
     title: "SEO landing page redesign — conversion-optimized with social proof"
@@ -1821,6 +1827,8 @@ tasks:
       from the core journal surface. Verified with `npm run build`.
 
 next_actions:
+  - "2026-05-21: published /results backtest validation snapshot with 12-month coverage (1,958 trades, 62.3% weighted win rate, Sharpe 1.53) and linked it from the hero; verified with npm run build."
+  - "2026-05-21: /track-record resolution heartbeat now updates continuously and the leaderboard pair-detail modal guards against stale fetch races, so freshness cues stay honest while the page stays open; verified with npm run build."
   - "2026-05-21: allocation dashboard now pulls live gross/net exposure from /api/widget/portfolio instead of placeholder math, so Current Exposure and Headroom reflect the paper-trading snapshot; verified with npm run build."
   - "2026-05-21: added a small client-side debug panel to /alerts that reuses usePriceStream and existing alerts state to show the last triggered alert or the closest active alert with live distance/reasoning; verified with npm run build."
   - "2026-05-20: onboarding overlay moved from bottom-right to a top-center Quick Start strip so first-visit dashboard CTA clutter is less intrusive; verified with npm run build and apps/web/lib/__tests__/onboarding-state.test.ts."
@@ -1835,6 +1843,7 @@ next_actions:
   - "Normalized lingering web/lib and app/lib unit tests to Jest globals so the root npm test command passes for the research-route and signal helper suites."
   - "Root Jest now ignores Playwright e2e, .next/standalone copies, and the ws-server workspace so `npm test -- --runInBand` passes cleanly while ws-server keeps its own Vitest command."
   - "2026-05-20: Pro audit execution follow-up closed — pricing now quotes all-time track-record numbers, T-3d trial reminders include missed-P&L, and Elite waitlist / WTP capture is live. Verified with `npm run build` and targeted Jest on pricing-stats, elite-interest, and transactional-email."
+  - "2026-05-22: expanded landing stats coverage with a new mocked getLandingStats test that verifies the latest signal sample pair and the no-latest/null-profit-factor edge case; verified with `npm test -- --runInBand apps/web/lib/__tests__/landing-stats.test.ts` and `npm run build`."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2273,3 +2282,34 @@ next_actions:
       same resolved/countable signal set as the equity summary so the new data stays consistent
       with the existing historical methodology. Verified with
       npm test -- apps/web/app/api/signals/equity/route.test.ts --runInBand and npm run build.
+
+  - id: TC-179
+    title: "Leaderboard freshness cue — add resolution heartbeat / staleness badge to the public /leaderboard page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Complete 2026-05-21. Added a live/stale resolution-heartbeat pill to
+      apps/web/app/leaderboard/LeaderboardClient.tsx using the leaderboard's lastUpdated
+      timestamp so viewers can see when the outcome tracker last refreshed. The badge turns
+      amber when the feed is older than 15 minutes and mirrors the track-record heartbeat style.
+      Verified with npm run build.
+
+  - id: TC-180
+    title: "TradeClaw vs TradingView comparison blog post"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Published 2026-05-21 as apps/web/content/blog/tradeclaw-vs-tradingview.mdx.
+      The post makes the comparison explicit, routes readers to /vs-tradingview,
+      /pricing, and /star, and is now listed in the blog index automatically.
+      Updated apps/web/content/blog/BACKLOG.md to mark the topic published.
+
+  - id: TC-181
+    title: "API usage dashboard scope access cards"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Replaced the mock per-endpoint usage breakdown with honest scope-access cards on
+      apps/web/app/api-usage/APIUsageClient.tsx. Added apps/web/lib/api-usage.ts plus
+      targeted Jest coverage so the dashboard now shows which scopes are enabled for a
+      key instead of inventing fake endpoint traffic.

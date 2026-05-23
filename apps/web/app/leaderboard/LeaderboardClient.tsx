@@ -184,6 +184,18 @@ function fmtAge(ms: number): string {
   return `${Math.floor(sec / 86400)}d ago`;
 }
 
+const LEADERBOARD_STALE_MS = 15 * 60 * 1000;
+
+function getLeaderboardHeartbeat(lastUpdated: number | null | undefined, now: number) {
+  if (!lastUpdated) return null;
+
+  const ageMs = Math.max(0, now - lastUpdated);
+  return {
+    ageLabel: fmtAge(ageMs),
+    isStale: ageMs > LEADERBOARD_STALE_MS,
+  };
+}
+
 function fmtPnl(n: number): string {
   const sign = n >= 0 ? '+' : '';
   return `${sign}${n.toFixed(2)}%`;
@@ -201,14 +213,38 @@ function fmtPrice(n: number): string {
 function PairDetailPanel({ pair, onClose }: { pair: string; onClose: () => void }) {
   const [data, setData] = useState<PairDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fetchedAt, setFetchedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    setTimeout(() => setLoading(true), 0);
-    fetch(`/api/leaderboard?pair=${pair}`)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(d => { setData(d); setFetchedAt(Date.now()); setLoading(false); })
-      .catch(() => { setData(null); setLoading(false); });
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [pair]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+
+    setLoading(true);
+    fetch(`/api/leaderboard?pair=${pair}`, { signal: controller.signal })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => {
+        if (cancelled) return;
+        setData(d);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return;
+        setData(null);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [pair]);
 
   return (
@@ -285,7 +321,7 @@ function PairDetailPanel({ pair, onClose }: { pair: string; onClose: () => void 
                             : <span className="text-red-400">{r.outcomes['24h'].pnlPct}%</span>}
                         </td>
                         <td className="px-3 py-2 text-right text-[10px] font-mono text-[var(--text-secondary)]">
-                          {fmtAge(fetchedAt - r.timestamp)}
+                          {fmtAge(now - r.timestamp)}
                         </td>
                       </tr>
                     ))}
@@ -325,6 +361,12 @@ export default function LeaderboardClient() {
   const [sortBy, setSortBy] = useState<SortKey>('hitRate');
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -353,6 +395,7 @@ export default function LeaderboardClient() {
     : [];
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/leaderboard` : '/leaderboard';
+  const leaderboardHeartbeat = data ? getLeaderboardHeartbeat(data.overall.lastUpdated, now) : null;
 
   return (
     <div className="min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)]">
@@ -382,6 +425,25 @@ export default function LeaderboardClient() {
           <p className="text-xs text-[var(--text-secondary)]">
             Track AI signal accuracy across {assets.length} pairs · 4h &amp; 24h resolution · Ranked by hit rate
           </p>
+          {leaderboardHeartbeat && (
+            <div
+              className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono ${
+                leaderboardHeartbeat.isStale
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  leaderboardHeartbeat.isStale ? 'bg-amber-400' : 'bg-emerald-400'
+                }`}
+              />
+              <span>
+                {leaderboardHeartbeat.isStale ? 'Leaderboard feed stale' : 'Leaderboard live'}
+              </span>
+              <span className="text-[var(--text-secondary)]">updated {leaderboardHeartbeat.ageLabel}</span>
+            </div>
+          )}
         </div>
 
         {/* Overall stats */}

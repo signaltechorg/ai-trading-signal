@@ -39,7 +39,7 @@
 | 1.5 | **Candle-Close Validation** — only emit signals on candle close (not mid-bar noise) | P1 | May W1 |
 | 1.6 | **Multi-Timeframe Confluence Score** — upgrade confidence scoring with 4-TF agreement | P1 | May W2 |
 | 1.7 | **Telegram Alerts on High-Confidence Signals** — auto-push when confidence >= 80% | P1 | May W3 |
-| 1.8 | **Backtest Validation** — run signals engine against 6 months of historical data, publish results | P1 | Jun W1 |
+| 1.8 | **Backtest Validation** — publish /results validation snapshot from 12 months of historical data | P1 | Jun W1 |
 
 **Milestone:** Public track record showing 60%+ win rate across 30+ symbols. This is the foundation for everything else.
 

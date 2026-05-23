@@ -11,7 +11,7 @@ const ResultsClient = dynamic(() => import('./ResultsClient').then(m => ({ defau
 
 export const metadata: Metadata = {
   title: 'Backtest Results | TradeClaw',
-  description: 'Verified backtesting results for 5 trading strategies across BTC, ETH, and Gold. Sharpe ratios, drawdowns, equity curves, and monthly returns.',
+  description: 'Verified backtesting results for 5 trading strategies across BTC, ETH, and Gold. 12-month validation snapshot with Sharpe ratios, drawdowns, equity curves, and monthly returns.',
   openGraph: {
     title: 'Backtest Results | TradeClaw',
     description: 'Transparent backtest performance: RSI, MACD, EMA, Bollinger, and Multi-TF strategies on crypto and commodities.',
