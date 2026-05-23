@@ -49,10 +49,13 @@ export async function GET(request: NextRequest) {
     const regimeMap = await fetchRegimeMap();
     const dominantRegime = getDominantRegime(regimeMap);
 
-    // === PRIMARY: Read from PostgreSQL (falls back to signals-live.json) ===
+    // === PRIMARY: Read from live file (Python scanner) with coverage gate ===
+    // Falls back to TA engine when the scanner output is degraded.
+    const MIN_LIVE_SYMBOLS_CHECKED = 8;
     const liveData = await readLiveSignals();
 
-    if (liveData && !liveData.isStale && liveData.signals.length > 0) {
+    const liveCoverageOk = liveData && (liveData.stats?.symbols_checked ?? Infinity) >= MIN_LIVE_SYMBOLS_CHECKED;
+    if (liveData && !liveData.isStale && liveData.signals.length > 0 && liveCoverageOk) {
       let signals = liveData.signals;
 
       // Apply filters

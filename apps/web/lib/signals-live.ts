@@ -104,6 +104,7 @@ export async function readLiveSignals(): Promise<{
   generatedAt: string | null;
   reliability?: ReliabilityData;
   engineVersion?: string;
+  stats?: LiveSignalsData['stats'];
 } | null> {
   return readLiveSignalsFromFile();
 }
@@ -117,6 +118,7 @@ async function readLiveSignalsFromFile(): Promise<{
   generatedAt: string | null;
   reliability?: ReliabilityData;
   engineVersion?: string;
+  stats?: LiveSignalsData['stats'];
 } | null> {
   const possiblePaths = [
     join(process.cwd(), 'data', 'signals-live.json'),
@@ -141,6 +143,7 @@ async function readLiveSignalsFromFile(): Promise<{
         generatedAt: data.generated_at,
         reliability: data.reliability,
         engineVersion: data.engine_version,
+        stats: data.stats,
       };
     } catch {
       continue;

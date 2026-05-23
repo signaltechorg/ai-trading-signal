@@ -13,6 +13,7 @@ import os
 import random
 import re
 import sqlite3
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +21,6 @@ from uuid import uuid4
 
 import pandas as pd
 import requests
-from tradingview_screener.query import Query, URL
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
@@ -28,6 +28,28 @@ DATA_DIR = PROJECT_DIR / "data"
 DB_PATH = SCRIPT_DIR / "signals.db"
 OUTPUT_FILE = DATA_DIR / "signals-live.json"
 TELEGRAM_STATE_FILE = DATA_DIR / "telegram-alert-state.json"
+HEALTH_FILE = DATA_DIR / "scanner-health.json"
+
+def write_health(status: str, reason: str | None = None) -> None:
+    payload = {
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if reason:
+        payload["reason"] = reason
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        HEALTH_FILE.write_text(json.dumps(payload, indent=2))
+    except Exception:
+        pass
+
+try:
+    from tradingview_screener.query import Query, URL
+    write_health("operational")
+except ImportError as e:
+    write_health("degraded", reason=f"tradingview_screener unavailable: {e}")
+    print(f"[scanner-engine] Degraded: tradingview_screener not available ({e})", flush=True)
+    sys.exit(0)
 def get_min_confidence() -> int:
     """Read adaptive threshold from outcome checker. Default 70, raises to 75 if win rate drops."""
     threshold_file = SCRIPT_DIR / "confidence_threshold.txt"

@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-23T05:00:09Z
+updated: 2026-05-23T19:00:09Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1858,6 +1858,8 @@ next_actions:
   - "2026-05-20: Pro audit execution follow-up closed — pricing now quotes all-time track-record numbers, T-3d trial reminders include missed-P&L, and Elite waitlist / WTP capture is live. Verified with `npm run build` and targeted Jest on pricing-stats, elite-interest, and transactional-email."
   - "2026-05-22: expanded landing stats coverage with a new mocked getLandingStats test that verifies the latest signal sample pair and the no-latest/null-profit-factor edge case; verified with `npm test -- --runInBand apps/web/lib/__tests__/landing-stats.test.ts` and `npm run build`."
   - "2026-05-23: fixed 11 failing Jest test suites caused by ESM `@tradeclaw/signals` dist output not being transformed. Added `transformIgnorePatterns` exception for `@tradeclaw/` packages and `moduleNameMapper` entries mapping `@tradeclaw/signals`, `@tradeclaw/core`, `@tradeclaw/trading-agents`, and `@tradeclaw/strategies` to their TypeScript source so Jest transforms them via ts-jest. Result: 95 passed, 3 skipped, 0 failed (was 84 passed, 11 failed). Build passes."
+  - "2026-05-23: added coverage gate to /api/signals and /api/v1/signals so degraded Python scanner output (symbols_checked < 8) falls back to the live TA engine. Prevents the dashboard from showing only 1 signal when 26+ are available. Verified with npm run build and npm test -- --runInBand."
+  - "2026-05-23: scanner-engine.py now has a startup capability probe that writes data/scanner-health.json and exits gracefully when tradingview_screener is unavailable. /api/status exposes Scanner health. /status page renders Scanner card. Verified with npm run build and npm test -- --runInBand."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2327,3 +2329,35 @@ next_actions:
       apps/web/app/api-usage/APIUsageClient.tsx. Added apps/web/lib/api-usage.ts plus
       targeted Jest coverage so the dashboard now shows which scopes are enabled for a
       key instead of inventing fake endpoint traffic.
+
+
+  - id: TC-184
+    title: "Signal API coverage gate — prevent degraded Python scanner output from starving the live signal feed"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Fixed 2026-05-23. `/api/signals` and `/api/v1/signals` were preferring
+      `signals-live.json` (Python scanner output) over the Next.js TA engine even
+      when the scanner was degraded. Today's snapshot showed only 5 symbols checked
+      and 1 signal vs 26+ symbols available via the TA engine.
+      Added `stats` exposure to `readLiveSignals()` and a `MIN_LIVE_SYMBOLS_CHECKED = 8`
+      gate in both routes. When coverage is below threshold, the routes now fall back
+      to `getTrackedSignalsForRequest` / `getTrackedSignals` so users get full signal
+      coverage. Also sets `X-Signal-Stale: low-coverage` header on the v1 route.
+      Verified with `npm run build` and `npm test -- --runInBand` (95 passed, 3 skipped).
+
+  - id: TC-185
+    title: "Scanner capability probe + status page health tile — graceful degradation when tradingview_screener is unavailable"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added startup capability probe to scripts/scanner-engine.py: the
+      `tradingview_screener.query` import is now wrapped in try/except.
+      On ImportError the script writes `data/scanner-health.json` with
+      status=degraded + reason, then exits 0 instead of crashing with a
+      traceback. On success it writes status=operational.
+      Added `Scanner` service check to `/api/status` that reads the health
+      file and marks degraded when the file is missing, stale (>15min), or
+      reports non-operational status. Updated `StatusClient.tsx` to render
+      the Scanner card with the Search icon. Build passes, tests pass
+      (95 passed, 3 skipped).
