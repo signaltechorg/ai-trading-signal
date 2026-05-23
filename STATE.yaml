@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-22T06:03:11Z
+updated: 2026-05-23T05:00:09Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1826,6 +1826,19 @@ tasks:
       linking directly into /journal/autopsy?tradeId=... so the existing autopsy flow is discoverable
       from the core journal surface. Verified with `npm run build`.
 
+  - id: TC-182
+    title: "Signal source tagging — distinguish algo signals (built-in TA) vs premium signals (TradingView/webhook)"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added `signalSource?: 'algo' | 'premium'` to `TradingSignal` in `packages/signals/src/types.ts`.
+      Algo signals now tagged at generation time in signal-generator.ts and all variant profiles
+      (current, swing28/30, revert, debug). Premium signals from `premium_signals` DB table tagged
+      in `lib/premium-signals.ts`. LiveSignal interface and `mapLiveSignalToV1` updated to carry
+      the field. `/api/signals` and `/api/v1/signals` both expose `signalSource` in responses.
+      Telegram broadcast mapper and v1 test helper updated. Verified with `npm run build` and
+      `npm test -- --runInBand apps/web/app/api/v1/signals/__tests__/route.test.ts`.
+
 next_actions:
   - "2026-05-21: published /results backtest validation snapshot with 12-month coverage (1,958 trades, 62.3% weighted win rate, Sharpe 1.53) and linked it from the hero; verified with npm run build."
   - "2026-05-21: /track-record resolution heartbeat now updates continuously and the leaderboard pair-detail modal guards against stale fetch races, so freshness cues stay honest while the page stays open; verified with npm run build."
@@ -1844,6 +1857,7 @@ next_actions:
   - "Root Jest now ignores Playwright e2e, .next/standalone copies, and the ws-server workspace so `npm test -- --runInBand` passes cleanly while ws-server keeps its own Vitest command."
   - "2026-05-20: Pro audit execution follow-up closed — pricing now quotes all-time track-record numbers, T-3d trial reminders include missed-P&L, and Elite waitlist / WTP capture is live. Verified with `npm run build` and targeted Jest on pricing-stats, elite-interest, and transactional-email."
   - "2026-05-22: expanded landing stats coverage with a new mocked getLandingStats test that verifies the latest signal sample pair and the no-latest/null-profit-factor edge case; verified with `npm test -- --runInBand apps/web/lib/__tests__/landing-stats.test.ts` and `npm run build`."
+  - "2026-05-23: fixed 11 failing Jest test suites caused by ESM `@tradeclaw/signals` dist output not being transformed. Added `transformIgnorePatterns` exception for `@tradeclaw/` packages and `moduleNameMapper` entries mapping `@tradeclaw/signals`, `@tradeclaw/core`, `@tradeclaw/trading-agents`, and `@tradeclaw/strategies` to their TypeScript source so Jest transforms them via ts-jest. Result: 95 passed, 3 skipped, 0 failed (was 84 passed, 11 failed). Build passes."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──

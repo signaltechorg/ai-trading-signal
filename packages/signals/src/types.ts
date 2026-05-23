@@ -19,6 +19,8 @@ export interface TradingSignal {
   // Web-specific (optional)
   source?: 'real' | 'fallback';
   dataQuality?: 'real' | 'synthetic';
+  /** Signal provenance — distinguishes built-in TA engine from external premium feeds. */
+  signalSource?: 'algo' | 'premium';
   /** ATR stop calibration metadata — shows whether SL uses a per-symbol calibrated multiplier or the global default. */
   atrCalibration?: { multiplier: number; confidence: 'low' | 'medium' | 'high' };
   /** ATR value in price units at the moment this signal was emitted. Persisted so calibration can grid-search without re-fetching candles. */

@@ -256,6 +256,7 @@ function mapLiveToTradingSignal(s: LiveSignal): TradingSignal {
     },
     source: 'real',
     dataQuality: 'real',
+    signalSource: 'algo',
     timestamp: s.timestamp,
     status: 'active',
   } as TradingSignal;

@@ -746,6 +746,7 @@ export function generateSignalsFromTA(
       status: 'active',
       source: signalSource,
       dataQuality: source,
+      signalSource: 'algo',
       atrCalibration: buyCalibration
         ? { multiplier: buyCalibration.multiplier, confidence: buyCalibration.confidence }
         : { multiplier: 2.0, confidence: 'low' as const },
@@ -810,6 +811,7 @@ export function generateSignalsFromTA(
       status: 'active',
       source: signalSource,
       dataQuality: source,
+      signalSource: 'algo',
       atrCalibration: sellCalibration
         ? { multiplier: sellCalibration.multiplier, confidence: sellCalibration.confidence }
         : { multiplier: 2.0, confidence: 'low' as const },

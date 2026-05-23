@@ -58,6 +58,7 @@ function makeSignal(overrides: Partial<LiveSignal> = {}): LiveSignal {
     reasons: ['rsi_oversold'],
     indicators: { rsi: 28, ema_trend: 'up' },
     source: 'real',
+    signalSource: 'algo',
     timestamp: OLD_TIMESTAMP,
     expires_in_minutes: 60,
     ...overrides,

@@ -45,6 +45,7 @@ function mapSignal(s: {
   stopLoss: number;
   indicators?: { rsi?: { value: number }; macd?: { histogram: number } };
   timestamp: string;
+  signalSource?: 'algo' | 'premium';
 }) {
   return {
     id: s.id,
@@ -58,6 +59,7 @@ function mapSignal(s: {
     rsi: s.indicators?.rsi?.value,
     macd: s.indicators?.macd?.histogram,
     generatedAt: s.timestamp,
+    signalSource: s.signalSource ?? 'algo',
     shareUrl: `https://tradeclaw.win/signal/${s.symbol}-${s.timeframe}-${s.direction}`,
   };
 }

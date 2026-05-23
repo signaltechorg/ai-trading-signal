@@ -56,6 +56,7 @@ export interface LiveSignal {
   win_rate?: WinRateData | null;
   cross_validation?: CrossValidation | null;
   source: string;
+  signalSource?: 'algo' | 'premium';
   timestamp: string;
   expires_in_minutes: number;
 }
@@ -166,6 +167,7 @@ export function mapLiveSignalToV1(s: LiveSignal) {
     macd: s.indicators?.macd_histogram ?? s.indicators?.macd_h1 ?? 0,
     generatedAt: s.timestamp,
     shareUrl: `https://tradeclaw.win/signal/${s.symbol}-${s.timeframe}-${s.signal}`,
+    signalSource: s.signalSource ?? 'algo',
     candle_status: s.candle_status ?? null,
     win_rate: s.win_rate ?? null,
     cross_validation: s.cross_validation ?? null,

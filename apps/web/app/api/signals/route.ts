@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         } : undefined,
         source: 'real',
         dataQuality: 'real',
+        signalSource: s.signalSource ?? 'algo',
         timestamp: s.timestamp,
         status: 'active',
       }));
