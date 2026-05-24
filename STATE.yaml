@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-23T19:00:09Z
+updated: 2026-05-24T07:00:08Z
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1860,6 +1860,7 @@ next_actions:
   - "2026-05-23: fixed 11 failing Jest test suites caused by ESM `@tradeclaw/signals` dist output not being transformed. Added `transformIgnorePatterns` exception for `@tradeclaw/` packages and `moduleNameMapper` entries mapping `@tradeclaw/signals`, `@tradeclaw/core`, `@tradeclaw/trading-agents`, and `@tradeclaw/strategies` to their TypeScript source so Jest transforms them via ts-jest. Result: 95 passed, 3 skipped, 0 failed (was 84 passed, 11 failed). Build passes."
   - "2026-05-23: added coverage gate to /api/signals and /api/v1/signals so degraded Python scanner output (symbols_checked < 8) falls back to the live TA engine. Prevents the dashboard from showing only 1 signal when 26+ are available. Verified with npm run build and npm test -- --runInBand."
   - "2026-05-23: scanner-engine.py now has a startup capability probe that writes data/scanner-health.json and exits gracefully when tradingview_screener is unavailable. /api/status exposes Scanner health. /status page renders Scanner card. Verified with npm run build and npm test -- --runInBand."
+  - "2026-05-24: fixed Jest test runner broken by .next/standalone duplicate file collisions. Added modulePathIgnorePatterns: ['/.next/standalone/'] to jest.config.js so haste-map no longer scans the Next.js standalone output. Verified: 95 passed, 3 skipped, 0 failed; npm run build passes."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2361,3 +2362,17 @@ next_actions:
       reports non-operational status. Updated `StatusClient.tsx` to render
       the Scanner card with the Search icon. Build passes, tests pass
       (95 passed, 3 skipped).
+
+  - id: TC-186
+    title: "Premium Signal Dashboard — /premium-signals page for TradingView-sourced signals with Zaky's strategies"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Built /premium-signals page (server page.tsx + PremiumSignalsClient.tsx)
+      that fetches from /api/premium-signals and renders TV-sourced signals
+      with strategy badges, confidence bars, entry/TP1/SL grids, and auto-refresh
+      every 60s. Handles locked state (free users see upgrade CTA), empty state,
+      and stats summary bar (total/BUY/SELL/avg confidence). Added Crown icon
+      nav entry to desktop Trading dropdown and mobile Trading section.
+      Sitemap updated. Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (95 passed, 3 skipped).

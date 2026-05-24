@@ -12,6 +12,9 @@ module.exports = {
     "/apps/web/tests/e2e/",
     "/apps/ws-server/",
   ],
+  modulePathIgnorePatterns: [
+    "/.next/standalone/",
+  ],
   transform: {
     ...tsJestTransformCfg,
   },
