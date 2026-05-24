@@ -232,6 +232,12 @@ function formatOutcomeCell(
 
 type DirectionFilter = 'ALL' | 'BUY' | 'SELL';
 type Scope = 'pro' | 'free';
+type EquityBand = 'premium' | 'standard' | 'all';
+
+function parseEquityBand(raw: string | null): EquityBand {
+  if (raw === 'premium' || raw === 'standard') return raw;
+  return 'all';
+}
 
 interface CategorySnapshot {
   winRate: number;
