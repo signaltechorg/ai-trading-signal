@@ -500,7 +500,7 @@ function SignalCard({ signal, livePrice, tfDirections, onSelect, isFavorite, onT
                 </span>
               )}
               {isDelayed && (
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-zinc-500/10 text-zinc-500 border border-zinc-500/20" title="Free tier signals are delayed 15 minutes">
+                <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-zinc-500/10 text-zinc-500 border border-zinc-500/20" title="Free tier signals are delayed 30 minutes">
                   15m delay
                 </span>
               )}
@@ -1386,10 +1386,10 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
               {/* Locked signals — free tier sees pair/direction/confidence + countdown until unlock */}
               {lockedSignals.length > 0 && (() => {
                 // Earliest stub drives the section-level countdown banner.
-                // Free-tier delay is 15 min (TIER_DELAY_MS.free) — hardcoded
+                // Free-tier delay is 30 min (TIER_DELAY_MS.free) — hardcoded
                 // here because tier.ts is server-only and the constant cannot
                 // be re-exported through tier-client without a wider refactor.
-                const FREE_DELAY_MS = 15 * 60 * 1000;
+                const FREE_DELAY_MS = 30 * 60 * 1000;
                 const earliest = lockedSignals.reduce(
                   (a, b) =>
                     new Date(a.availableAt).getTime() <= new Date(b.availableAt).getTime()

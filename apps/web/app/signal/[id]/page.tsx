@@ -13,10 +13,11 @@ import { EmbedButton } from '../../components/embed-button';
 import { AIAnalysisPanel } from '../../components/ai-analysis-panel';
 import { SetAlertButton } from '../../components/set-alert-button';
 import { SignalChartSection } from './SignalChartSection';
-import { SYMBOLS, type TradingSignal } from '../../lib/signals';
+import { SYMBOLS, type TradingSignal, getStrategyName } from '../../lib/signals';
 import { InfoHint } from '../../../components/InfoHint';
 import { STAT_HINTS } from '../../../lib/stat-hints';
 import { deriveHistoricalOutcomeStatus } from '../../../lib/signal-outcome';
+import { trackEvent } from '../../../lib/analytics';
 import { isExpiredHistoricalOutcome, isPendingHistoricalOutcome } from '../../../lib/signal-history-status';
 
 const HINT_ENTRY = 'Mid-price at signal emission. Slippage and spread are applied later when computing P&L.';
@@ -169,6 +170,7 @@ function buildHistoricalSignal(
     entryAtr: record.entryAtr,
     atrMultiplier: record.atrMultiplier,
     strategyId: record.strategyId,
+    strategyName: getStrategyName(record.timeframe),
   };
 }
 
@@ -205,6 +207,9 @@ export default async function SignalPage(
   { params }: { params: Promise<Params> }
 ) {
   const { id } = await params;
+
+  // Analytics: track signal detail views
+  trackEvent('signal_viewed', { signalId: id });
 
   // Look up the historical row first. This makes /signal/SIG-* URLs render
   // a permanent record of what we said at emission, instead of re-running
@@ -293,6 +298,7 @@ export default async function SignalPage(
 
   const isBuy = signal.direction === 'BUY';
   const signalPath = `/signal/${symbol}-${timeframe}-${direction}`;
+  const now = Date.now();
 
   return (
     <div className="min-h-[100dvh] bg-[#050505] text-white">
@@ -353,6 +359,11 @@ export default async function SignalPage(
                             ? 'TP3 hit'
                             : 'active'}
                 </span>
+                {signal.strategyName && (
+                  <span className="px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-wider font-mono bg-purple-500/10 text-purple-400 border-purple-500/20">
+                    {signal.strategyName}
+                  </span>
+                )}
                 <span className="text-zinc-700 text-xs font-mono">
                   {new Date(signal.timestamp).toLocaleString([], {
                     month: 'short', day: 'numeric',
@@ -398,7 +409,6 @@ export default async function SignalPage(
                 { label: '24h', outcome: outcome24h },
               ].map(({ label, outcome }) => {
                 const windowMs = label === '4h' ? 4 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-                const now = Date.now();
                 const pending = isPendingHistoricalOutcome(outcome, record.timestamp, windowMs, now);
                 const expired = isExpiredHistoricalOutcome(outcome, record.timestamp, windowMs, now);
                 const hit = outcome?.hit === true;

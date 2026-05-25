@@ -434,7 +434,7 @@ export default function BillingPage() {
                   <p className="font-semibold text-white">Join the public Telegram channel</p>
                   <p className="mt-1 text-sm text-zinc-400">
                     Free tier signals are posted to{' '}
-                    <span className="font-mono text-zinc-300">@tradeclawwin</span> with a 15-minute delay.
+                    <span className="font-mono text-zinc-300">@tradeclawwin</span> with a 30-minute delay.
                     The private Pro group unlocks after upgrade.
                   </p>
                   <a

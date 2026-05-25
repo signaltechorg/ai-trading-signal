@@ -373,6 +373,7 @@ def zaky_strategy_signal(row, symbol_name, candle_statuses=None, win_rates=None,
             "win_rate": wr_data if wr_data else None,
             "cross_validation": binance_validation if binance_validation.get("validated") else None,
             "source": "zaky_strategy",
+            "strategy_name": "Intraday" if tf_label == "H1" else "Swing",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "expires_in_minutes": 120 if tf_label == "H4" else 60,
         }

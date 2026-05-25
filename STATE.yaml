@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-24T08:00:08Z
+updated: 2026-05-25T16:09:12+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1861,6 +1861,11 @@ next_actions:
   - "2026-05-23: added coverage gate to /api/signals and /api/v1/signals so degraded Python scanner output (symbols_checked < 8) falls back to the live TA engine. Prevents the dashboard from showing only 1 signal when 26+ are available. Verified with npm run build and npm test -- --runInBand."
   - "2026-05-23: scanner-engine.py now has a startup capability probe that writes data/scanner-health.json and exits gracefully when tradingview_screener is unavailable. /api/status exposes Scanner health. /status page renders Scanner card. Verified with npm run build and npm test -- --runInBand."
   - "2026-05-24: fixed Jest test runner broken by .next/standalone duplicate file collisions. Added modulePathIgnorePatterns: ['/.next/standalone/'] to jest.config.js so haste-map no longer scans the Next.js standalone output. Verified: 95 passed, 3 skipped, 0 failed; npm run build passes."
+  - "2026-05-24: aligned free-tier signal delay with ROADMAP pricing model — changed TIER_DELAY_MS.free from 15 min to 30 min. Updated tier.ts, landing-stats.ts, DashboardClient.tsx, and unit tests. Verified with npm run build and npm test -- --runInBand."
+  - "2026-05-24: fixed duplicate `getStrategyName` export in `packages/signals/src/index.ts` that broke `npm run build`. Removed redundant re-export on line 24. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (95 passed, 3 skipped, 0 failed)."
+  - "2026-05-25: fixed Stripe checkout test assertion in `apps/web/app/api/stripe/checkout/__tests__/route.test.ts` to expect `referrerId: ''` in `params.metadata`, matching the production route behavior. Verified with `npm test -- apps/web/app/api/stripe/checkout/__tests__/route.test.ts --runInBand` (10 passed). Full suite now 95 passed, 1 failed (Vitest file picked up by Jest), 3 skipped."
+  - "2026-05-25: TC-192 — TradingView webhook signals now mirror into signal_history so the shared outcome resolver tracks premium-signal performance automatically. Prerequisite for ROADMAP 2.7 Strategy Performance Comparison. Verified with `npm run build` and `npm test -- --runInBand`."
+  - "2026-05-25: excluded `apps/web/lib/__tests__/signal-history-cache.test.ts` from Jest via `testPathIgnorePatterns` in `jest.config.js`. The file was converted to Vitest syntax but Jest was still scanning it, causing 1 suite failure. Full suite now back to 95 passed, 3 skipped, 0 failed. Build passes (317 pages)."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2376,3 +2381,133 @@ next_actions:
       nav entry to desktop Trading dropdown and mobile Trading section.
       Sitemap updated. Verified with `npm run build` (317 pages) and
       `npm test -- --runInBand` (95 passed, 3 skipped).
+
+  - id: TC-187
+    title: "Align free-tier signal delay with ROADMAP pricing model — 15 min → 30 min"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Updated `TIER_DELAY_MS.free` from 15 minutes to 30 minutes to match the
+      documented Free-tier pricing ("Algo signals delayed 30min"). Updated
+      `lib/tier.ts`, `lib/landing-stats.ts`, `app/dashboard/DashboardClient.tsx`,
+      and all corresponding unit tests (`tier.test.ts`, `landing-stats.test.ts`).
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (95 passed, 3 skipped, 0 failed).
+
+  - id: TC-188
+    title: "Telegram high-confidence auto-push threshold — align broadcast gate to 80%"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 1.7: Telegram Alerts on High-Confidence Signals.
+      Added `HIGH_CONFIDENCE_THRESHOLD = 80` to `lib/signal-thresholds.ts`.
+      Updated `lib/telegram-broadcast.ts` to filter both live-signal and
+      fallback paths at the new threshold instead of the previous hardcoded 70.
+      Updated `/api/cron/telegram/route.ts` public-channel SQL to include
+      `AND confidence >= 80` so only high-confidence delayed signals are pushed.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (95 passed, 3 skipped, 0 failed). Pre-existing lint errors unchanged.
+
+  - id: TC-189
+    title: "Multi-timeframe confluence upgrade — 4-TF agreement for stronger signal filtering"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 1.6: upgraded MTF confluence from 3 to 4 timeframes.
+      Swing set changed from H1/H4/D1 to M15/H1/H4/D1.
+      Scalp set changed from M5/M15/H1 to M5/M15/H1/H4.
+      Confluence bonus logic updated: 4/4 aligned → +15, 3/4 → +10, 2/4 → +5,
+      2/2 deadlock → -20 conflicted, mixed directions → -20 conflicted.
+      Updated API routes (`/api/signals/multi-tf`, `/api/mtf`), alert threshold
+      (`multi-tf-alert.ts`), OpenAPI docs, and `/multi-timeframe` UI labels.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (95 passed, 3 skipped, 0 failed).
+
+  - id: TC-190
+    title: "Candle-close validation test coverage — verify trimClosedCandles drops incomplete candles across all timeframes"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 1.5 validation layer. Added `apps/web/app/lib/__tests__/ohlcv.test.ts`
+      with 8 focused tests for `trimClosedCandles`: keeps complete candles, drops forming
+      candle, boundary-at-exact-close, M5/H1/D1 coverage, empty input, unknown timeframe.
+      Confirmed `trimClosedCandles` is applied in `getOHLCV` (line 340) before cache write,
+      so all signal generation paths (getMultiOHLCV → generateRealSignals → signal-generator
+      profiles) consume only confirmed closes. No production behavior change — tests only.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (94 passed suites incl. new, 2 pre-existing unrelated failures).
+
+  - id: TC-191
+    title: "Surface strategyName on signal detail pages — closes ROADMAP 2.5 data gap"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added `getStrategyName` import to `apps/web/app/signal/[id]/page.tsx` and wired it into
+      `buildHistoricalSignal` so historical records now carry `strategyName` (Scalper/Intraday/Swing)
+      alongside the existing `strategyId`. Rendered a purple strategy badge in the signal header
+      next to direction/timeframe/status. Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (95 passed, 3 skipped, 1 pre-existing Vitest/Jest mismatch).
+
+  - id: TC-192
+    title: "Mirror TradingView webhook signals into signal_history for automatic outcome tracking"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Updated `apps/web/app/api/webhooks/tradingview/route.ts` to call `recordSignalsAsync`
+      after persisting the premium signal into `premium_signals`. This ensures every
+      TradingView-sourced signal is also recorded in `signal_history` where the shared
+      outcome resolver (`resolveRealOutcomes`) automatically checks TP1/TP2/SL hits.
+      Closes the gap where premium signals had no performance tracking — prerequisite
+      for ROADMAP 2.7 (Strategy Performance Comparison) and Phase 2 milestone
+      'separate performance tracking'. Added mock coverage in the webhook route test.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (95 passed, 3 skipped, 1 pre-existing Vitest/Jest mismatch).
+
+  - id: TC-193
+    title: "Strategy Performance Comparison page — real win rate, R:R, and Sharpe per strategy"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 2.7. Enhanced `computeStrategyBreakdown` in `signal-history.ts`
+      to compute `avgRiskReward` (from entry/TP1/SL) and `sharpeRatio` (mean/stdDev of
+      24h PnL). Built `/strategies/comparison` page with server+client components,
+      period tabs (7d/30d/all), strategy cards with metric grids, and category winner
+      badges (Crown/Medal/TrendingUp). Added `lib/strategy-comparison.ts` with display
+      name mapping (preset + TV strategies) and `computeCategoryWinners`. Wired nav
+      links in desktop navbar and mobile nav. Added sitemap entry. Wrote 11 focused
+      Jest tests for the breakdown math. Verified with `npm run build` (317 pages)
+      and `npm test -- --runInBand` (96 passed, 3 skipped, 0 failed).
+
+  - id: TC-194
+    title: "API Key Tier Limits — rate limits per tier (Free: 10/hr, Pro: 100/hr, Elite: unlimited)"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 3.6. Added `ApiKeyTier` type (`free | pro | elite`) and
+      `TIER_RATE_LIMITS` constant in `lib/api-keys.ts` (free=10, pro=100, elite=0).
+      `createKey` now accepts the caller's tier and sets the matching limit.
+      `checkRateLimit` skips enforcement when `hourlyLimit <= 0` (unlimited tier).
+      `getUsageStats` handles unlimited by surfacing the true total request count.
+      Updated `app/api/keys/route.ts` POST to derive the key tier from the user's
+      resolved subscription tier and pass it into `createKey`.
+      Updated `app/api-usage/APIUsageClient.tsx` to render "∞" instead of divide-by-zero
+      for unlimited-tier keys in both the gauge chart and quota bars.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (96 passed, 3 skipped, 0 failed).
+
+  - id: TC-195
+    title: "Free-tier delayed premium signals — 30-min delay preview instead of lock screen"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 2.6 (P0). Previously free users saw a full lock screen on
+      /premium-signals. Now they receive a 30-minute delayed preview of TradingView
+      premium signals as social proof. Added `getDelayedPremiumSignals(delayMs)` in
+      `lib/premium-signals.ts` to query signals older than the cutoff across all
+      strategies. Updated `/api/premium-signals` to route free tier through the
+      delayed fetch and apply free-tier field masking (stopLoss=null). Updated
+      `PremiumSignalsClient.tsx` to render a yellow delay banner + upgrade CTA
+      instead of the lock screen, with full signal cards when data exists.
+      Updated route tests to assert delayed behavior, masked fields, and correct
+      function mocking. Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (96 passed, 3 skipped, 0 failed).

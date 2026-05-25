@@ -4,10 +4,16 @@ jest.mock('../../../../../lib/db-pool', () => ({
   execute: jest.fn(),
 }));
 
+jest.mock('../../../../../lib/signal-history', () => ({
+  recordSignalsAsync: jest.fn().mockResolvedValue(1),
+}));
+
 import { execute } from '../../../../../lib/db-pool';
+import { recordSignalsAsync } from '../../../../../lib/signal-history';
 import { POST } from '../route';
 
 const mockedExecute = execute as jest.MockedFunction<typeof execute>;
+const mockedRecordSignalsAsync = recordSignalsAsync as jest.MockedFunction<typeof recordSignalsAsync>;
 
 describe('POST /api/webhooks/tradingview', () => {
   const ORIGINAL_SECRET = process.env.TV_WEBHOOK_SECRET;
@@ -107,6 +113,21 @@ describe('POST /api/webhooks/tradingview', () => {
         new Date('2026-05-20T10:00:00.000Z'),
       ],
     );
+    expect(mockedRecordSignalsAsync).toHaveBeenCalledTimes(1);
+    expect(mockedRecordSignalsAsync).toHaveBeenCalledWith([
+      {
+        id: 'hafiz-xauusd-h1-1716208800',
+        symbol: 'XAUUSD',
+        timeframe: 'H1',
+        direction: 'BUY',
+        confidence: 87,
+        entry: 2321.5,
+        timestamp: '2026-05-20T10:00:00.000Z',
+        takeProfit1: 2332.75,
+        stopLoss: 2310.25,
+        strategyId: 'tv-hafiz-synergy',
+      },
+    ]);
   });
 
   it('defaults confidence to 90 when omitted', async () => {
@@ -143,6 +164,21 @@ describe('POST /api/webhooks/tradingview', () => {
         timeframe: 'H4',
       }),
       new Date('2026-05-20T10:05:00.000Z'),
+    ]);
+    expect(mockedRecordSignalsAsync).toHaveBeenCalledTimes(1);
+    expect(mockedRecordSignalsAsync).toHaveBeenCalledWith([
+      {
+        id: 'zaky-btcusd-h4-1716208801',
+        symbol: 'BTCUSD',
+        timeframe: 'H4',
+        direction: 'SELL',
+        confidence: 90,
+        entry: 64500,
+        timestamp: '2026-05-20T10:05:00.000Z',
+        takeProfit1: undefined,
+        stopLoss: undefined,
+        strategyId: 'tv-zaky-classic',
+      },
     ]);
   });
 });

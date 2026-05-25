@@ -12,6 +12,8 @@ import {
   setTrialEnd,
   tryClaimStripeEvent,
   releaseStripeEvent,
+  createReferralReward,
+  setUserReferredBy,
 } from '../../../../lib/db';
 import { sendInviteWithRetry, revokeAccess } from '../../../../lib/telegram';
 import { sendPaymentFailedEmail } from '../../../../lib/transactional-email';
@@ -185,6 +187,28 @@ async function handleCheckoutCompleted(
         '[webhook] sendInvite failed after retries:',
         `attempts=${result.attempts} retryable=${result.retryable} err=${result.error}`,
       );
+    }
+  }
+
+  // Record referral reward if this checkout was referred.
+  // referrerId is passed from the pricing page via checkout session metadata.
+  const referrerId = session.metadata?.referrerId;
+  if (referrerId && typeof referrerId === 'string' && referrerId.length > 0) {
+    // Prevent self-referral
+    if (referrerId !== userId) {
+      try {
+        await setUserReferredBy(userId, referrerId);
+        await createReferralReward({
+          referrerId,
+          referredId: userId,
+          rewardType: 'trial_extension',
+          rewardValue: 7,
+        });
+        console.log('[webhook] referral recorded:', { referrerId, referredId: userId });
+      } catch (err) {
+        // Non-fatal: referral is a side-effect; don't fail the webhook
+        console.error('[webhook] referral recording failed:', err);
+      }
     }
   }
 }

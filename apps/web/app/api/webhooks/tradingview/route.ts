@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { execute } from '../../../../lib/db-pool';
+import { recordSignalsAsync } from '../../../../lib/signal-history';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -139,6 +140,23 @@ export async function POST(req: NextRequest) {
     console.error('[tv-webhook] db_error:', err);
     return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
+
+  // Mirror into signal_history so the shared outcome resolver tracks
+  // premium-signal performance automatically (ROADMAP 2.x).
+  await recordSignalsAsync([{
+    id: p.source_id,
+    symbol: p.symbol,
+    timeframe: p.timeframe,
+    direction: p.direction,
+    confidence: p.confidence ?? 90,
+    entry: p.entry,
+    timestamp: p.signal_ts,
+    takeProfit1: p.take_profit_1,
+    stopLoss: p.stop_loss,
+    strategyId: p.strategy_id,
+  }]).catch((err) => {
+    console.error('[tv-webhook] history_mirror_error:', err);
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Trophy } from 'lucide-react';
+import { Trophy, BarChart3 } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import type { ReactNode } from 'react';
 
@@ -132,6 +132,11 @@ const MENU_SECTIONS: MenuSection[] = [
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         ),
+      },
+      {
+        href: '/strategies/comparison',
+        label: 'Strategy Comparison',
+        icon: <BarChart3 size={18} strokeWidth={1.6} />,
       },
       {
         href: '/strategies/leaderboard',

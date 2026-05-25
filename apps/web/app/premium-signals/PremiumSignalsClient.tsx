@@ -20,6 +20,7 @@ interface PremiumSignalsResponse {
   signals: TradingSignal[];
   now: number;
   locked: boolean;
+  delayed?: boolean;
 }
 
 function StrategyBadge({ id }: { id?: string }) {
@@ -106,30 +107,25 @@ function SignalCard({ signal }: { signal: TradingSignal }) {
   );
 }
 
-function LockedState() {
+function DelayedBanner() {
   return (
-    <div className="max-w-md mx-auto text-center py-20 px-6">
-      <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-6">
-        <Lock className="w-8 h-8 text-purple-400" />
-      </div>
-      <h2 className="text-xl font-bold text-white mb-2">Premium Signals Locked</h2>
-      <p className="text-sm text-zinc-400 mb-6">
-        TradingView-integrated signals from Zaky&apos;s personal strategies are available for Pro and Elite subscribers.
-      </p>
-      <div className="space-y-3">
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 mb-6">
+      <div className="flex items-center gap-3">
+        <Clock className="w-5 h-5 text-amber-400 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-amber-300">
+            30-Minute Delay Preview
+          </p>
+          <p className="text-xs text-amber-400/80">
+            You&apos;re viewing premium signals with a 30-minute delay. Upgrade to Pro for real-time access.
+          </p>
+        </div>
         <Link
-          href="/pricing"
-          className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm px-5 py-2.5 transition-colors"
+          href="/pricing?from=premium-signals-delayed"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs px-3 py-1.5 transition-colors flex-shrink-0"
         >
-          <Crown className="w-4 h-4" />
-          Upgrade to Pro
-        </Link>
-        <Link
-          href="/track-record"
-          className="inline-flex items-center justify-center gap-2 w-full rounded-xl border border-white/10 hover:bg-white/5 text-zinc-300 font-medium text-sm px-5 py-2.5 transition-colors"
-        >
-          <Target className="w-4 h-4" />
-          View Track Record
+          <Crown className="w-3.5 h-3.5" />
+          Upgrade
         </Link>
       </div>
     </div>
@@ -216,8 +212,48 @@ export function PremiumSignalsClient() {
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : data?.locked ? (
-          <LockedState />
+        ) : data?.delayed ? (
+          <>
+            <DelayedBanner />
+            {!data.signals.length ? (
+              <EmptyState />
+            ) : (
+              <>
+                {/* Stats bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Total</span>
+                    <span className="block text-lg font-bold text-white mt-0.5">{data.signals.length}</span>
+                  </div>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">BUY</span>
+                    <span className="block text-lg font-bold text-emerald-400 mt-0.5">
+                      {data.signals.filter(s => s.direction === 'BUY').length}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">SELL</span>
+                    <span className="block text-lg font-bold text-rose-400 mt-0.5">
+                      {data.signals.filter(s => s.direction === 'SELL').length}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Avg Confidence</span>
+                    <span className="block text-lg font-bold text-purple-400 mt-0.5">
+                      {Math.round(data.signals.reduce((a, s) => a + s.confidence, 0) / data.signals.length)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Signal grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {data.signals.map(signal => (
+                    <SignalCard key={signal.id} signal={signal} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         ) : !data?.signals.length ? (
           <EmptyState />
         ) : (

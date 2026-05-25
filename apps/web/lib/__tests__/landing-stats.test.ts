@@ -65,7 +65,7 @@ describe('landing-stats — getLandingStats', () => {
           tp1: 2050,
           sl: null,
           confidence: 84.2,
-          createdAt: '2026-05-20T12:15:00.000Z',
+          createdAt: '2026-05-20T12:30:00.000Z',
         },
       },
     });

@@ -15,9 +15,12 @@ export type {
   WsServerMessage,
 } from './types.js';
 
+export { getStrategyName } from './types.js';
+
 // ─── Utilities ─────────────────────────────────────────
 
 export { generateSignalId, clamp, formatNumber, formatDiff, emaTrendText } from './utils.js';
+export type { StrategyName } from './types.js';
 
 // ─── Indicators ───────────────────────────────────────
 // Canonical indicator implementations live in apps/web/app/lib/ta-engine.ts

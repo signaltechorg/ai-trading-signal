@@ -118,7 +118,7 @@ export function OnboardingOverlay({ signalsLoaded }: OnboardingOverlayProps) {
 
         {isFree && (
           <div className="sm:text-right">
-            <p className="text-[10px] text-zinc-600">Free plan: 6 symbols, 15-min delay, TP1 only</p>
+            <p className="text-[10px] text-zinc-600">Free plan: 6 symbols, 30-min delay, TP1 only</p>
             <Link
               href="/pricing?from=onboarding"
               className="mt-1 inline-flex items-center justify-center text-[10px] font-semibold text-emerald-400 transition-colors hover:text-emerald-300"

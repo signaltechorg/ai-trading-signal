@@ -14,12 +14,13 @@ import {
 import type { TradingSignal, IndicatorSummary } from '@tradeclaw/signals';
 import { generateSignalId, clamp } from '@tradeclaw/signals';
 export type { TradingSignal, IndicatorSummary } from '@tradeclaw/signals';
-export { generateSignalId, clamp } from '@tradeclaw/signals';
+export { generateSignalId, clamp, getStrategyName } from '@tradeclaw/signals';
 
 // Symbol configs live in symbol-config.ts (client-safe, no server imports).
 // Re-export here for backward compatibility with existing server-side consumers.
 export { SYMBOLS, TIMEFRAMES } from './symbol-config';
 import { SYMBOLS } from './symbol-config';
+import { redis, isRedisAvailable, ensureRedis, redisKey } from '../../lib/redis';
 
 // generateSignalId and clamp are now imported from @tradeclaw/signals
 
@@ -139,19 +140,100 @@ async function generateRealSignals(
  * Main signal generation function — used by both API route and server components.
  * Uses real TA engine only. Returns empty if no data available.
  */
-export async function getSignals(params: {
-  symbol?: string;
-  timeframe?: string;
-  direction?: string;
-  minConfidence?: number;
-  profileId?: StrategyProfileId;
-}): Promise<{ signals: TradingSignal[]; syntheticSymbols: string[] }> {
-  const { symbol: symbolFilter, timeframe: timeframeFilter, direction: directionFilter, minConfidence = 0, profileId = 'classic' } = params;
+const SIGNALS_CACHE_KEY = redisKey('signals:latest');
+const SIGNALS_CACHE_TTL_MS = 6 * 60 * 1000;
+
+interface CachedSignalsPayload {
+  signals: TradingSignal[];
+  syntheticSymbols: string[];
+  profileId: string;
+  generatedAt: number;
+}
+
+async function readSignalsCache(): Promise<CachedSignalsPayload | null> {
+  try {
+    await ensureRedis();
+    if (!isRedisAvailable() || !redis) return null;
+    const raw = await redis.get(SIGNALS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedSignalsPayload;
+    const age = Date.now() - (parsed.generatedAt ?? 0);
+    if (age > SIGNALS_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function applySignalFilters(
+  signals: TradingSignal[],
+  symbolFilter?: string,
+  timeframeFilter?: string,
+  directionFilter?: string,
+  minConfidence = 0,
+): TradingSignal[] {
+  let filtered = signals;
+  if (symbolFilter) {
+    const upper = symbolFilter.toUpperCase();
+    filtered = filtered.filter((s) => s.symbol === upper);
+  }
+  if (timeframeFilter) {
+    const upper = timeframeFilter.toUpperCase();
+    filtered = filtered.filter((s) => s.timeframe === upper);
+  }
+  if (directionFilter) {
+    const upper = directionFilter.toUpperCase();
+    filtered = filtered.filter((s) => s.direction === upper);
+  }
+  if (minConfidence > 0) {
+    filtered = filtered.filter((s) => s.confidence >= minConfidence);
+  }
+  filtered.sort((a, b) => b.confidence - a.confidence);
+  return filtered;
+}
+
+export async function getSignals(
+  params: {
+    symbol?: string;
+    timeframe?: string;
+    direction?: string;
+    minConfidence?: number;
+    profileId?: StrategyProfileId;
+  },
+  options?: { skipCache?: boolean },
+): Promise<{ signals: TradingSignal[]; syntheticSymbols: string[] }> {
+  const {
+    symbol: symbolFilter,
+    timeframe: timeframeFilter,
+    direction: directionFilter,
+    minConfidence = 0,
+    profileId = 'classic',
+  } = params;
+  const { skipCache } = options ?? {};
+
+  // Try Redis cache first (skip when explicitly generating fresh signals)
+  if (!skipCache) {
+    try {
+      const cached = await readSignalsCache();
+      if (cached && cached.profileId === profileId) {
+        const signals = applySignalFilters(
+          cached.signals,
+          symbolFilter,
+          timeframeFilter,
+          directionFilter,
+          minConfidence,
+        );
+        return { signals, syntheticSymbols: cached.syntheticSymbols };
+      }
+    } catch {
+      // Cache miss or error — fall through to generation
+    }
+  }
 
   let symbols = SYMBOLS;
   if (symbolFilter) {
     const upper = symbolFilter.toUpperCase();
-    symbols = SYMBOLS.filter(s => s.symbol === upper);
+    symbols = SYMBOLS.filter((s) => s.symbol === upper);
     if (symbols.length === 0) {
       return { signals: [], syntheticSymbols: [] };
     }
@@ -205,7 +287,7 @@ export async function getSignals(params: {
         const mtf = mtfByKey.get(`${sig.symbol}|${tfMode(sig.timeframe)}`);
         if (!mtf) continue;
         if (mtf.dominantDirection === sig.direction) {
-          // 3/3 aligned → +15, 2/3 → +5. Clamp at 95 to leave 100 as
+          // 4/4 aligned → +15, 3/4 → +10, 2/4 → +5. Clamp at 95 to leave 100 as
           // unattainable, matching scaleConfidence's own cap.
           sig.confidence = Math.min(95, sig.confidence + mtf.confluenceBonus);
         } else if (mtf.isConflicted) {

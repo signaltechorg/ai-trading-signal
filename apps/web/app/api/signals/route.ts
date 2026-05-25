@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
         source: 'real',
         dataQuality: 'real',
         signalSource: s.signalSource ?? 'algo',
+        strategyName: s.strategyName,
         timestamp: s.timestamp,
         status: 'active',
       }));
@@ -124,16 +125,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // === FALLBACK: Use existing TA engine if signals-live.json is missing/stale/empty ===
-    const { signals: rawSignals, syntheticSymbols } = await getTrackedSignalsForRequest(request, {
+    // === FALLBACK: Serve from async worker cache instead of generating synchronously ===
+    const { getSignalsCached } = await import('../../../lib/signal-worker');
+    const { signals: cachedSignals, syntheticSymbols } = await getSignalsCached({
       symbol: symbolFilter || undefined,
       timeframe: timeframeFilter || undefined,
       direction: directionFilter || undefined,
       minConfidence,
     });
 
+    // Side effects (recording, alerts, social queue) still run in the
+    // background via getTrackedSignalsForRequest so we don't lose catch-up
+    // behavior when the worker cache is serving the response.
+    getTrackedSignalsForRequest(request, {
+      symbol: symbolFilter || undefined,
+      timeframe: timeframeFilter || undefined,
+      direction: directionFilter || undefined,
+      minConfidence,
+    }).catch(() => {});
+
     // Regime filter: remove signals going against the current market regime
-    const signals = filterSignalsByRegime(rawSignals, regimeMap);
+    const signals = filterSignalsByRegime(cachedSignals, regimeMap);
 
     // Tier-based gating: symbol filter, TP masking, delay
     const gatedSignals = signals

@@ -11,6 +11,7 @@ module.exports = {
     "/.next/",
     "/apps/web/tests/e2e/",
     "/apps/ws-server/",
+    "/apps/web/lib/__tests__/signal-history-cache.test.ts",
   ],
   modulePathIgnorePatterns: [
     "/.next/standalone/",

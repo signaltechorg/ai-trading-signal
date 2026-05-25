@@ -19,6 +19,7 @@ import { fetchRegimeMap, filterSignalsByRegime } from './regime-filter';
 import { markTelegramPosted } from './signal-history';
 import { runRiskPipeline, type RiskReport } from './risk-pipeline';
 import { isFreeSymbol } from './tier-client';
+import { HIGH_CONFIDENCE_THRESHOLD } from './signal-thresholds';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -286,12 +287,12 @@ export async function broadcastTopSignals(
   const liveData = await readLiveSignals();
   if (liveData && !liveData.isStale && liveData.signals.length > 0) {
     mapped = liveData.signals
-      .filter((s) => s.confidence >= 70)
+      .filter((s) => s.confidence >= HIGH_CONFIDENCE_THRESHOLD)
       .map(mapLiveToTradingSignal);
   } else {
     // Intentionally no license ctx — Telegram broadcasts are public, so only
     // the free classic strategy is emitted.
-    const { signals: fallbackSignals } = await getTrackedSignals({ minConfidence: 70 });
+    const { signals: fallbackSignals } = await getTrackedSignals({ minConfidence: HIGH_CONFIDENCE_THRESHOLD });
     mapped = fallbackSignals;
   }
 

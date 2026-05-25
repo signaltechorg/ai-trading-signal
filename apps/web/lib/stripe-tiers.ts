@@ -37,7 +37,7 @@ export const TIER_DEFINITIONS: TierDefinition[] = [
     kind: 'free',
     features: [
       '6 symbols across crypto, forex, commodities, indices',
-      '15-minute delayed signals',
+      '30-minute delayed signals',
       'TP1 target only',
       'Last 7 days signal history',
     ],
@@ -52,7 +52,7 @@ export const TIER_DEFINITIONS: TierDefinition[] = [
     monthlyPriceIdEnv: 'NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID',
     annualPriceIdEnv: 'NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID',
     features: [
-      'Catch the move while it is still tradable — alerts land instantly, not 15 minutes late',
+      'Catch the move while it is still tradable — alerts land instantly, not 30 minutes late',
       'Trade the whole market you actually watch — FX, crypto, metals, oil, US mega-caps, and indices',
       'Only take higher-conviction setups — confluence across H1/H4/D1 before a signal fires',
       'Plan the exit before you enter — TP1, TP2, TP3, and Stop Loss on every Pro signal',

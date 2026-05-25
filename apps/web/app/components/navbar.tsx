@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Play, Thermometer, ChevronDown, Activity, ShoppingBag, Briefcase, FlaskConical, BarChart2, Server, Star, Rocket, Mail, Heart, HandHeart, Cloud, MessageSquare, User, Database, BookOpen, Trophy, Crown } from 'lucide-react';
+import { Play, Thermometer, ChevronDown, Activity, ShoppingBag, Briefcase, FlaskConical, BarChart2, BarChart3, Server, Star, Rocket, Mail, Heart, HandHeart, Cloud, MessageSquare, User, Database, BookOpen, Trophy, Crown } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { TradeClawLogo } from '../../components/tradeclaw-logo';
 import { UserMenu } from '../../components/UserMenu';
@@ -45,6 +45,7 @@ const MORE_GROUPS: DropdownGroup[] = [
       { href: '/indicators/builder', label: 'Indicators', icon: FlaskConical },
       { href: '/api-keys', label: 'API Keys' },
       { href: '/api-usage', label: 'API Usage', icon: BarChart2 },
+      { href: '/strategies/comparison', label: 'Strategy Comparison', icon: BarChart3 },
       { href: '/strategies/marketplace', label: 'Marketplace', icon: ShoppingBag },
       { href: '/strategies/leaderboard', label: 'Strategy Leaderboard', icon: Trophy },
       { href: '/plugins', label: 'Plugins' },

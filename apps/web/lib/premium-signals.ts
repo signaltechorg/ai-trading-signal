@@ -93,6 +93,46 @@ export async function listPremiumSignalsSince(
   return rows.map(rowToSignal);
 }
 
+/**
+ * Fetch premium signals older than `delayMs` for free-tier delayed preview.
+ * Returns signals from ALL strategies so the free tier can see what
+ * already fired (and often already resolved) as social proof.
+ */
+export async function getDelayedPremiumSignals(
+  delayMs: number,
+  params: GetPremiumParams = {},
+): Promise<TradingSignal[]> {
+  const cutoff = new Date(Date.now() - delayMs).toISOString();
+  const conds: string[] = ['signal_ts <= $1'];
+  const args: unknown[] = [cutoff];
+
+  if (params.symbol) {
+    args.push(params.symbol.toUpperCase());
+    conds.push(`symbol = $${args.length}`);
+  }
+  if (params.timeframe) {
+    args.push(params.timeframe.toUpperCase());
+    conds.push(`timeframe = $${args.length}`);
+  }
+  if (params.direction) {
+    args.push(params.direction.toUpperCase());
+    conds.push(`direction = $${args.length}`);
+  }
+  const limit = Math.min(params.limit ?? 50, 200);
+
+  const rows = await query<Row>(
+    `SELECT id, strategy_id, symbol, timeframe, direction, confidence,
+            entry, stop_loss, take_profit_1, signal_ts
+     FROM premium_signals
+     WHERE ${conds.join(' AND ')}
+     ORDER BY signal_ts DESC
+     LIMIT ${limit}`,
+    args,
+  );
+
+  return rows.map(rowToSignal);
+}
+
 function rowToSignal(r: Row): TradingSignal {
   return {
     id: r.id,
@@ -108,5 +148,10 @@ function rowToSignal(r: Row): TradingSignal {
     source: 'real',
     dataQuality: 'real',
     signalSource: 'premium',
+    strategyName: r.strategy_id === 'tv-zaky-classic'
+      ? 'Intraday'
+      : r.strategy_id?.startsWith('tv-')
+        ? 'Swing'
+        : undefined,
   } as unknown as TradingSignal;
 }

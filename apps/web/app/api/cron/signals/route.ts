@@ -21,6 +21,7 @@ import { runRiskPipeline } from '../../../../lib/risk-pipeline';
 import { fetchRegimeMap } from '../../../../lib/regime-filter';
 import { recordSignalRun } from '../../../../lib/signal-run-log';
 import { requireCronAuth } from '../../../../lib/cron-auth';
+import { precomputeSignals } from '../../../../lib/signal-worker';
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
@@ -206,6 +207,11 @@ export async function GET(request: NextRequest): Promise<Response> {
   if (denied) return denied;
 
   const runStartedAt = new Date();
+
+  // Warm the signal cache so the request path can serve from Redis
+  // instead of running the TA engine synchronously.
+  await precomputeSignals();
+
   try {
     const preset = getActivePreset();
     const newSignals = await recordNewSignals(preset.id);

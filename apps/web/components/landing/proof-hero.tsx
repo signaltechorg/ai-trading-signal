@@ -79,7 +79,7 @@ export async function ProofHero() {
         />
         <StatTile
           label="Delivery lag"
-          value="Pro: <1s · Free: 15min"
+          value="Pro: <1s · Free: 30min"
           tone="neutral"
           small
         />
@@ -88,7 +88,7 @@ export async function ProofHero() {
       {stats?.samples && (
         <div className="mt-10">
           <h2 className="mb-3 text-center text-sm font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
-            Pro (no delay) vs Free (15-min delay)
+            Pro (no delay) vs Free (30-min delay)
           </h2>
           <DelayDemo pro={stats.samples.pro} free={stats.samples.free} />
         </div>
@@ -107,7 +107,7 @@ export async function ProofHero() {
               entry={stats.samples.free.entry}
               tp1={stats.samples.free.tp1}
               timestampLabel={new Date(stats.samples.free.createdAt).toUTCString()}
-              delayLabel="Delivered 15 minutes after Pro"
+              delayLabel="Delivered 30 minutes after Pro"
             />
             <SampleTelegramCard
               tier="pro"

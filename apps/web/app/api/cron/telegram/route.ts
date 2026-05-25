@@ -29,7 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const result = await broadcastTopSignals(channelId, botToken, { freeOnly: true });
 
-    // Delayed public channel push — free-tier symbols only, 15+ min old.
+    // Delayed public channel push — free-tier symbols only, 30+ min old.
     // Same channel as the broadcast above; resolved through the same path.
     const publicChannelId = channelId;
     let publicPushed = 0;
@@ -49,8 +49,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         WHERE telegram_posted_at IS NULL
           AND is_simulated = false
           AND pair = ANY($1)
+          AND confidence >= 80
           AND created_at >= NOW() - INTERVAL '2 hours'
-          AND created_at <= NOW() - INTERVAL '15 minutes'
+          AND created_at <= NOW() - INTERVAL '30 minutes'
           AND NOT EXISTS (
             SELECT 1 FROM signal_history sib
             WHERE sib.pair = sh.pair

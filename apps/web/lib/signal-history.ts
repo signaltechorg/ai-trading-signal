@@ -157,6 +157,8 @@ export interface StrategyBreakdownRow {
   hitRate24h: number;
   avgConfidence: number;
   avgPnl: number;
+  avgRiskReward: number;
+  sharpeRatio: number;
 }
 
 export function recomputeOverall(
@@ -836,7 +838,8 @@ export async function getPendingRecordsAsync(): Promise<SignalHistoryRecord[]> {
          AND tp1 IS NOT NULL
          AND sl IS NOT NULL
          AND created_at > NOW() - INTERVAL '30 days'
-       ORDER BY created_at DESC`,
+       ORDER BY created_at DESC
+       LIMIT 500`,
     );
     return rows.map(rowToRecord);
   }
@@ -1239,6 +1242,8 @@ export function computeStrategyBreakdown(
     resolved24h: number; hits24h: number;
     confSum: number;
     pnlSum: number; pnlCount: number;
+    rrValues: number[];
+    pnlValues: number[];
   }>();
 
   for (const r of filtered) {
@@ -1246,7 +1251,7 @@ export function computeStrategyBreakdown(
     if (!groups.has(key)) {
       groups.set(key, {
         total: 0, resolved4h: 0, hits4h: 0, resolved24h: 0, hits24h: 0,
-        confSum: 0, pnlSum: 0, pnlCount: 0,
+        confSum: 0, pnlSum: 0, pnlCount: 0, rrValues: [], pnlValues: [],
       });
     }
     const g = groups.get(key)!;
@@ -1261,7 +1266,28 @@ export function computeStrategyBreakdown(
       if (r.outcomes['24h']!.hit) g.hits24h++;
       g.pnlSum += r.outcomes['24h']!.pnlPct;
       g.pnlCount++;
+      g.pnlValues.push(r.outcomes['24h']!.pnlPct);
     }
+    // Risk:Reward — requires valid entry, TP1, and SL
+    if (r.entryPrice > 0 && r.tp1 && r.tp1 > 0 && r.sl && r.sl > 0) {
+      const risk = r.direction === 'BUY'
+        ? r.entryPrice - r.sl
+        : r.sl - r.entryPrice;
+      const reward = r.direction === 'BUY'
+        ? r.tp1 - r.entryPrice
+        : r.entryPrice - r.tp1;
+      if (risk > 0) {
+        g.rrValues.push(reward / risk);
+      }
+    }
+  }
+
+  function sharpe(pnls: number[]): number {
+    if (pnls.length < 2) return 0;
+    const mean = pnls.reduce((a, b) => a + b, 0) / pnls.length;
+    const variance = pnls.reduce((sum, x) => sum + (x - mean) ** 2, 0) / pnls.length;
+    const std = Math.sqrt(variance);
+    return std > 0 ? +(mean / std).toFixed(2) : 0;
   }
 
   return Array.from(groups.entries())
@@ -1273,6 +1299,10 @@ export function computeStrategyBreakdown(
       hitRate24h: g.resolved24h > 0 ? +((g.hits24h / g.resolved24h) * 100).toFixed(1) : 0,
       avgConfidence: g.total > 0 ? Math.round(g.confSum / g.total) : 0,
       avgPnl: g.pnlCount > 0 ? +(g.pnlSum / g.pnlCount).toFixed(2) : 0,
+      avgRiskReward: g.rrValues.length > 0
+        ? +(g.rrValues.reduce((a, b) => a + b, 0) / g.rrValues.length).toFixed(2)
+        : 0,
+      sharpeRatio: sharpe(g.pnlValues),
     }))
     .sort((a, b) => b.totalSignals - a.totalSignals);
 }

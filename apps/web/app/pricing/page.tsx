@@ -19,7 +19,7 @@ const FREE_HISTORY_LABEL = TIER_HISTORY_DAYS.free
   : 'Full history';
 
 const FEATURES: Feature[] = [
-  { label: 'Signal delivery', free: 'Delayed 15 min — moves often played out by then', pro: 'Instant — alert fires while the move is still live' },
+  { label: 'Signal delivery', free: 'Delayed 30 min — moves often played out by then', pro: 'Instant — alert fires while the move is still live' },
   {
     label: 'Symbols covered',
     free: `${FREE_SYMBOLS.length} pairs across crypto, FX, gold, indices`,

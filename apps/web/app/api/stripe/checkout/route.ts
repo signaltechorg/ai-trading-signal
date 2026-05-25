@@ -6,6 +6,7 @@ import {
   updateUserStripeCustomerId,
 } from '../../../../lib/db';
 import { readSessionFromRequest } from '../../../../lib/user-session';
+import { trackEvent } from '../../../../lib/analytics';
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ?? 'https://tradeclaw.win';
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       priceId?: unknown;
       tier?: unknown;
       interval?: unknown;
+      referrerId?: unknown;
     };
     const rawPriceId = body.priceId;
     const tier = normalizeTier(body.tier);
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
       success_url: `${BASE_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${BASE_URL}/pricing`,
       client_reference_id: userId,
-      metadata: { tier: resolvedTier, userId },
+      metadata: { tier: resolvedTier, userId, referrerId: typeof body.referrerId === 'string' ? body.referrerId : '' },
       subscription_data: {
         metadata: { userId, tier: resolvedTier },
         trial_period_days: 7,
@@ -117,6 +119,9 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await getStripe().checkout.sessions.create(sessionParams);
+
+    // Analytics: trial started (all Pro checkouts include a 7-day trial)
+    trackEvent('trial_started', { tier: resolvedTier, interval: interval ?? 'monthly', userId });
 
     // Store the Stripe customer ID on the user record for future sessions
     if (session.customer && typeof session.customer === 'string' && !stripeCustomerId) {

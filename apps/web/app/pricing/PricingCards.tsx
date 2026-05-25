@@ -7,6 +7,7 @@ import {
   type TierDefinition,
 } from '../../lib/stripe-tiers';
 import { EliteInterestForm } from '../../components/EliteInterestForm';
+import { trackEvent } from '../../lib/analytics';
 
 type Interval = 'monthly' | 'annual';
 
@@ -87,6 +88,7 @@ function ProCard({ def, interval }: ProCardProps) {
   async function handleCheckout() {
     setLoading(true);
     setError(null);
+    trackEvent('subscription_clicked', { tier: 'pro', interval });
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -109,6 +111,7 @@ function ProCard({ def, interval }: ProCardProps) {
       }
       const payload = (await res.json()) as { url?: string };
       if (!payload.url) throw new Error('Missing checkout URL');
+      trackEvent('checkout_started', { tier: 'pro', interval });
       window.location.href = payload.url;
     } catch (err) {
       setLoading(false);

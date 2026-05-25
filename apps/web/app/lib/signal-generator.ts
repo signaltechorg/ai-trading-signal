@@ -6,6 +6,7 @@
 import type { AllIndicators } from './ta-engine';
 import { calculateAllIndicators, findSwingLevels } from './ta-engine';
 import type { TradingSignal, IndicatorSummary } from './signals';
+import { getStrategyName } from '@tradeclaw/signals';
 import { getOHLCV } from './ohlcv';
 import { isMarketOpen } from './market-hours';
 import { WATCHLIST_MIN_CONFIDENCE } from '../../lib/signal-thresholds';
@@ -13,8 +14,8 @@ import { getCachedAtrMultiplier, getCachedAtrCalibration } from './atr-calibrati
 
 // ─── Multi-Timeframe Types ────────────────────────────────────
 
-const MTF_TIMEFRAMES_SWING = ['H1', 'H4', 'D1'] as const;
-const MTF_TIMEFRAMES_SCALP = ['M5', 'M15', 'H1'] as const;
+const MTF_TIMEFRAMES_SWING = ['M15', 'H1', 'H4', 'D1'] as const;
+const MTF_TIMEFRAMES_SCALP = ['M5', 'M15', 'H1', 'H4'] as const;
 type MTFTimeframe = 'M5' | 'M15' | 'H1' | 'H4' | 'D1';
 
 export type SignalMode = 'swing' | 'scalp';
@@ -35,7 +36,7 @@ export interface MultiTFResult {
   symbol: string;
   timeframes: TFDirection[];
   dominantDirection: 'BUY' | 'SELL' | 'NEUTRAL';
-  agreementCount: number; // how many of 3 TFs agree
+  agreementCount: number; // how many of 4 TFs agree
   confluenceBonus: number; // +15, +5, 0, -20
   isConflicted: boolean;
   entry: number;
@@ -752,6 +753,7 @@ export function generateSignalsFromTA(
         : { multiplier: 2.0, confidence: 'low' as const },
       entryAtr: atr,
       atrMultiplier: buyAtrMultiplier,
+      strategyName: getStrategyName(tf),
     });
   }
 
@@ -817,6 +819,7 @@ export function generateSignalsFromTA(
         : { multiplier: 2.0, confidence: 'low' as const },
       entryAtr: atr,
       atrMultiplier: sellAtrMultiplier,
+      strategyName: getStrategyName(tf),
     });
   }
 
@@ -899,8 +902,13 @@ export async function generateMultiTFSignal(
     agreementCount = sellCount;
   }
 
-  if (buyCount === 3 || sellCount === 3) {
+  if (buyCount === 4 || sellCount === 4) {
     confluenceBonus = 15;
+  } else if (buyCount === 3 || sellCount === 3) {
+    confluenceBonus = 10;
+  } else if (buyCount === 2 && sellCount === 2) {
+    confluenceBonus = -20;
+    isConflicted = true;
   } else if (buyCount === 2 || sellCount === 2) {
     confluenceBonus = 5;
   } else if (buyCount >= 1 && sellCount >= 1) {

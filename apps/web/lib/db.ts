@@ -737,3 +737,30 @@ export async function insertAdminAuditLog(input: AdminAuditLogInput): Promise<vo
   );
 }
 
+// ---------------------------------------------------------------------------
+// Referral rewards
+// ---------------------------------------------------------------------------
+
+export interface ReferralRewardInput {
+  referrerId: string;
+  referredId: string;
+  rewardType: 'trial_extension' | 'subscription_credit';
+  rewardValue: number;
+}
+
+export async function createReferralReward(input: ReferralRewardInput): Promise<void> {
+  await execute(
+    `INSERT INTO referral_rewards (referrer_id, referred_id, reward_type, reward_value, status)
+     VALUES ($1, $2, $3, $4, 'pending')
+     ON CONFLICT (referrer_id, referred_id) DO NOTHING`,
+    [input.referrerId, input.referredId, input.rewardType, input.rewardValue],
+  );
+}
+
+export async function setUserReferredBy(userId: string, referrerId: string): Promise<void> {
+  await execute(
+    `UPDATE users SET referred_by = $1 WHERE id = $2 AND referred_by IS NULL`,
+    [referrerId, userId],
+  );
+}
+

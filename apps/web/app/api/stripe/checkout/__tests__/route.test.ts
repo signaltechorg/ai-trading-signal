@@ -153,7 +153,7 @@ describe('POST /api/stripe/checkout', () => {
     expect(params.mode).toBe('subscription');
     expect(params.line_items[0].price).toBe('price_pro_monthly');
     expect(params.client_reference_id).toBe('user-1');
-    expect(params.metadata).toEqual({ tier: 'pro', userId: 'user-1' });
+    expect(params.metadata).toEqual({ tier: 'pro', userId: 'user-1', referrerId: '' });
     expect(params.subscription_data.metadata).toEqual({ userId: 'user-1', tier: 'pro' });
     expect(params.subscription_data.trial_period_days).toBe(7);
     expect(params.allow_promotion_codes).toBe(true);

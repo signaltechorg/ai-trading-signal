@@ -2,6 +2,17 @@ export type Direction = 'BUY' | 'SELL';
 export type Timeframe = 'M5' | 'M15' | 'H1' | 'H4' | 'D1';
 export type SignalStatus = 'active' | 'hit_tp1' | 'hit_tp2' | 'hit_tp3' | 'stopped' | 'expired';
 
+/** Human-readable strategy name derived from the signal's timeframe. */
+export type StrategyName = 'Scalper' | 'Intraday' | 'Swing';
+
+export function getStrategyName(timeframe: string): StrategyName | undefined {
+  const tf = timeframe.toUpperCase();
+  if (tf === 'M5' || tf === 'M15') return 'Scalper';
+  if (tf === 'H1') return 'Intraday';
+  if (tf === 'H4' || tf === 'D1') return 'Swing';
+  return undefined;
+}
+
 export interface TradingSignal {
   id: string;
   symbol: string;
@@ -21,6 +32,8 @@ export interface TradingSignal {
   dataQuality?: 'real' | 'synthetic';
   /** Signal provenance — distinguishes built-in TA engine from external premium feeds. */
   signalSource?: 'algo' | 'premium';
+  /** Human-readable strategy name derived from timeframe (Scalper / Intraday / Swing). */
+  strategyName?: StrategyName;
   /** ATR stop calibration metadata — shows whether SL uses a per-symbol calibrated multiplier or the global default. */
   atrCalibration?: { multiplier: number; confidence: 'low' | 'medium' | 'high' };
   /** ATR value in price units at the moment this signal was emitted. Persisted so calibration can grid-search without re-fetching candles. */

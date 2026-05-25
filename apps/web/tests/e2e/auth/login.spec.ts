@@ -41,18 +41,6 @@ test.describe('Admin Login', () => {
   });
 
   test('redirects to dashboard on successful login', async ({ page }) => {
-    // Mock the login API to return success
-    await page.route('/api/auth/login', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ok: true }),
-        headers: {
-          'Set-Cookie': 'tc_admin=test-secret; Path=/; HttpOnly',
-        },
-      });
-    });
-
     await page.locator('input#secret').fill('correct-secret');
     await page.locator('button[type="submit"]').click();
 

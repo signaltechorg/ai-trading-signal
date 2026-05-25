@@ -182,7 +182,7 @@ export async function getTrackedSignals(params: GetTrackedSignalsParams) {
     // Record to PostgreSQL (or file fallback) — fire and forget
     if (recordPayload.length > 0) {
       recordSignalsAsync(recordPayload).catch(() => {});
-      invalidateHistoryCache();
+      invalidateHistoryCache().catch(() => {});
 
       // Downstream fan-out is tradable-only. Blocked signals are recorded
       // for track-record accounting, but users must not be alerted about

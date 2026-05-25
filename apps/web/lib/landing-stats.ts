@@ -111,7 +111,7 @@ export async function getLandingStats(): Promise<LandingStats> {
           sl: null,
           confidence: latestSignal.confidence,
           createdAt: new Date(
-            new Date(latestSignal.createdAt).getTime() + 15 * 60 * 1000
+            new Date(latestSignal.createdAt).getTime() + 30 * 60 * 1000
           ).toISOString(),
         },
       }

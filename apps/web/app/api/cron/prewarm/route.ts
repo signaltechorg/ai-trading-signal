@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const start = Date.now();
 
   // Force-refresh signal history cache
-  invalidateHistoryCache();
+  await invalidateHistoryCache();
   const rows = await getCachedHistory();
 
   // Refresh ATR calibration cache using fresh history
