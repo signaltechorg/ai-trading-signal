@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-26T12:00:09+08:00
+updated: 2026-05-26T17:00:03+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2554,6 +2554,18 @@ next_actions:
       trial). Removed the old `EliteComingSoonCard` placeholder.
       Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
       (98 passed, 3 skipped, 0 failed).
+
+  - id: TC-198
+    title: "Referral code schema + session plumbing — prerequisite for affiliate program (ROADMAP 4.3)"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added migration 043 (referral_code TEXT UNIQUE + index) to users table.
+      Updated lib/db.ts to generate 8-char hex referral codes on all user
+      creation paths (email upsert, OAuth profile, Telegram). Exposed
+      referralCode in /api/auth/session GET response and in use-user-tier
+      ClientSession interface. Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
 
   - "2026-05-25: fixed cron expired fallback consistency — added `target: 'expired'` to the force-expire paths in `apps/web/app/api/cron/signals/route.ts` so cron-resolved outcomes match `resolveFromCandles` output exactly. Backfilled 239 stale unresolved signals by running `resolveRealOutcomes()` from the correct `apps/web/` working directory; outcome file now shows 543/546 fully resolved, 0 old pending. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
   - "2026-05-26: TC-197 — Elite tier pricing page shipped. Elite checkout is now live alongside Pro."
