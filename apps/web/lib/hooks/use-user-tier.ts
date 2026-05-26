@@ -39,6 +39,8 @@ export interface ClientSession {
   avatarUrl: string | null;
   /** Provider used for the row's first-ever sign-in. Never updated thereafter. */
   authProvider: ClientAuthProvider;
+  /** Affiliate referral code for the 20% revenue-share program. */
+  referralCode?: string;
 }
 
 interface SessionResponse {

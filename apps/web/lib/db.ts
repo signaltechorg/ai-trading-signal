@@ -5,6 +5,7 @@
  */
 
 import { query, queryOne, execute } from './db-pool';
+import { randomBytes } from 'node:crypto';
 
 /**
  * E2E test gate — same shape as the one in tier.ts. When all three conditions
@@ -34,6 +35,7 @@ export interface UserRecord {
   displayName: string | null;
   avatarUrl: string | null;
   authProvider: 'google' | 'github' | 'telegram' | null;
+  referralCode: string | null;
 }
 
 export interface SubscriptionRecord {
@@ -77,6 +79,7 @@ interface UserRow {
   name: string | null;
   avatar_url: string | null;
   auth_provider: string | null;
+  referral_code: string | null;
 }
 
 function toUserRecord(row: UserRow): UserRecord {
@@ -95,11 +98,12 @@ function toUserRecord(row: UserRow): UserRecord {
       row.auth_provider === 'telegram'
         ? row.auth_provider
         : null,
+    referralCode: row.referral_code,
   };
 }
 
 const USER_COLUMNS = `id, email, stripe_customer_id, tier, tier_expires_at,
-  telegram_user_id, name, avatar_url, auth_provider`;
+  telegram_user_id, name, avatar_url, auth_provider, referral_code`;
 
 interface SubscriptionRow {
   id: string;
@@ -176,14 +180,18 @@ export async function getUserByEmail(email: string): Promise<UserRecord | null> 
  * Find-or-create a user by email. Used by the passwordless session flow so
  * first-time visitors get a row on their first signin attempt.
  */
+function generateReferralCode(): string {
+  return randomBytes(4).toString('hex').toUpperCase();
+}
+
 export async function upsertUserByEmail(email: string): Promise<UserRecord> {
   const normalized = email.trim().toLowerCase();
   const row = await queryOne<UserRow>(
-    `INSERT INTO users (email)
-     VALUES ($1)
+    `INSERT INTO users (email, referral_code)
+     VALUES ($1, $2)
      ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
      RETURNING ${USER_COLUMNS}`,
-    [normalized],
+    [normalized, generateReferralCode()],
   );
   if (!row) throw new Error('upsertUserByEmail: insert returned no row');
   return toUserRecord(row);
@@ -214,14 +222,14 @@ export interface UserProfileInput {
 export async function upsertUserProfile(input: UserProfileInput): Promise<UserRecord> {
   const normalized = input.email.trim().toLowerCase();
   const row = await queryOne<UserRow>(
-    `INSERT INTO users (email, name, avatar_url, auth_provider)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (email, name, avatar_url, auth_provider, referral_code)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO UPDATE SET
        name       = EXCLUDED.name,
        avatar_url = EXCLUDED.avatar_url,
        updated_at = NOW()
      RETURNING ${USER_COLUMNS}`,
-    [normalized, input.displayName, input.avatarUrl, input.authProvider],
+    [normalized, input.displayName, input.avatarUrl, input.authProvider, generateReferralCode()],
   );
   if (!row) throw new Error('upsertUserProfile: insert returned no row');
   return toUserRecord(row);
@@ -246,15 +254,15 @@ export async function upsertTelegramUser(
 ): Promise<UserRecord> {
   const email = `telegram_${input.telegramUserId.toString()}@tradeclaw.local`;
   const row = await queryOne<UserRow>(
-    `INSERT INTO users (email, name, avatar_url, auth_provider, telegram_user_id)
-     VALUES ($1, $2, $3, 'telegram', $4)
+    `INSERT INTO users (email, name, avatar_url, auth_provider, telegram_user_id, referral_code)
+     VALUES ($1, $2, $3, 'telegram', $4, $5)
      ON CONFLICT (email) DO UPDATE SET
        name             = EXCLUDED.name,
        avatar_url       = EXCLUDED.avatar_url,
        telegram_user_id = EXCLUDED.telegram_user_id,
        updated_at       = NOW()
      RETURNING ${USER_COLUMNS}`,
-    [email, input.displayName, input.avatarUrl, input.telegramUserId.toString()],
+    [email, input.displayName, input.avatarUrl, input.telegramUserId.toString(), generateReferralCode()],
   );
   if (!row) throw new Error('upsertTelegramUser: insert returned no row');
   return toUserRecord(row);
