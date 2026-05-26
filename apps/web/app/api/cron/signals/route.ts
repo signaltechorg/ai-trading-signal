@@ -155,7 +155,7 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
         newOutcomes['4h'] = result.outcome;
         changed = true;
       } else if (age >= FOUR_HOURS_MS * 2) {
-        newOutcomes['4h'] = { price: record.entryPrice, pnlPct: 0, hit: false };
+        newOutcomes['4h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         changed = true;
       }
     }
@@ -171,7 +171,7 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
         newOutcomes['24h'] = result.outcome;
         changed = true;
       } else if (age >= TWENTY_FOUR_HOURS_MS * 2) {
-        newOutcomes['24h'] = { price: record.entryPrice, pnlPct: 0, hit: false };
+        newOutcomes['24h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
         changed = true;
       }
     }

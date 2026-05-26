@@ -62,6 +62,24 @@ export const TIER_DEFINITIONS: TierDefinition[] = [
       'Try Pro for 7 days and cancel anytime',
     ],
   },
+  {
+    id: 'elite',
+    name: 'Elite',
+    tagline: 'Everything in Pro plus priority alerts, direct access, and advanced tooling.',
+    monthlyPriceLabel: '$99',
+    annualPriceLabel: '$990/yr — save $198',
+    kind: 'stripe',
+    monthlyPriceIdEnv: 'NEXT_PUBLIC_STRIPE_ELITE_MONTHLY_PRICE_ID',
+    annualPriceIdEnv: 'NEXT_PUBLIC_STRIPE_ELITE_ANNUAL_PRICE_ID',
+    features: [
+      'Everything in Pro',
+      'Priority alerts — signals reach you before Pro users',
+      'Strategy builder — compose and backtest custom indicator rules',
+      '1-on-1 Telegram group with Zaky for setup and review',
+      'Webhook forwarding — pipe signals to your own broker or bot',
+      'Priority email support with same-day response',
+    ],
+  },
 ];
 
 /**
@@ -80,6 +98,8 @@ export function getClientPriceId(
   const known: Record<string, string | undefined> = {
     NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID,
     NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID,
+    NEXT_PUBLIC_STRIPE_ELITE_MONTHLY_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_ELITE_MONTHLY_PRICE_ID,
+    NEXT_PUBLIC_STRIPE_ELITE_ANNUAL_PRICE_ID: process.env.NEXT_PUBLIC_STRIPE_ELITE_ANNUAL_PRICE_ID,
   };
   return known[envName] ?? null;
 }

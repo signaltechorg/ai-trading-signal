@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-25T16:09:12+08:00
+updated: 2026-05-26T12:00:09+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2511,3 +2511,49 @@ next_actions:
       Updated route tests to assert delayed behavior, masked fields, and correct
       function mocking. Verified with `npm run build` (317 pages) and
       `npm test -- --runInBand` (96 passed, 3 skipped, 0 failed).
+
+  - id: TC-196
+    title: "Fix failing Telegram auth tests — hash computation parity + mock path resolution + empty first_name guard"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Fixed three root causes that broke `npm test`:
+      1. `apps/web/lib/__tests__/telegram-login.test.ts`: `makeHash` included the
+         placeholder `hash: ''` in the HMAC payload, while `verifyTelegramLogin`
+         destructures `hash` away before computing the check string. Updated the
+         test helper to destructure `hash` first so the helper and implementation
+         are bitwise identical.
+      2. `apps/web/app/api/auth/telegram/__tests__/route.test.ts`: jest.mock
+         relative paths were `../../../../lib/` which resolved to
+         `apps/web/app/lib/` (non-existent). Added one more `../` so mocks point
+         to `apps/web/lib/` where the real modules live.
+      3. `apps/web/app/api/auth/telegram/route.ts`: the `!first_name` guard in
+         the missing-fields check rejected empty `first_name` before the
+         `displayName` fallback logic (username → 'Telegram User') could run.
+         Removed `!first_name` from the guard so empty names fall through to the
+         fallback chain, keeping the fallback code alive and matching test
+         expectations.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (98 passed, 3 skipped, 0 failed).
+
+  - id: TC-197
+    title: "Elite tier pricing page — surface $99/mo Elite card with checkout, feature table, and trial CTA"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 3.2 (Elite tier). Added Elite `TierDefinition` to
+      `apps/web/lib/stripe-tiers.ts` with $99/mo ($990/yr) pricing, 6 feature
+      bullets, and Stripe price ID env vars. Built `EliteCard` in
+      `PricingCards.tsx` with purple branding, checkout handler, trial CTA, and
+      401→signin redirect with tier param. Replaced the 2-column grid with a
+      3-column `lg:grid-cols-3` layout (Free | Pro | Elite). Fixed the post-signin
+      resume logic to pass the correct `tier` param instead of hardcoding 'pro'.
+      Updated `apps/web/app/pricing/page.tsx` comparison table to include an
+      Elite column with 11 rows (signal delivery, symbols, Telegram, risk levels,
+      entry signal, track record, history, strategy builder, webhooks, support,
+      trial). Removed the old `EliteComingSoonCard` placeholder.
+      Verified with `npm run build` (317 pages) and `npm test -- --runInBand`
+      (98 passed, 3 skipped, 0 failed).
+
+  - "2026-05-25: fixed cron expired fallback consistency — added `target: 'expired'` to the force-expire paths in `apps/web/app/api/cron/signals/route.ts` so cron-resolved outcomes match `resolveFromCandles` output exactly. Backfilled 239 stale unresolved signals by running `resolveRealOutcomes()` from the correct `apps/web/` working directory; outcome file now shows 543/546 fully resolved, 0 old pending. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
+  - "2026-05-26: TC-197 — Elite tier pricing page shipped. Elite checkout is now live alongside Pro."

@@ -33,7 +33,7 @@ export interface UserRecord {
   telegramUserId: bigint | null;
   displayName: string | null;
   avatarUrl: string | null;
-  authProvider: 'google' | 'github' | null;
+  authProvider: 'google' | 'github' | 'telegram' | null;
 }
 
 export interface SubscriptionRecord {
@@ -90,7 +90,9 @@ function toUserRecord(row: UserRow): UserRecord {
     displayName: row.name,
     avatarUrl: row.avatar_url,
     authProvider:
-      row.auth_provider === 'google' || row.auth_provider === 'github'
+      row.auth_provider === 'google' ||
+      row.auth_provider === 'github' ||
+      row.auth_provider === 'telegram'
         ? row.auth_provider
         : null,
   };
@@ -222,6 +224,39 @@ export async function upsertUserProfile(input: UserProfileInput): Promise<UserRe
     [normalized, input.displayName, input.avatarUrl, input.authProvider],
   );
   if (!row) throw new Error('upsertUserProfile: insert returned no row');
+  return toUserRecord(row);
+}
+
+export interface TelegramUserInput {
+  telegramUserId: bigint;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+/**
+ * Find-or-create a user from Telegram Login Widget data.
+ *
+ * Telegram does not always provide an email, so we use a deterministic
+ * synthetic email (`telegram_<id>@tradeclaw.local`) to satisfy the NOT NULL
+ * UNIQUE constraint. If a user with this telegram_user_id already exists we
+ * update their name/avatar; otherwise we insert a new row.
+ */
+export async function upsertTelegramUser(
+  input: TelegramUserInput,
+): Promise<UserRecord> {
+  const email = `telegram_${input.telegramUserId.toString()}@tradeclaw.local`;
+  const row = await queryOne<UserRow>(
+    `INSERT INTO users (email, name, avatar_url, auth_provider, telegram_user_id)
+     VALUES ($1, $2, $3, 'telegram', $4)
+     ON CONFLICT (email) DO UPDATE SET
+       name             = EXCLUDED.name,
+       avatar_url       = EXCLUDED.avatar_url,
+       telegram_user_id = EXCLUDED.telegram_user_id,
+       updated_at       = NOW()
+     RETURNING ${USER_COLUMNS}`,
+    [email, input.displayName, input.avatarUrl, input.telegramUserId.toString()],
+  );
+  if (!row) throw new Error('upsertTelegramUser: insert returned no row');
   return toUserRecord(row);
 }
 
