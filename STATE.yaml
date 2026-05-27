@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-26T17:00:03+08:00
+updated: 2026-05-27T07:00:09+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1839,6 +1839,17 @@ tasks:
       Telegram broadcast mapper and v1 test helper updated. Verified with `npm run build` and
       `npm test -- --runInBand apps/web/app/api/v1/signals/__tests__/route.test.ts`.
 
+  - id: TC-199
+    title: "Referral program UI — surface referral code on billing page with copy-to-clipboard and share on X"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added a ReferralCard component to apps/web/app/dashboard/billing/page.tsx that renders
+      for all authenticated users with a referral code. Shows the 20% revenue-share pitch,
+      a copyable referral link (https://tradeclaw.win/pricing?ref=CODE), and a Share on X
+      button with pre-filled tweet text. Pure UI addition — no backend changes. Verified
+      with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped).
+
 next_actions:
   - "2026-05-21: published /results backtest validation snapshot with 12-month coverage (1,958 trades, 62.3% weighted win rate, Sharpe 1.53) and linked it from the hero; verified with npm run build."
   - "2026-05-21: /track-record resolution heartbeat now updates continuously and the leaderboard pair-detail modal guards against stale fetch races, so freshness cues stay honest while the page stays open; verified with npm run build."
@@ -2567,5 +2578,33 @@ next_actions:
       ClientSession interface. Verified with `npm run build` (317 pages) and
       `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
 
+  - id: TC-200
+    title: "Fix TypeScript compilation errors in test fixtures after TC-198 referralCode schema change"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      TC-198 added `referralCode` to the `UserRecord` interface but 25 mock
+      UserRecord objects across 8 test files were missing the field, causing
+      `tsc --noEmit` errors. Added `referralCode: null` to all affected test
+      fixtures in alert-channels, auth/google/callback, stripe/checkout,
+      stripe/portal, stripe/webhook, telegram/invite-status,
+      telegram/resend-invite, and lib/db.ts E2E stub. Fixed one assertion
+      in google/callback that incorrectly included `referralCode` in the
+      `upsertUserProfile` call-args expectation (the function generates the
+      code internally). Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
+
   - "2026-05-25: fixed cron expired fallback consistency — added `target: 'expired'` to the force-expire paths in `apps/web/app/api/cron/signals/route.ts` so cron-resolved outcomes match `resolveFromCandles` output exactly. Backfilled 239 stale unresolved signals by running `resolveRealOutcomes()` from the correct `apps/web/` working directory; outcome file now shows 543/546 fully resolved, 0 old pending. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
   - "2026-05-26: TC-197 — Elite tier pricing page shipped. Elite checkout is now live alongside Pro."
+  - "2026-05-27: Added trial-charge reassurance line to /welcome page ('Your card has been charged $0. First charge in 7 days.') for verified Stripe checkouts, addressing the journey-audit #6 webhook-race anxiety gap. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
+  - id: TC-201
+    title: "Fix missing buildTrackRecordUrl helper in TrackRecordClient.tsx"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      TC-177 introduced `handleBandChange` in TrackRecordClient.tsx which called
+      `buildTrackRecordUrl`, but the helper was never defined, causing a TypeScript
+      error and potential runtime crash when switching equity bands on /track-record.
+      Added the missing `buildTrackRecordUrl(pathname, params, band)` function that
+      sets the 'band' query param and returns the updated URL. Verified with
+      `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).

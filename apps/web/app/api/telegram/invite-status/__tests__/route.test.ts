@@ -51,6 +51,7 @@ describe('GET /api/telegram/invite-status', () => {
       displayName: null,
       avatarUrl: null,
       authProvider: null,
+      referralCode: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
 
@@ -78,6 +79,7 @@ describe('GET /api/telegram/invite-status', () => {
       displayName: null,
       avatarUrl: null,
       authProvider: null,
+      referralCode: null,
     });
     mockedGetSub.mockResolvedValueOnce({
       id: 'sub-1',
@@ -127,6 +129,7 @@ describe('GET /api/telegram/invite-status', () => {
       displayName: null,
       avatarUrl: null,
       authProvider: null,
+      referralCode: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
     mockedGetInvite.mockResolvedValueOnce({
@@ -156,6 +159,7 @@ describe('GET /api/telegram/invite-status', () => {
       displayName: null,
       avatarUrl: null,
       authProvider: null,
+      referralCode: null,
     });
     mockedGetSub.mockResolvedValueOnce(null);
     mockedGetInvite.mockResolvedValueOnce(null);

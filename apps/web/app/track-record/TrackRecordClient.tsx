@@ -239,6 +239,12 @@ function parseEquityBand(raw: string | null): EquityBand {
   return 'all';
 }
 
+function buildTrackRecordUrl(pathname: string, params: URLSearchParams, band: EquityBand): string {
+  params.set('band', band);
+  const qs = params.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
+}
+
 interface CategorySnapshot {
   winRate: number;
   expectancyR: number | null;

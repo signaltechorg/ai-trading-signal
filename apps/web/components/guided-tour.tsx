@@ -166,7 +166,6 @@ export function GuidedTour({ open: externalOpen, onClose }: GuidedTourProps) {
       const savedStep = getSavedStep();
       const tourDone = localStorage.getItem(TOUR_DONE_KEY);
       // If tour was completed, restart. If mid-tour, resume.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync with external open prop
       setStep(tourDone ? 0 : savedStep);
       setActive(true);
     }
@@ -239,7 +238,6 @@ export function GuidedTour({ open: externalOpen, onClose }: GuidedTourProps) {
   /* ---- Recalculate on step change ---- */
   useEffect(() => {
     if (!active) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: transition state for step animation
     setTransitioning(true);
     const timer = setTimeout(() => {
       updateSpotlight(step);

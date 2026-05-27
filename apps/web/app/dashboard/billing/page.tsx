@@ -179,6 +179,93 @@ function formatLongDate(iso: string | null): string | null {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Referral card
+// ---------------------------------------------------------------------------
+
+function ReferralCard({ referralCode }: { referralCode: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `https://tradeclaw.win/pricing?ref=${referralCode}`;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback not needed — modern browsers support clipboard API
+    }
+  }
+
+  const shareText = encodeURIComponent(
+    'I use TradeClaw for real-time AI trading signals. Get 7 days free Pro with my link:',
+  );
+  const shareUrl = encodeURIComponent(link);
+
+  return (
+    <div className="mt-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+      <div className="flex items-start gap-3">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          className="mt-0.5 shrink-0 text-emerald-400"
+        >
+          <path
+            d="M12.5 7.5L7.5 12.5M7.5 7.5l5 5"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M15 10a5 5 0 11-10 0 5 5 0 0110 0z"
+            stroke="currentColor"
+            strokeWidth="1.4"
+          />
+        </svg>
+        <div className="w-full">
+          <p className="font-semibold text-white">Refer &amp; Earn</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            Share TradeClaw with traders you know. When they subscribe via your
+            link, you earn <span className="text-emerald-400 font-semibold">20% revenue share</span>.
+          </p>
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={link}
+              className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-emerald-500/40"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-white/5"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+
+          <a
+            href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-all hover:bg-white/10 border border-white/10"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            Share on X
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BillingPage() {
   const { status, session } = useUserSession();
   const userId = session?.userId ?? '';
@@ -470,6 +557,11 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+
+        {/* Referral program */}
+        {session?.referralCode && (
+          <ReferralCard referralCode={session.referralCode} />
+        )}
 
         {/* Annual plan callout — only relevant on the Pro/free tiers */}
         {currentTier !== 'elite' && (

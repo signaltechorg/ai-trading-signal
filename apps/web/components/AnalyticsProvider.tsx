@@ -14,7 +14,6 @@ function initPostHog() {
     api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
     capture_pageview: false, // we handle this manually in PostHogPageView
     loaded: () => {
-      // eslint-disable-next-line no-console
       console.log('[analytics] PostHog initialized');
     },
   });

@@ -159,6 +159,7 @@ export async function getUserById(userId: string): Promise<UserRecord | null> {
       displayName: 'E2E Pro User',
       avatarUrl: null,
       authProvider: null,
+      referralCode: null,
     };
   }
   const row = await queryOne<UserRow>(

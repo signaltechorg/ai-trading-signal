@@ -47,6 +47,7 @@ function fakeUser(overrides: Partial<{ telegramUserId: bigint | null }> = {}) {
     displayName: null,
     avatarUrl: null,
     authProvider: null,
+    referralCode: null,
     ...overrides,
   };
 }

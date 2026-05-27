@@ -67,6 +67,11 @@ export default async function WelcomePage({ searchParams }: Props) {
             <p className="mt-3 text-[var(--text-secondary)]">
               Two quick steps and your Telegram is live.
             </p>
+            {verified && (
+              <p className="mt-2 text-sm text-emerald-400">
+                Your card has been charged $0. First charge in 7 days.
+              </p>
+            )}
           </div>
           <div className="mt-10">
             <WelcomeClient userId={session.userId} />
