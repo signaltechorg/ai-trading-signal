@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-27T21:00:05+08:00
+updated: 2026-05-28T11:00:09+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2654,4 +2654,17 @@ next_actions:
       `PremiumChannelCard` component that fetches the invite and opens it in a new tab,
       rendered only for Pro/Elite users with tier-colored branding (emerald for Pro,
       amber for Elite). Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-205
+    title: "Compliance pages — Terms of Service and Privacy Policy"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 5.7 (Compliance Prep). Created `/terms` and `/privacy` pages
+      with comprehensive legal text covering not-financial-advice disclaimer, risk
+      acknowledgment, subscription terms, data collection, third-party services (Stripe,
+      Telegram), cookies/localStorage, data retention, self-hosting sovereignty, and user
+      rights. Added footer links (Terms | Privacy) alongside the existing risk disclaimer.
+      Added both routes to sitemap.ts. Verified with `npm run build` (319 pages) and
       `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).

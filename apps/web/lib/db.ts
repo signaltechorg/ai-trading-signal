@@ -879,3 +879,11 @@ export async function getReferralRevenueForReferrer(referrerId: string): Promise
   return { totalShareCents, pendingShareCents, paidOutShareCents, records };
 }
 
+export async function getReferredUsersCount(referrerId: string): Promise<number> {
+  const rows = await query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM users WHERE referred_by = $1`,
+    [referrerId],
+  );
+  return parseInt(rows[0]?.count ?? '0', 10);
+}
+

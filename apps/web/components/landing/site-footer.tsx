@@ -17,6 +17,7 @@ const FOOTER_LINKS: { title: string; links: FooterLink[] }[] = [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Leaderboard", href: "/leaderboard" },
       { label: "Pricing", href: "/pricing" },
+      { label: "Referrals", href: "/referrals" },
       { label: "Embed Widget", href: "/embed" },
     ],
   },

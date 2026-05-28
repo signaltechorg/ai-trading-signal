@@ -92,5 +92,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/sms`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/api-usage`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/supabase`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/referrals`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/terms`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
+    { url: `${base}/privacy`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
   ];
 }
