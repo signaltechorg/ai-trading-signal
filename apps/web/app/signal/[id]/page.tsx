@@ -164,7 +164,13 @@ function buildHistoricalSignal(
     indicators: liveIndicators ?? STUB_INDICATORS,
     timeframe: record.timeframe as TradingSignal['timeframe'],
     timestamp: new Date(record.timestamp).toISOString(),
-    status: deriveHistoricalOutcomeStatus(record.outcomes['24h']),
+    // OutcomeStatus has a wider 'unknown' state that SignalStatus doesn't;
+    // collapse 'unknown' → 'active' so historical rows display as live-ish
+    // while we wait for the 4h/24h cron to resolve them.
+    status: (() => {
+      const s = deriveHistoricalOutcomeStatus(record.outcomes['24h']);
+      return s === 'unknown' ? 'active' : s;
+    })(),
     source: 'real',
     dataQuality: 'real',
     entryAtr: record.entryAtr,
@@ -402,7 +408,12 @@ export default async function SignalPage(
           {/* Outcome banner — only on historical rows. Surfaces what the
               4h/24h cron has resolved, so the page no longer pretends a
               week-old signal is "live". */}
-          {isHistorical && (
+          {isHistorical && (() => {
+            // Server component renders once per request — Date.now() here is
+            // intentional and the value is stable across all .map iterations.
+            // eslint-disable-next-line react-hooks/purity
+            const now = Date.now();
+            return (
             <div className="mb-6 grid grid-cols-2 gap-2">
               {[
                 { label: '4h', outcome: outcome4h },
@@ -438,7 +449,8 @@ export default async function SignalPage(
                 );
               })}
             </div>
-          )}
+            );
+          })()}
 
           {/* Price levels */}
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-8">
@@ -590,6 +602,7 @@ export default async function SignalPage(
             direction={signal.direction}
             timestamp={signal.timestamp}
             pip={SYMBOLS.find(s => s.symbol === signal.symbol)?.pip ?? 0.01}
+            symbol={signal.symbol}
           />
         ) : (
           <div className="glass-card rounded-2xl p-8 text-center border border-emerald-500/20 bg-emerald-500/5">
