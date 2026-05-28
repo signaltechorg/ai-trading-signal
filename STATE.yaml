@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-27T08:00:09+08:00
+updated: 2026-05-27T21:00:05+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2608,3 +2608,50 @@ next_actions:
       Added the missing `buildTrackRecordUrl(pathname, params, band)` function that
       sets the 'band' query param and returns the updated URL. Verified with
       `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
+
+  - id: TC-202
+    title: "Outcome tracker automation — cron script for self-hosted signal resolution"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 1.1/1.4 automation layer. Created scripts/resolve-signal-outcomes.sh
+      (bash, hourly-cron ready, logs to scripts/signal-errors.log) that runs
+      `resolveRealOutcomes()` from the Next.js signal-history module via tsx.
+      Added `npm run resolve:outcomes` convenience command to package.json.
+      Manually backlogged 556 pending records in apps/web/data/signal-history.json
+      (now 550 fully resolved, 3 partial, 3 recent pending). Self-hosters can now
+      add `0 * * * * /path/to/scripts/resolve-signal-outcomes.sh` to cron for
+      automatic TP/SL/expired resolution without Vercel cron. Verified with
+      `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
+
+  - id: TC-203
+    title: "Referral revenue tracking — record 20% revenue share on successful Stripe payments"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 4.3 backend layer. Added migration 044 (referral_revenue table
+      with referrer_id, referred_id, stripe_invoice_id, amount_cents, share_cents, status).
+      Exposed `referredBy` on `UserRecord`/`UserRow` in lib/db.ts and updated all test
+      fixtures across 8 test suites. Added `createReferralRevenue` and
+      `getReferralRevenueForReferrer` DB helpers. Updated Stripe webhook
+      `handlePaymentSucceeded` to look up the paying user, check `referredBy`, and record
+      20% of `invoice.amount_paid` as a pending revenue-share entry (skipped when
+      amount_paid is 0 or user was not referred). Added 2 focused tests in the webhook
+      suite (referred user records revenue, non-referred user skips). Verified with
+      `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
+
+  - id: TC-204
+    title: "Telegram Premium Channel join link — Pro/Elite subscribers can join private channel from billing page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 3.5 (Telegram Premium Channel). Added `TELEGRAM_PRO_CHANNEL_INVITE`
+      and `TELEGRAM_ELITE_CHANNEL_INVITE` to `.env.example`. Created
+      `GET /api/telegram/channel-invite` route that returns the invite link gated by
+      user tier (401 unauth, 403 free, 200 pro/elite with invite). Elite falls back to
+      Pro invite when Elite-specific link is not configured. Added 7 Jest tests covering
+      all tier paths + missing-env fallback + 503 behavior. Updated billing page with
+      `PremiumChannelCard` component that fetches the invite and opens it in a new tab,
+      rendered only for Pro/Elite users with tier-colored branding (emerald for Pro,
+      amber for Elite). Verified with `npm run build` (317 pages) and
+      `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).

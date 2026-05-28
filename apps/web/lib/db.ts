@@ -36,6 +36,7 @@ export interface UserRecord {
   avatarUrl: string | null;
   authProvider: 'google' | 'github' | 'telegram' | null;
   referralCode: string | null;
+  referredBy: string | null;
 }
 
 export interface SubscriptionRecord {
@@ -80,6 +81,7 @@ interface UserRow {
   avatar_url: string | null;
   auth_provider: string | null;
   referral_code: string | null;
+  referred_by: string | null;
 }
 
 function toUserRecord(row: UserRow): UserRecord {
@@ -99,11 +101,12 @@ function toUserRecord(row: UserRow): UserRecord {
         ? row.auth_provider
         : null,
     referralCode: row.referral_code,
+    referredBy: row.referred_by,
   };
 }
 
 const USER_COLUMNS = `id, email, stripe_customer_id, tier, tier_expires_at,
-  telegram_user_id, name, avatar_url, auth_provider, referral_code`;
+  telegram_user_id, name, avatar_url, auth_provider, referral_code, referred_by`;
 
 interface SubscriptionRow {
   id: string;
@@ -160,6 +163,7 @@ export async function getUserById(userId: string): Promise<UserRecord | null> {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     };
   }
   const row = await queryOne<UserRow>(
@@ -806,5 +810,72 @@ export async function setUserReferredBy(userId: string, referrerId: string): Pro
     `UPDATE users SET referred_by = $1 WHERE id = $2 AND referred_by IS NULL`,
     [referrerId, userId],
   );
+}
+
+export interface ReferralRevenueInput {
+  referrerId: string;
+  referredId: string;
+  stripeInvoiceId: string;
+  amountCents: number;
+  shareCents: number;
+}
+
+export async function createReferralRevenue(input: ReferralRevenueInput): Promise<void> {
+  await execute(
+    `INSERT INTO referral_revenue (referrer_id, referred_id, stripe_invoice_id, amount_cents, share_cents, status)
+     VALUES ($1, $2, $3, $4, $5, 'pending')
+     ON CONFLICT (referred_id, stripe_invoice_id) DO NOTHING`,
+    [input.referrerId, input.referredId, input.stripeInvoiceId, input.amountCents, input.shareCents],
+  );
+}
+
+export interface ReferralRevenueRecord {
+  id: string;
+  referrerId: string;
+  referredId: string;
+  stripeInvoiceId: string;
+  amountCents: number;
+  shareCents: number;
+  status: 'pending' | 'paid_out' | 'cancelled';
+  createdAt: Date;
+}
+
+export async function getReferralRevenueForReferrer(referrerId: string): Promise<{
+  totalShareCents: number;
+  pendingShareCents: number;
+  paidOutShareCents: number;
+  records: ReferralRevenueRecord[];
+}> {
+  const rows = await query<{
+    id: string;
+    referrer_id: string;
+    referred_id: string;
+    stripe_invoice_id: string;
+    amount_cents: number;
+    share_cents: number;
+    status: string;
+    created_at: string;
+  }>(
+    `SELECT id, referrer_id, referred_id, stripe_invoice_id, amount_cents, share_cents, status, created_at
+     FROM referral_revenue WHERE referrer_id = $1 ORDER BY created_at DESC`,
+    [referrerId],
+  );
+
+  const records: ReferralRevenueRecord[] = rows.map((r) => ({
+    id: r.id,
+    referrerId: r.referrer_id,
+    referredId: r.referred_id,
+    stripeInvoiceId: r.stripe_invoice_id,
+    amountCents: r.amount_cents,
+    shareCents: r.share_cents,
+    status: r.status as ReferralRevenueRecord['status'],
+    createdAt: new Date(r.created_at),
+  }));
+
+  const totalShareCents = records.reduce((s, r) => s + r.shareCents, 0);
+  const pendingShareCents = records.filter((r) => r.status === 'pending').reduce((s, r) => s + r.shareCents, 0);
+  const paidOutShareCents = records.filter((r) => r.status === 'paid_out').reduce((s, r) => s + r.shareCents, 0);
+
+  return { totalShareCents, pendingShareCents, paidOutShareCents, records };
 }
 

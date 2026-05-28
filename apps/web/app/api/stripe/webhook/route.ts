@@ -14,6 +14,7 @@ import {
   releaseStripeEvent,
   createReferralReward,
   setUserReferredBy,
+  createReferralRevenue,
 } from '../../../../lib/db';
 import { sendInviteWithRetry, revokeAccess } from '../../../../lib/telegram';
 import { sendPaymentFailedEmail } from '../../../../lib/transactional-email';
@@ -361,6 +362,33 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
   // breaks the past_due grace window math in tier.ts:280 on the next renewal.
   const periodEnd = invoicePeriodEnd(invoice) ?? undefined;
   await updateSubscriptionStatus(subscriptionId, 'active', periodEnd);
+
+  // Track referral revenue (ROADMAP 4.3). If this paying user was referred,
+  // record 20% of the invoice amount as a pending revenue-share payout.
+  const amountPaid = invoice.amount_paid ?? 0;
+  if (amountPaid > 0) {
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : null;
+    if (customerId) {
+      try {
+        const user = await getUserByStripeCustomerId(customerId);
+        if (user?.referredBy) {
+          const shareCents = Math.floor(amountPaid * 0.2);
+          if (shareCents > 0) {
+            await createReferralRevenue({
+              referrerId: user.referredBy,
+              referredId: user.id,
+              stripeInvoiceId: invoice.id,
+              amountCents: amountPaid,
+              shareCents,
+            });
+          }
+        }
+      } catch (err) {
+        // Non-fatal: revenue tracking is a side-effect; don't fail the webhook
+        console.error('[stripe-webhook] referral revenue tracking failed:', err);
+      }
+    }
+  }
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {

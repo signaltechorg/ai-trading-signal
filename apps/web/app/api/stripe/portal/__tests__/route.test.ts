@@ -60,6 +60,7 @@ describe('POST /api/stripe/portal', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const res = await POST(makeRequest());
@@ -80,6 +81,7 @@ describe('POST /api/stripe/portal', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const portalCreate = jest.fn().mockResolvedValue({
@@ -115,6 +117,7 @@ describe('POST /api/stripe/portal', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const portalCreate = jest.fn().mockRejectedValue(new Error('Stripe down'));

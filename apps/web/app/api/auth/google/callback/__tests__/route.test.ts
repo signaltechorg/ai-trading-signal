@@ -113,6 +113,7 @@ describe('GET /api/auth/google/callback', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const fetchMock = setFetch([
@@ -192,6 +193,7 @@ describe('GET /api/auth/google/callback', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
@@ -234,6 +236,7 @@ describe('GET /api/auth/google/callback', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
@@ -371,6 +374,7 @@ describe('GET /api/auth/google/callback', () => {
       avatarUrl: null,
       authProvider: 'google',
       referralCode: null,
+      referredBy: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },
@@ -417,6 +421,7 @@ describe('GET /api/auth/google/callback', () => {
       avatarUrl: null,
       authProvider: 'google',
       referralCode: null,
+      referredBy: null,
     });
     setFetch([
       { ok: true, json: async () => ({ access_token: 'gat_xyz' }) },

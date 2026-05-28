@@ -130,6 +130,7 @@ describe('POST /api/stripe/checkout', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const sessionsCreate = jest.fn().mockResolvedValue({
@@ -178,6 +179,7 @@ describe('POST /api/stripe/checkout', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const sessionsCreate = jest.fn().mockResolvedValue({
@@ -213,6 +215,7 @@ describe('POST /api/stripe/checkout', () => {
       avatarUrl: null,
       authProvider: null,
       referralCode: null,
+      referredBy: null,
     });
 
     const sessionsCreate = jest.fn().mockRejectedValue(new Error('Stripe down'));

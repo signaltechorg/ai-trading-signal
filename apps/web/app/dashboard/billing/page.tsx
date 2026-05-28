@@ -180,6 +180,94 @@ function formatLongDate(iso: string | null): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Premium Telegram Channel card
+// ---------------------------------------------------------------------------
+
+function PremiumChannelCard({ tier }: { tier: Exclude<Tier, 'free'> }) {
+  const [invite, setInvite] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function fetchInvite() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/telegram/channel-invite');
+      const data = (await res.json()) as { invite?: string; error?: string };
+      if (!res.ok || !data.invite) {
+        setError(data.error ?? 'Could not load invite link.');
+        return;
+      }
+      setInvite(data.invite);
+      window.open(data.invite, '_blank', 'noopener,noreferrer');
+    } catch {
+      setError('Could not load invite link.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const label = tier === 'elite' ? 'Elite' : 'Pro';
+  const color = tier === 'elite' ? 'text-amber-400' : 'text-emerald-400';
+
+  return (
+    <div className="mt-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+      <div className="flex items-start gap-3">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          className={`mt-0.5 shrink-0 ${color}`}
+        >
+          <path
+            d="M17.5 3L2.5 8.5l5 2 2 5 8-12.5z"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M7.5 10.5l2.5 2.5"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="w-full">
+          <p className="font-semibold text-white">Join the {label} Telegram channel</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            Get real-time high-confidence signals, priority alerts, and strategy
+            commentary posted directly to the private {label} channel.
+          </p>
+
+          {error && (
+            <p className="mt-2 text-xs text-red-400">{error}</p>
+          )}
+
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={fetchInvite}
+              disabled={loading}
+              className={`inline-block rounded-lg px-4 py-2 text-sm font-semibold transition-all border disabled:opacity-50 ${
+                tier === 'elite'
+                  ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30'
+              }`}
+            >
+              {loading ? 'Fetching link…' : `Open ${label} channel`}
+            </button>
+            {invite && (
+              <span className="text-xs text-zinc-500">Link loaded — check your new tab.</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Referral card
 // ---------------------------------------------------------------------------
 
@@ -557,6 +645,11 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+
+        {/* Premium Telegram Channel — Pro / Elite only */}
+        {currentTier !== 'free' && (
+          <PremiumChannelCard tier={currentTier} />
+        )}
 
         {/* Referral program */}
         {session?.referralCode && (
