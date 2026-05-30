@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-30T16:00:02+08:00
+updated: 2026-05-30T17:00:04+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2668,3 +2668,16 @@ next_actions:
       rights. Added footer links (Terms | Privacy) alongside the existing risk disclaimer.
       Added both routes to sitemap.ts. Verified with `npm run build` (319 pages) and
       `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-207
+    title: "Fix UpgradeModal a11y + conversion copy — dialog semantics, Escape, focus trap, contrast, em-dash artifact"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Addresses UI/UX audit P1 (dialog semantics) and P3 (em-dash artifact).
+      Added role=dialog, aria-modal, aria-labelledby to UpgradeModal. Added
+      Escape key handler and Tab focus trap. Auto-focuses close button on open.
+      Fixed literal '--' CTA artifact to '·'. Raised close/dismiss button colors
+      from text-zinc-600 to text-zinc-400 for WCAG-AA contrast on #0a0a0a.
+      Verified with `npm run build` and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed).
