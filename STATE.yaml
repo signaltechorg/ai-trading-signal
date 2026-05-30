@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-30T17:00:04+08:00
+updated: 2026-05-31T05:06:31+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2669,6 +2669,20 @@ next_actions:
       Added both routes to sitemap.ts. Verified with `npm run build` (319 pages) and
       `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
 
+  - id: TC-206
+    title: "Elite tier billing fix — remove lingering FREE_PLAN/ELITE_PLAN refs + sync symbol counts"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Replaced hardcoded FREE_PLAN and ELITE_PLAN constants in
+      apps/web/app/dashboard/billing/page.tsx with a dynamic getPlanInfo()
+      helper sourced from TIER_DEFINITIONS. This ensures the billing page
+      displays consistent pricing/tagline/copy for Free, Pro, and Elite tiers
+      without duplicating tier metadata. Synced symbol-count language in the
+      Free plan description to match the live 6-symbol limit.
+      Verified with `npm run build` and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed).
+
   - id: TC-207
     title: "Fix UpgradeModal a11y + conversion copy — dialog semantics, Escape, focus trap, contrast, em-dash artifact"
     status: done
@@ -2681,3 +2695,15 @@ next_actions:
       from text-zinc-600 to text-zinc-400 for WCAG-AA contrast on #0a0a0a.
       Verified with `npm run build` and `npm test -- --runInBand`
       (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-208
+    title: "Referral dashboard discoverability — link /referrals from navbar and billing page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 4.3 discoverability layer. Added /referrals to the
+      desktop navbar Community dropdown (Users icon) and to the mobile nav.
+      Added a 'View Dashboard →' link inside the billing page ReferralCard
+      so users can jump from their code copy-box to the full affiliate stats
+      page. Verified with `npm run build` (319 pages) and
+      `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
