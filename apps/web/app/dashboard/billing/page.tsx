@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useUserSession } from '../../../lib/hooks/use-user-tier';
+import { TIER_DEFINITIONS } from '../../../lib/stripe-tiers';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,34 +19,31 @@ interface PlanInfo {
   color: string;
 }
 
-const FREE_PLAN: PlanInfo = {
-  name: 'Free',
-  price: '$0/mo',
-  description: 'Delayed signals, 6 symbols across asset classes, public Telegram channel.',
-  color: 'text-zinc-400',
-};
-
-const ELITE_PLAN: PlanInfo = {
-  name: 'Elite',
-  price: 'Contact us',
-  description: 'Everything in Pro plus the private Elite Telegram group and direct support.',
-  color: 'text-amber-400',
-};
-
-function proPlan(interval: Interval): PlanInfo {
-  if (interval === 'annual') {
+function getPlanInfo(tier: Tier, interval: Interval = 'monthly'): PlanInfo {
+  const def = TIER_DEFINITIONS.find((d) => d.id === tier);
+  if (tier === 'free') {
     return {
-      name: 'Pro (Annual)',
-      price: '$290/yr',
-      description: 'Instant (no-delay) signal delivery, all symbols, private Pro Telegram group. Save $58 vs monthly.',
-      color: 'text-emerald-400',
+      name: 'Free',
+      price: '$0/mo',
+      description:
+        def?.tagline ?? 'Delayed signals, 6 symbols across asset classes, public Telegram channel.',
+      color: 'text-zinc-400',
     };
   }
+  const priceDisplay =
+    tier === 'pro'
+      ? interval === 'annual'
+        ? '$290/yr'
+        : '$29/mo'
+      : interval === 'annual'
+        ? '$990/yr'
+        : '$99/mo';
   return {
-    name: 'Pro',
-    price: '$29/mo',
-    description: 'Instant (no-delay) signal delivery, all symbols, private Pro Telegram group.',
-    color: 'text-emerald-400',
+    name: def?.name ?? tier,
+    price: priceDisplay,
+    description:
+      def?.tagline ?? '',
+    color: tier === 'pro' ? 'text-emerald-400' : 'text-amber-400',
   };
 }
 
@@ -101,7 +99,7 @@ interface UpgradeCardProps {
 
 function UpgradeCard({ tier, interval, currentTier, onError }: UpgradeCardProps) {
   const [loading, setLoading] = useState(false);
-  const plan = proPlan(interval);
+  const plan = getPlanInfo('pro', interval);
   const isCurrentPlan = currentTier === tier;
   const isDowngrade = false;
 
@@ -372,12 +370,7 @@ export default function BillingPage() {
   const periodEndLabel = formatLongDate(session?.currentPeriodEnd ?? null);
   const [billingInterval, setBillingInterval] = useState<Interval>('monthly');
 
-  const plan =
-    currentTier === 'free'
-      ? FREE_PLAN
-      : currentTier === 'elite'
-        ? ELITE_PLAN
-        : proPlan('monthly');
+  const plan = getPlanInfo(currentTier, billingInterval);
   const [error, setError] = useState<string | null>(null);
   const isLoading = status === 'loading';
   const isDemo = status === 'anonymous';
