@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-31T14:00:28+08:00
+updated: 2026-06-01T03:00:10+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2724,3 +2724,18 @@ next_actions:
       multiple conversion CTAs (dashboard, pricing, track record). Added to
       sitemap.ts with hourly priority 0.9. Verified with `npm run build`
       (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-210
+    title: "Telegram premium channel discoverability — add Premium Signal Channel card to /telegram with tier-aware join flow"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 3.5 discoverability layer. Added a "Premium Signal
+      Channel" card to apps/web/app/telegram/page.tsx that fetches
+      /api/telegram/channel-invite and renders tier-aware UI:
+      - Unauthenticated: sign-in CTA
+      - Free tier: upgrade pitch with Pro benefits list + pricing link
+      - Pro/Elite: join link with tier badge + support fallback
+      - Error states: graceful error message
+      Verified with `npm run build` (320 pages) and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed).
