@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
     { url: `${base}/dashboard`, lastModified: new Date(), changeFrequency: "hourly", priority: 0.9 },
+    { url: `${base}/free-signals`, lastModified: new Date(), changeFrequency: "hourly", priority: 0.9 },
     { url: `${base}/copilot`, lastModified: new Date(), changeFrequency: "daily", priority: 0.85 },
     { url: `${base}/premium-signals`, lastModified: new Date(), changeFrequency: "hourly", priority: 0.8 },
     { url: `${base}/leaderboard`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },

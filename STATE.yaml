@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-31T05:06:31+08:00
+updated: 2026-05-31T12:00:06+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2594,6 +2594,7 @@ next_actions:
       code internally). Verified with `npm run build` (317 pages) and
       `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed).
 
+  - "2026-05-31: fixed scripts/resolve-signal-outcomes.sh cwd bug. The cron script previously cd'd to the project root, so resolveRealOutcomes() read/wrote root/data/signal-history.json (which does not exist) instead of apps/web/data/signal-history.json. Updated the script to cd into apps/web/ before invoking the resolver, matching how Next.js workspace scripts set process.cwd(). Verified by running the script directly: resolved 2 additional pending signals (562/564 now have 24h outcomes). Verified with npm run build (320 pages) and npm test -- --runInBand (99 passed, 3 skipped)."
   - "2026-05-25: fixed cron expired fallback consistency — added `target: 'expired'` to the force-expire paths in `apps/web/app/api/cron/signals/route.ts` so cron-resolved outcomes match `resolveFromCandles` output exactly. Backfilled 239 stale unresolved signals by running `resolveRealOutcomes()` from the correct `apps/web/` working directory; outcome file now shows 543/546 fully resolved, 0 old pending. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
   - "2026-05-26: TC-197 — Elite tier pricing page shipped. Elite checkout is now live alongside Pro."
   - "2026-05-27: Added trial-charge reassurance line to /welcome page ('Your card has been charged $0. First charge in 7 days.') for verified Stripe checkouts, addressing the journey-audit #6 webhook-race anxiety gap. Verified with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped, 0 failed)."
@@ -2707,3 +2708,19 @@ next_actions:
       so users can jump from their code copy-box to the full affiliate stats
       page. Verified with `npm run build` (319 pages) and
       `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-209
+    title: "SEO landing page — /free-signals targets 'free trading signals' keyword with live signal cards, comparison table, FAQ"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 4.9 (SEO Content). Built /free-signals as a dedicated
+      SEO landing page with H1 targeting 'free trading signals', meta keywords
+      for forex/crypto/XAUUSD variants, JSON-LD structured data, canonical URL,
+      and OG tags. Server-side fetches live free-tier signals via
+      getTrackedSignals + applyTierSignalVisibility so the initial HTML contains
+      real signal data for crawlers. Client component renders live signal cards
+      with stats bar, Free vs Pro comparison table, 5-item FAQ accordion, and
+      multiple conversion CTAs (dashboard, pricing, track record). Added to
+      sitemap.ts with hourly priority 0.9. Verified with `npm run build`
+      (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
