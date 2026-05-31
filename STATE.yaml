@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-05-31T12:00:06+08:00
+updated: 2026-05-31T14:00:28+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2427,7 +2427,7 @@ next_actions:
       Implements ROADMAP 1.6: upgraded MTF confluence from 3 to 4 timeframes.
       Swing set changed from H1/H4/D1 to M15/H1/H4/D1.
       Scalp set changed from M5/M15/H1 to M5/M15/H1/H4.
-      Confluence bonus logic updated: 4/4 aligned → +15, 3/4 → +10, 2/4 → +5,
+      Confluence bonus logic updated: 2026-05-31T14:00:28+08:00
       2/2 deadlock → -20 conflicted, mixed directions → -20 conflicted.
       Updated API routes (`/api/signals/multi-tf`, `/api/mtf`), alert threshold
       (`multi-tf-alert.ts`), OpenAPI docs, and `/multi-timeframe` UI labels.
