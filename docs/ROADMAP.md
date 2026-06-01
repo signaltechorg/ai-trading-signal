@@ -5,24 +5,31 @@
 
 ---
 
-## Current State (April 2026)
+## Current State (June 2026)
 
 **What exists:**
 - 30+ symbol coverage (crypto, forex, metals) with 7 real TA indicators
-- 190+ page Next.js dashboard (signals, backtest, paper trading, leaderboard)
+- 320+ page Next.js dashboard (signals, backtest, paper trading, leaderboard, operator console)
 - Docker Compose self-host + Vercel live demo at tradeclaw.win
-- Telegram + Discord bot infrastructure
-- Stripe billing scaffolding (Pro/Elite tiers)
-- WebSocket live price streaming
-- SSE price endpoint, OG images, badges, API docs
+- Telegram + Discord bot infrastructure + premium channel gating
+- Stripe billing with Pro ($29/mo) + Elite ($99/mo) checkout + 7-day trial
+- WebSocket + SSE live price streaming
+- OG images, badges, API docs, RSS/Atom feeds
+- Automated outcome tracker — TP/SL/expired resolution runs hourly (564/573 signals resolved)
+- Rolling 7d/30d/90d win-rate snapshots on /track-record
+- TradingView webhook receiver mirroring premium signals into history
+- Free-tier 30-min delayed signal preview + full paywall gating
+- API key tier rate limits (Free 10/hr, Pro 100/hr, Elite unlimited)
+- Referral revenue tracking (20% share on Stripe payments)
+- Compliance pages (Terms, Privacy)
 
 **What's broken / missing:**
-- Signals always show "pending" — no outcome tracker (TP/SL hit detection)
-- No win rate tracking = no proof of signal quality
-- No premium tier actually gated behind paywall
-- No TradingView webhook integration (Zaky's personal strategies can't feed in)
-- No user accounts / portfolios for free users
-- No social proof (no public track record page)
+- Win rate is ~40% (positive expectancy +0.10R) but below the original 60% target — engine quality still improving
+- No TradingView profile integration to publish track record externally
+- No mobile app (Expo) for push notifications
+- No multi-provider signal marketplace (other traders publishing signals)
+- No live copy-trading (auto-execute on connected broker accounts)
+- Free users lack persistent server-side portfolios (localStorage only)
 
 ---
 
@@ -209,10 +216,10 @@ Step 4: PLATFORM IT (2027)
 
 ## Immediate Next Actions (This Week)
 
-1. **Fix the "always pending" bug** — implement outcome tracker (signal close detection)
-2. **Add win rate calculation** — rolling 7d/30d/90d metrics
-3. **Build `/track-record` page** — public performance dashboard
-4. **Set up TradingView webhook endpoint** — `POST /api/webhooks/tradingview`
+1. **Signal engine quality pass** — tighten entry filters to push win rate from ~40% toward 50%+
+2. **TradingView profile integration** — publish verified track record to TV profile
+3. **Mobile app MVP (Expo)** — push notifications for premium signals
+4. **Multi-provider signal marketplace scaffold** — allow other traders to publish signals
 
 ---
 

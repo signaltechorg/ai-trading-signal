@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-01T03:00:10+08:00
+updated: 2026-06-01T17:00:00+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1877,6 +1877,7 @@ next_actions:
   - "2026-05-25: fixed Stripe checkout test assertion in `apps/web/app/api/stripe/checkout/__tests__/route.test.ts` to expect `referrerId: ''` in `params.metadata`, matching the production route behavior. Verified with `npm test -- apps/web/app/api/stripe/checkout/__tests__/route.test.ts --runInBand` (10 passed). Full suite now 95 passed, 1 failed (Vitest file picked up by Jest), 3 skipped."
   - "2026-05-25: TC-192 — TradingView webhook signals now mirror into signal_history so the shared outcome resolver tracks premium-signal performance automatically. Prerequisite for ROADMAP 2.7 Strategy Performance Comparison. Verified with `npm run build` and `npm test -- --runInBand`."
   - "2026-05-25: excluded `apps/web/lib/__tests__/signal-history-cache.test.ts` from Jest via `testPathIgnorePatterns` in `jest.config.js`. The file was converted to Vitest syntax but Jest was still scanning it, causing 1 suite failure. Full suite now back to 95 passed, 3 skipped, 0 failed. Build passes (317 pages)."
+  - "2026-06-01: fixed 4 pre-existing TypeScript compilation errors in apps/web: (1) /api/referrals/route.ts now looks up user by ID to get referralCode instead of reading from session token; (2) added missing `referredBy: null` to 2 stripe webhook test fixtures; (3) fixed `useRef()` missing initial value in signin/page.tsx; (4) fixed possible-undefined `params.minConfidence` access in signal-worker.ts. `npx tsc --noEmit` now passes cleanly. Verified with `npm run build` (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed)."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──
@@ -2737,5 +2738,49 @@ next_actions:
       - Free tier: upgrade pitch with Pro benefits list + pricing link
       - Pro/Elite: join link with tier badge + support fallback
       - Error states: graceful error message
+      Verified with `npm run build` (320 pages) and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-211
+    title: "Publish R-multiples blog post — reframe signal quality around expectancy instead of win rate"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Published `apps/web/content/blog/r-multiples-explained.mdx` (was draft-2026-05-11.mdx).
+      The post explains why positive expectancy beats high win rate, how TradeClaw
+      computes R-multiples/expectancy/break-even win rate, and why outlier smoothing
+      matters for equity curves. Targets SEO keywords: "R-multiple trading",
+      "trade expectancy formula", "R-multiple vs win rate". This reframes the
+      current live track record (~40% WR, +1.41% avg win, -0.81% avg loss,
+      1.74 W/L ratio, +0.10R expectancy) as a positive-expectancy system rather
+      than a "low win rate" failure. Verified with `npm run build` (320 pages)
+      and `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-212
+    title: "Reconcile DEFAULT_ATR_MULTIPLIER — sizing.ts now imports from @tradeclaw/signals"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Fixes docs/plans/2026-05-05-atr-stops-issue-53.md Gap 1. Removed the
+      local `DEFAULT_ATR_MULTIPLIER = 1.5` from `apps/web/lib/execution/sizing.ts`
+      and replaced it with an import from `@tradeclaw/signals`
+      (`DEFAULT_ATR_MULTIPLIER = 2.5`). This eliminates the ~1.67× dollar-risk
+      mismatch in paper-trade position sizing where signals were emitted with a
+      2.5× ATR stop but sized as if the stop were 1.5× ATR. Verified with
+      `npm run build` (320 pages) and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-213
+    title: "Update ROADMAP.md to reflect June 2026 reality — stale priorities corrected"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Updated docs/ROADMAP.md from stale April 2026 snapshot to current June 2026 state.
+      Marked Phase 1 (Signal Credibility), Phase 2 (TV Webhook Bridge), and most of
+      Phase 3 (Monetization) as shipped. Corrected the "What's broken / missing" list
+      to reflect live outcome tracking (564/573 resolved), rolling win rates, premium
+      paywall gating, and referral revenue tracking. New immediate next actions:
+      signal-engine quality pass (push WR toward 50%+), TradingView profile integration,
+      mobile app MVP, and multi-provider marketplace scaffold. No code changes.
       Verified with `npm run build` (320 pages) and `npm test -- --runInBand`
       (99 passed, 3 skipped, 0 failed).
