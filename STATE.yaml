@@ -2798,3 +2798,17 @@ next_actions:
       without affecting BUY signals or the Zaky strategy. Python syntax verified.
       `npm run build` (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped)
       both pass. Committed 3b68b6a6.
+
+  - id: TC-215
+    title: "Signal engine quality pass — require bullish MACD H1 for TV screener BUY signals"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added a symmetric MACD bullish confirmation hard filter to `calculate_confluence()`
+      in `scripts/scanner-engine.py`. The existing SELL filter (TC-214) required a
+      negative MACD histogram; this change requires a positive MACD histogram
+      (`MACD.macd|60 > MACD.signal|60`) for BUY confluence signals. This eliminates
+      BUY signals where bullish price action is not backed by positive momentum,
+      closing the remaining unvalidated direction in the confluence engine.
+      Python syntax verified. `npm run build` (320 pages) and `npm test -- --runInBand`
+      (99 passed, 3 skipped, 0 failed) both pass.

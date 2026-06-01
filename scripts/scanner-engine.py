@@ -638,14 +638,15 @@ def calculate_confluence(row, symbol_name, candle_statuses=None, win_rates=None,
                 if rsi_h4 < 65:  # Not overbought enough to justify counter-trend SELL
                     return None, []
 
-    # ── MACD confirmation for SELL ──
-    # Require bearish MACD on H1 to validate SELL direction.
-    # Historical track record shows TV screener SELL signals without
-    # bearish MACD confirmation have significantly lower win rates.
-    if direction_candidate == "SELL":
-        macd_h1 = (row.get("MACD.macd|60") or 0) - (row.get("MACD.signal|60") or 0)
-        if macd_h1 >= 0:
-            return None, []
+    # ── MACD confirmation ──
+    # Require bullish MACD on H1 for BUY, bearish MACD on H1 for SELL.
+    # Historical track record shows signals without MACD confirmation
+    # have significantly lower win rates.
+    macd_h1 = (row.get("MACD.macd|60") or 0) - (row.get("MACD.signal|60") or 0)
+    if direction_candidate == "BUY" and macd_h1 <= 0:
+        return None, []
+    if direction_candidate == "SELL" and macd_h1 >= 0:
+        return None, []
 
     # Require at least one higher TF (H1 or H4) in agreeing set — filters M5/M15 noise
     has_htf = any(tf in agreeing for tf in ["H1", "H4"])
