@@ -12,6 +12,8 @@
 
 **[Track Record](https://tradeclaw.win/track-record)** · **[Live Demo](https://tradeclaw.win/dashboard)** · **[API Docs](https://tradeclaw.win/api-docs)** · **[Pricing](https://tradeclaw.win/pricing)**
 
+Read this in other languages: [日本語](README.ja.md) · [한국어](README.ko.md) · [中文](README.zh.md) · [more](LANGUAGES.md)
+
 <br />
 
 <img src="docs/assets/demo.gif" alt="TradeClaw dashboard demo" width="100%" />
@@ -21,6 +23,8 @@
 ---
 
 TradeClaw generates BUY/SELL signals using multi-timeframe technical analysis (RSI, MACD, EMA, Bollinger Bands, Stochastic, Supertrend). Every signal is recorded in a Postgres database and published on the [track record](https://tradeclaw.win/track-record) — wins **and** losses, no cherry-picking.
+
+> Status: pre-1.0 (`0.1.0`). The signal engine, dashboard, backtester, and self-host path are usable today; APIs and schema may still change between releases.
 
 ## Free vs Pro
 
@@ -56,7 +60,7 @@ Without these, self-hosters get the free-tier experience — which is the same s
 
 If you want to run your own paid tier on top of this code: set your own Stripe keys, run your own premium signal generator, and point `PREMIUM_SIGNAL_SOURCE_URL` at it. The HTTP contract is minimal — `GET <url>` returning `{ signals: TradingSignal[] }` with a Bearer `Authorization` header using `PREMIUM_SIGNAL_SOURCE_KEY`. Returns `[]` (and the hosted deploy keeps working with the DB-backed `premium_signals` table) if the remote is down.
 
-## Self-host
+## Quick start (Docker)
 
 ### One-liner (no clone required)
 
@@ -64,10 +68,7 @@ If you want to run your own paid tier on top of this code: set your own Stripe k
 docker run -p 3000:3000 ghcr.io/naimkatiman/tradeclaw:latest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you'll get the
-dashboard with the bundled SQLite fallback so you can try it instantly.
-For persistent storage and the full feature set, point `DATABASE_URL`
-at a PostgreSQL instance:
+Open [http://localhost:3000](http://localhost:3000) — you get the dashboard with the bundled SQLite fallback so you can try it instantly. For persistent storage and the full feature set, point `DATABASE_URL` at a PostgreSQL instance:
 
 ```bash
 docker run -p 3000:3000 \
@@ -84,9 +85,7 @@ cp .env.example .env   # edit DATABASE_URL + Telegram tokens
 docker compose up -d   # or: docker-compose up -d on the legacy CLI
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-Requires PostgreSQL. Run migrations from `apps/web/migrations/` in order.
+Open [http://localhost:3000](http://localhost:3000). Requires PostgreSQL. Migrations live in `apps/web/migrations/` and should be applied in filename order against your `DATABASE_URL`.
 
 ### Image tags
 
@@ -97,14 +96,65 @@ Requires PostgreSQL. Run migrations from `apps/web/migrations/` in order.
 | `ghcr.io/naimkatiman/tradeclaw:vX.Y.Z` | A specific release tag |
 | `ghcr.io/naimkatiman/tradeclaw:sha-<git-sha>` | A specific commit |
 
-## Architecture
+## Local development (from source)
+
+TradeClaw is an npm-workspaces monorepo. You need Node.js 20+, npm, and a PostgreSQL instance (the web app falls back to bundled SQLite if `DATABASE_URL` is unset, but Postgres is recommended).
+
+```bash
+git clone https://github.com/naimkatiman/tradeclaw
+cd tradeclaw
+npm install            # installs all workspaces
+cp .env.example .env   # set DATABASE_URL and any optional tokens
+
+npm run dev            # start the Next.js web app (apps/web) on :3000
+```
+
+Common workspace scripts (all defined in the root `package.json`):
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Run the web app (`apps/web`) in dev mode |
+| `npm run build` | Build `packages/signals`, then `apps/web` |
+| `npm run build:all` | Build `signals` + `agent` + web + ws-server |
+| `npm run start` | Start the built web app |
+| `npm run lint` | Lint `apps/web` |
+| `npm test` | Run the Jest unit suite |
+| `npm run test:e2e` | Run the Playwright e2e suite (`apps/web`) |
+| `npm run ws:dev` / `ws:build` / `ws:start` / `ws:test` | Develop, build, run, or test the websocket server (`apps/ws-server`) |
+| `npm run agent` | Run the trading-agent CLI (`packages/agent`) |
+| `npm run agent:start` / `agent:scan` / `agent:server` | Start the agent loop, run a one-off scan, or run the agent HTTP server |
+| `npm run resolve:outcomes` | Resolve real outcomes for recorded signals |
+
+The Expo/React Native client in `apps/mobile` has its own `package.json` and is run with the Expo CLI from inside that workspace.
+
+## Repository layout
 
 ```
-apps/web/                       Next.js app (dashboard, API routes, signal engine)
-apps/web/lib/execution/         Broker bridges (Binance USDT-perp, RoboForex R StocksTrader)
-packages/strategies/            Backtest comparison framework (not in live signal path)
-scripts/launch-binance-testnet.sh   Binance testnet bootstrap
+apps/
+  web/                  Next.js app — dashboard, API routes, signal engine, broker execution
+  web/lib/execution/    Broker bridges (Binance USDT-perp, RoboForex R StocksTrader)
+  web/migrations/       Postgres migrations (apply in filename order)
+  ws-server/            Websocket server for live updates
+  mobile/               Expo / React Native client
+
+packages/
+  signals/              Signal types + build target consumed by apps/web
+  agent/                Trading-agent runtime + CLI (npm run agent)
+  strategies/           Backtest comparison framework (not in the live signal path)
+  core/                 Shared core utilities
+  cli/  tradeclaw-cli/  Command-line tooling
+  create-tradeclaw/     Project scaffolder
+  telegram-bot/         Telegram bot integration
+  tradeclaw-mcp/        MCP server integration
+  tradeclaw-js/  tradeclaw-extension/  tradeclaw-action/  tradeclaw-demo/  trading-agents/
+
+scripts/
+  launch-binance-testnet.sh   Binance testnet bootstrap
 ```
+
+> Note: a `tradeclaw-discord` package exists as early scaffolding. Discord support is proposed in issue #38 and is **not** a shipped, supported integration yet — Telegram is the only chat integration currently wired into the signal flow.
+
+## How it works
 
 **Signal flow:**
 
@@ -139,7 +189,7 @@ Pro signal → apps/web/lib/execution/executor.ts
 
 Order placement maps the TradeClaw pair (`BTC/USD`) to the broker contract (`BTCUSDT` perp) before submission. Bootstrap a Binance testnet account with `bash scripts/launch-binance-testnet.sh`.
 
-## Strategy Presets
+## Strategy presets
 
 Five entry strategies, switchable via `SIGNAL_ENGINE_PRESET`:
 
@@ -165,37 +215,39 @@ curl https://tradeclaw.win/api/strategy-breakdown
 
 Pro subscribers get real-time access to all endpoints with full depth.
 
-## Environment Variables
+## Environment variables
 
 | Variable | Required | Description |
 |----------|:--------:|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `DATABASE_URL` | Recommended | PostgreSQL connection string. If unset, the web app uses a bundled SQLite fallback (fine for a quick local try, not for production) |
 | `MARKET_DATA_HUB_URL` | Yes | Market data hub (primary quote/OHLCV/SSE source). Bare host accepted — `https://` is added if missing |
 | `CRON_SECRET` | Yes | Auth for `/api/cron/*` endpoints |
+| `SIGNAL_ENGINE_PRESET` | No | Strategy preset (default: `hmm-top3`) |
 | `TELEGRAM_BOT_TOKEN` | No | Telegram bot for alerts |
 | `TELEGRAM_CHANNEL_ID` | No | Private channel (Pro alerts) |
 | `TELEGRAM_PUBLIC_CHANNEL_ID` | No | Public channel (delayed free alerts) |
-| `TELEGRAM_PRO_GROUP_ID` | No | Pro group chat ID — bot auto-kicks members without active Pro tier |
+| `TELEGRAM_PRO_GROUP_ID` | No | Pro group chat ID — bot auto-kicks members without an active Pro tier |
 | `STRIPE_SECRET_KEY` | No | Stripe for Pro subscriptions |
 | `STRIPE_WEBHOOK_SECRET` | No | Stripe webhook signing secret |
-| `STRIPE_PRO_PRICE_ID` | No | Stripe price ID for Pro tier |
+| `STRIPE_PRO_PRICE_ID` | No | Stripe price ID for the Pro tier |
 | `PREMIUM_SIGNAL_SOURCE_URL` | No | Hosted-only premium signal feed |
 | `PREMIUM_SIGNAL_SOURCE_KEY` | No | Bearer token for the premium feed |
 | `BINANCE_API_KEY` / `BINANCE_API_SECRET` | No | Binance USDT-perp execution (testnet by default) |
 | `ROBOFOREX_RST_*` | No | RoboForex R StocksTrader bridge credentials |
-| `SIGNAL_ENGINE_PRESET` | No | Strategy preset (default: `hmm-top3`) |
+
+See `.env.example` for the full, commented list.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [good first issues](https://github.com/naimkatiman/tradeclaw/labels/good%20first%20issue).
 
-Hacktoberfest-friendly: PRs against this repo qualify for the
-`hacktoberfest-accepted` label when they pass review.
+Before opening a PR: run `npm install`, make your change, then `npm run lint`, `npm test`, and (for web changes) `npm run test:e2e`.
+
+Hacktoberfest-friendly: PRs against this repo qualify for the `hacktoberfest-accepted` label when they pass review.
 
 ## Contributors
 
-Thanks to everyone who has helped build TradeClaw — code, docs, bug
-reports, translations, or sharing the project.
+Thanks to everyone who has helped build TradeClaw — code, docs, bug reports, translations, or sharing the project.
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
@@ -207,8 +259,7 @@ reports, translations, or sharing the project.
 <!-- prettier-ignore-end -->
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
-This project follows the [all-contributors](https://allcontributors.org/)
-specification — contributions of any kind welcome.
+This project follows the [all-contributors](https://allcontributors.org/) specification — contributions of any kind welcome.
 
 ---
 
