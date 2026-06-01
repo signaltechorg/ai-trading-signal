@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-01T17:00:00+08:00
+updated: 2026-06-01T21:00:00+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2784,3 +2784,17 @@ next_actions:
       mobile app MVP, and multi-provider marketplace scaffold. No code changes.
       Verified with `npm run build` (320 pages) and `npm test -- --runInBand`
       (99 passed, 3 skipped, 0 failed).
+
+  - id: TC-214
+    title: "Signal engine quality pass — require bearish MACD H1 for TV screener SELL signals"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added a MACD bearish confirmation hard filter to `calculate_confluence()` in
+      `scripts/scanner-engine.py`. Historical SQLite data showed TV screener SELL
+      signals at 27.3% win rate (15/55) vs BUY signals at 52.1% (61/117). The new
+      filter requires `MACD.macd|60 < MACD.signal|60` (negative histogram) before
+      any SELL confluence signal is emitted. This tightens the weakest signal path
+      without affecting BUY signals or the Zaky strategy. Python syntax verified.
+      `npm run build` (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped)
+      both pass. Committed 3b68b6a6.
