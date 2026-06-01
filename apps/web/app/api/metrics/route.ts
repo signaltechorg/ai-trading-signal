@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTrackedSignalsForRequest } from '../../../lib/tracked-signals';
+import { getSymbolBreakdown } from '../../../lib/signal-metrics';
 import { SYMBOLS } from '../../lib/signals';
 
 export const dynamic = 'force-dynamic';
@@ -72,6 +73,49 @@ export async function GET(request: NextRequest) {
       else if (sig.direction === 'SELL') sellCount++;
     }
 
+    // Signal freshness: seconds since the most recent signal per symbol.
+    // Derived from the live signals already loaded above — no extra DB hit.
+    const lastTsBySymbol = new Map<string, number>();
+    for (const sig of signals) {
+      const ts = typeof sig.timestamp === 'number' ? sig.timestamp : Date.parse(String(sig.timestamp));
+      if (!Number.isFinite(ts)) continue;
+      const prev = lastTsBySymbol.get(sig.symbol);
+      if (prev == null || ts > prev) lastTsBySymbol.set(sig.symbol, ts);
+    }
+    const nowMs = Date.now();
+    const ageSamples: Line['samples'] = [];
+    for (const [symbol, ts] of lastTsBySymbol) {
+      ageSamples.push({ labels: { symbol }, value: Math.max(0, Math.floor((nowMs - ts) / 1000)) });
+    }
+
+    // Outcome counts from resolved signal history (best-effort, 30-day window).
+    // Zero-initialized across all symbols so a missing series never breaks
+    // sum()/rate() in Grafana. Degrades gracefully if the DB is unavailable.
+    const outcomesSamples: Line['samples'] = [];
+    try {
+      const breakdown = await getSymbolBreakdown(30);
+      const bySymbol = new Map(breakdown.map((b) => [b.symbol, b]));
+      for (const s of SYMBOLS) {
+        const row = bySymbol.get(s.symbol);
+        const hit = row?.wins24h ?? 0;
+        const sl = row?.losses24h ?? 0;
+        const open = row ? Math.max(0, row.totalSignals - hit - sl) : 0;
+        outcomesSamples.push(
+          { labels: { symbol: s.symbol, result: 'hit' }, value: hit },
+          { labels: { symbol: s.symbol, result: 'sl' }, value: sl },
+          { labels: { symbol: s.symbol, result: 'open' }, value: open },
+        );
+      }
+    } catch {
+      for (const s of SYMBOLS) {
+        outcomesSamples.push(
+          { labels: { symbol: s.symbol, result: 'hit' }, value: 0 },
+          { labels: { symbol: s.symbol, result: 'sl' }, value: 0 },
+          { labels: { symbol: s.symbol, result: 'open' }, value: 0 },
+        );
+      }
+    }
+
     const lines: Line[] = [
       {
         name: 'tradeclaw_signal_value',
@@ -105,6 +149,18 @@ export async function GET(request: NextRequest) {
         help: 'Total number of symbols tracked by the engine',
         type: 'gauge',
         samples: [{ labels: {}, value: SYMBOLS.length }],
+      },
+      {
+        name: 'tradeclaw_signal_outcomes_total',
+        help: 'Resolved signal outcomes per symbol over the last 30 days (hit=TP reached, sl=stop hit, open=unresolved)',
+        type: 'gauge',
+        samples: outcomesSamples,
+      },
+      {
+        name: 'tradeclaw_signal_age_seconds',
+        help: 'Seconds since the most recent signal per symbol (freshness: <300 fresh, 300-900 warning, >900 stale)',
+        type: 'gauge',
+        samples: ageSamples,
       },
       {
         name: 'tradeclaw_scrape_timestamp_seconds',
