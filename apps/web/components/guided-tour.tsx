@@ -615,5 +615,22 @@ export function GuidedTourListener() {
     return () => window.removeEventListener('tc:start-tour', handler);
   }, []);
 
+  // Shift+? restarts the tour from anywhere (issue #43). Mirrors TakeTourButton:
+  // clear the auto-shown flag, then dispatch the same event the button uses.
+  // '/' is included because Shift+/ is how '?' is typed on US layouts.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.shiftKey || (e.key !== '?' && e.key !== '/')) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      e.preventDefault();
+      try { localStorage.removeItem(TOUR_AUTO_KEY); } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('tc:start-tour'));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return <GuidedTour open={open} onClose={() => setOpen(false)} />;
 }

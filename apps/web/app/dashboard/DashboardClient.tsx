@@ -1375,9 +1375,17 @@ export function DashboardClient({ initialSignals, initialSyntheticSymbols }: { i
                 <p className="text-[var(--text-secondary)] text-xs mb-4">
                   Auto-retrying every 15s. Signals appear when the market is active and setups meet the quality threshold.
                 </p>
-                <button onClick={fetchSignals} className="px-4 py-2 rounded-xl text-xs border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200 font-mono">
-                  Retry now
-                </button>
+                <div className="flex items-center justify-center gap-2">
+                  <button onClick={fetchSignals} className="px-4 py-2 rounded-xl text-xs border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200 font-mono">
+                    Retry now
+                  </button>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('tc:start-tour'))}
+                    className="px-4 py-2 rounded-xl text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-all duration-200 font-mono"
+                  >
+                    Take the tour
+                  </button>
+                </div>
               </div>
             );
           }
