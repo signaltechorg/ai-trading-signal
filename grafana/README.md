@@ -61,3 +61,14 @@ the same compose network.)
 | `tradeclaw_signals_total`           | gauge | Count of active signals by direction          |
 | `tradeclaw_symbols_tracked`         | gauge | Total symbols the engine watches              |
 | `tradeclaw_scrape_timestamp_seconds`| gauge | When this scrape was generated (unix seconds) |
+| `tradeclaw_signal_outcomes_total`   | gauge | Resolved outcomes per symbol+result over 30d (hit / sl / open) |
+| `tradeclaw_signal_age_seconds`      | gauge | Seconds since the most recent signal per symbol (freshness) |
+
+The dashboard ships two extra panels for these: a **Signal Freshness**
+bar gauge (green <5m, yellow 5–15m, red >15m) that surfaces exchange
+connectivity gaps at a glance, and a **Signal Outcomes** donut (hit / sl
+/ open over the last 30 days). `tradeclaw_signal_outcomes_total` is a
+rolling-window gauge, not a monotonic counter, despite the `_total`
+suffix; outcome metrics zero-initialize across all symbols and degrade
+gracefully (still serving live-signal series) when the database is
+unavailable.
