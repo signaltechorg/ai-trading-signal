@@ -21,6 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # @tradeclaw/signals resolves through its dist build; type-check needs it present.
+      - run: npm run build:signals
       - run: npm run lint
       - run: npx tsc --noEmit --project apps/web/tsconfig.json
 
@@ -172,6 +174,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+        working-directory: ${{ github.workspace }}
+      - name: Build signals (dev server resolves @tradeclaw/signals from dist)
+        run: npm run build:signals
         working-directory: ${{ github.workspace }}
       - name: Apply migrations to sidecar Postgres
         # Bypass the Railway-tuned migration runner (which forces SSL) by
