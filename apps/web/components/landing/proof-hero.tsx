@@ -57,7 +57,7 @@ export async function ProofHero() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {hasEnoughClosed && stats && (
           <StatTile
             label="Cumulative P&L (30d)"
@@ -70,6 +70,13 @@ export async function ProofHero() {
             label="Profit factor"
             value={stats.profitFactor.toFixed(2)}
             tone={stats.profitFactor >= 1.3 ? 'positive' : 'neutral'}
+          />
+        )}
+        {stats != null && stats.recentWinRate != null && (
+          <StatTile
+            label="Recent win rate"
+            value={`${stats.recentWinRate}%`}
+            tone={stats.recentWinRate >= 55 ? 'positive' : stats.recentWinRate >= 45 ? 'neutral' : 'negative'}
           />
         )}
         <StatTile

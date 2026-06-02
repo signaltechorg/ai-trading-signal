@@ -22,6 +22,10 @@ describe('landing-stats — getLandingStats', () => {
       })
       .mockResolvedValueOnce({ c: '7' })
       .mockResolvedValueOnce({
+        total: '100',
+        wins: '63',
+      })
+      .mockResolvedValueOnce({
         pair: 'XAUUSD',
         direction: 'BUY',
         entry_price: '2034.5',
@@ -33,12 +37,13 @@ describe('landing-stats — getLandingStats', () => {
 
     const stats = await getLandingStats();
 
-    expect(mockedQueryOne).toHaveBeenCalledTimes(3);
+    expect(mockedQueryOne).toHaveBeenCalledTimes(4);
     expect(stats).toEqual({
       cumulativePnlPct: 12.5,
       profitFactor: 3,
       signalsToday: 7,
       closedSignals30d: 42,
+      recentWinRate: 63,
       latestSignal: {
         symbol: 'XAUUSD',
         direction: 'BUY',
@@ -80,6 +85,10 @@ describe('landing-stats — getLandingStats', () => {
         closed_count: '8',
       })
       .mockResolvedValueOnce({ c: '0' })
+      .mockResolvedValueOnce({
+        total: '100',
+        wins: '55',
+      })
       .mockResolvedValueOnce(null);
 
     const stats = await getLandingStats();
@@ -89,6 +98,7 @@ describe('landing-stats — getLandingStats', () => {
       profitFactor: null,
       signalsToday: 0,
       closedSignals30d: 8,
+      recentWinRate: 55,
       latestSignal: null,
       samples: null,
     });

@@ -22,10 +22,12 @@ import { fetchRegimeMap } from '../../../../lib/regime-filter';
 import { recordSignalRun } from '../../../../lib/signal-run-log';
 import { requireCronAuth } from '../../../../lib/cron-auth';
 import { precomputeSignals } from '../../../../lib/signal-worker';
+import { readLiveSignals } from '../../../../lib/signals-live';
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const MIN_LIVE_SYMBOLS_CHECKED = 8;
 
 // ── Record logic ──────────────────────────────────────────────
 
@@ -42,20 +44,62 @@ type NewlyRecordedSignal = {
 };
 
 async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal[]> {
-  const { signals: rawSignals } = await getSignals({ minConfidence: PUBLISHED_SIGNAL_MIN_CONFIDENCE });
-  // Mirror the production filter in tracked-signals.ts: real data only, above the
-  // publish threshold. live_signals is empty in production, so we pull directly
-  // from the TA engine just like getTrackedSignals does.
-  const signals = rawSignals.filter(
-    (s) => s.dataQuality === 'real' && s.confidence >= PUBLISHED_SIGNAL_MIN_CONFIDENCE,
-  );
+  let signals: Array<{
+    id: string;
+    symbol: string;
+    timeframe: string;
+    direction: 'BUY' | 'SELL';
+    confidence: number;
+    entry: number;
+    takeProfit1: number;
+    stopLoss: number;
+    timestamp: string;
+  }> = [];
+
+  // ── PRIMARY: Prefer Python scanner signals when coverage is adequate ──
+  // Mirrors the logic in /api/signals/route.ts so the track record reflects
+  // the same high-quality signals users see on the dashboard.
+  const liveData = await readLiveSignals();
+  const liveCoverageOk =
+    liveData && (liveData.stats?.symbols_checked ?? Infinity) >= MIN_LIVE_SYMBOLS_CHECKED;
+  if (liveData && !liveData.isStale && liveData.signals.length > 0 && liveCoverageOk) {
+    signals = liveData.signals.map((s) => ({
+      id: s.id,
+      symbol: s.symbol,
+      timeframe: s.timeframe,
+      direction: s.signal,
+      confidence: s.confidence,
+      entry: s.entry,
+      takeProfit1: s.tp1,
+      stopLoss: s.sl,
+      timestamp: s.timestamp,
+    }));
+    strategyId = 'scanner'; // tag so track-record breakdown reflects reality
+  } else {
+    // ── FALLBACK: Next.js TA engine (hmm-top3 etc.) ──
+    const { signals: rawSignals } = await getSignals({ minConfidence: PUBLISHED_SIGNAL_MIN_CONFIDENCE });
+    signals = rawSignals
+      .filter((s) => s.dataQuality === 'real' && s.confidence >= PUBLISHED_SIGNAL_MIN_CONFIDENCE)
+      .map((s) => ({
+        id: s.id,
+        symbol: s.symbol,
+        timeframe: s.timeframe,
+        direction: s.direction as 'BUY' | 'SELL',
+        confidence: s.confidence,
+        entry: s.entry,
+        takeProfit1: s.takeProfit1,
+        stopLoss: s.stopLoss,
+        timestamp: s.timestamp,
+      }));
+  }
+
   const recorded: NewlyRecordedSignal[] = [];
 
   // Track symbols already recorded in this run to prevent dupes within a batch
   const recordedThisRun = new Set<string>();
 
   // Pick the best signal per symbol+direction (highest confidence)
-  const bestBySymDir = new Map<string, typeof signals[number]>();
+  const bestBySymDir = new Map<string, (typeof signals)[number]>();
   for (const sig of signals) {
     const key = `${sig.symbol}:${sig.direction}`;
     const existing = bestBySymDir.get(key);
@@ -73,12 +117,6 @@ async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal
     const existing = await getRecentRecordForSymbolAsync(sig.symbol, sig.direction, TWO_HOURS_MS);
     if (existing) continue;
 
-    // Use the canonical id from the TA engine (`SIG-{sym}-{tf}-{dir}-{candleTs36}`)
-    // so this writer collides on ON CONFLICT(id) with the request-side writer
-    // in tracked-signals.ts. Before unification the two writers used different
-    // id formats and silently produced two rows per candle, double-counting in
-    // the leaderboard. Persist the candle bar timestamp too so resolution
-    // windows align with the bar the signal was actually issued for.
     const id = sig.id;
     const parsedCandleTs = Date.parse(sig.timestamp);
     const timestamp = Number.isFinite(parsedCandleTs) ? parsedCandleTs : Date.now();

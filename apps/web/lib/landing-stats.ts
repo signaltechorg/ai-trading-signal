@@ -20,6 +20,7 @@ export interface LandingStats {
   profitFactor: number | null;
   signalsToday: number;
   closedSignals30d: number;
+  recentWinRate: number | null;
   latestSignal: SignalPayload | null;
   samples: SamplePair | null;
 }
@@ -43,6 +44,11 @@ interface LatestRow {
 
 interface TodayCountRow {
   c: string;
+}
+
+interface RecentWinRateRow {
+  total: string;
+  wins: string;
 }
 
 export async function getLandingStats(): Promise<LandingStats> {
@@ -79,6 +85,27 @@ export async function getLandingStats(): Promise<LandingStats> {
         AND is_simulated = FALSE`
   );
   const signalsToday = Number(todayRes?.c ?? 0);
+
+  const recentRes = await queryOne<RecentWinRateRow>(
+    `WITH recent AS (
+       SELECT (outcome_24h->>'hit')::boolean AS hit,
+              outcome_24h->>'target' AS target,
+              (outcome_24h->>'pnlPct')::numeric AS pnl_pct
+         FROM signal_history
+        WHERE outcome_24h IS NOT NULL
+          AND is_simulated = FALSE
+        ORDER BY created_at DESC
+        LIMIT 100
+     )
+     SELECT COUNT(*)::text AS total,
+            SUM(CASE WHEN hit = true
+                      OR (target = 'expired' AND pnl_pct > 0)
+                 THEN 1 ELSE 0 END)::text AS wins
+       FROM recent`
+  );
+  const recentTotal = Number(recentRes?.total ?? 0);
+  const recentWins = Number(recentRes?.wins ?? 0);
+  const recentWinRate = recentTotal >= 20 ? Math.round((recentWins / recentTotal) * 100) : null;
 
   const latestRes = await queryOne<LatestRow>(
     `SELECT pair, direction, entry_price, tp1, sl, confidence, created_at
@@ -122,6 +149,7 @@ export async function getLandingStats(): Promise<LandingStats> {
     profitFactor,
     signalsToday,
     closedSignals30d: closedCount,
+    recentWinRate,
     latestSignal,
     samples,
   };
