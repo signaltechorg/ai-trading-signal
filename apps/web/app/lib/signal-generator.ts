@@ -120,6 +120,22 @@ const MIN_BB_WIDTH = 0.3;
 const MIN_RISK_ATR = 0.8;
 const MAX_RISK_ATR = 4.0;
 
+// Blacklisted symbol+direction combos based on track-record audit:
+// These have <=25% win rate over 5+ signals — auto-skip.
+// Base list kept in sync with scripts/scanner-engine.py BLACKLISTED_COMBOS
+// (Binance-style names mapped to broker-style names used here).
+// Next.js-specific additions are based on the 586-signal empirical audit
+// where crypto BUY fallback signals underperform the Python scanner.
+const BLACKLISTED_COMBOS: ReadonlySet<string> = new Set([
+  'SOLUSD_SELL', 'USDJPY_BUY', 'XRPUSD_SELL', 'BTCUSD_SELL',
+  'EURUSD_SELL', 'GBPUSD_SELL', 'ETHUSD_SELL', 'BNBUSD_SELL',
+  'XAUUSD_SELL',
+  // Sub-25% BUY paths from 586-signal empirical audit (2026-06-02)
+  'BNBUSD_BUY', 'SOLUSD_BUY', 'DOGEUSD_BUY',
+  // Additional Next.js fallback BUY paths with < 35% win rate (2026-06-02)
+  'ETHUSD_BUY', 'BTCUSD_BUY',
+]);
+
 function generateSignalId(
   symbol: string,
   timeframe: string,
@@ -319,8 +335,8 @@ function passesDirectionGate(
   }
 
   if (direction === 'BUY') {
-    // MACD or EMA slope must support direction (not both required)
-    if (macd.current.histogram <= 0 && quality.ema20Slope <= 0) {
+    // MACD must confirm direction — aligns with Python scanner (TC-214/215)
+    if (macd.current.histogram <= 0) {
       return { passes: false, confidenceBoost: 0 };
     }
     if (!isNaN(rsi.current) && (rsi.current < 30 || rsi.current > 78)) {
@@ -330,8 +346,8 @@ function passesDirectionGate(
       return { passes: false, confidenceBoost: 0 };
     }
   } else {
-    // MACD or EMA slope must support direction (not both required)
-    if (macd.current.histogram >= 0 && quality.ema20Slope >= 0) {
+    // MACD must confirm direction — aligns with Python scanner (TC-214/215)
+    if (macd.current.histogram >= 0) {
       return { passes: false, confidenceBoost: 0 };
     }
     if (!isNaN(rsi.current) && (rsi.current > 70 || rsi.current < 22)) {
@@ -823,7 +839,9 @@ export function generateSignalsFromTA(
     });
   }
 
-  return signals;
+  return signals.filter(
+    (s) => !BLACKLISTED_COMBOS.has(`${s.symbol}_${s.direction}`),
+  );
 }
 
 // ─── Multi-Timeframe Analysis ─────────────────────────────────

@@ -29,6 +29,11 @@ OUTCOME_WINDOW_HOURS = 8
 BLACKLISTED_COMBOS = {
     "SOLUSDT_SELL", "USDJPY_BUY", "XRPUSDT_SELL", "BTCUSDT_SELL",
     "EURUSD_SELL", "GBPUSD_SELL", "ETHUSDT_SELL", "BNBUSDT_SELL",
+    "XAUUSD_SELL",
+    # Sub-25% BUY paths from 586-signal empirical audit (2026-06-02)
+    "BNBUSDT_BUY", "SOLUSDT_BUY", "DOGEUSDT_BUY",
+    # Next.js fallback BUY paths synced to Python scanner (2026-06-02)
+    "ETHUSDT_BUY", "BTCUSDT_BUY",
 }
 
 # Binance symbol mapping
