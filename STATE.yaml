@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-03T03:00:07+08:00
+updated: 2026-06-03T06:00:09+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -2857,6 +2857,7 @@ next_actions:
       high-confidence real signals, dispatches pushes to matching tokens).
       Unit tests: 18 passed across sender + route. Verified with `npm run build`
       (322 pages) and `npm test -- --runInBand` (101 passed, 3 skipped, 0 failed).
+      Committed in 1b06eb42.
 
   - id: TC-218
     title: "GitHub Actions cron workflow for Expo push signals — trigger /api/cron/push-signals every 15 min"
@@ -2867,6 +2868,7 @@ next_actions:
       `https://tradeclaw.win/api/cron/push-signals` every 15 minutes with
       `CRON_SECRET` auth. Concurrency group prevents overlapping runs.
       Verified with `npm run build` (322 pages).
+      Committed in 1b06eb42.
 
   - id: TC-219
     title: "Signal engine quality pass — add MACD momentum confirmation to Zaky strategy"
@@ -2911,6 +2913,7 @@ next_actions:
       verified badge support, and responsive grid. Added to sitemap.ts.
       Verified with `npm run build` (330 pages) and `npm test -- --runInBand`
       (101 passed, 3 skipped, 0 failed).
+      Committed in 1b06eb42.
 
   - id: TC-222
     title: "Port Python scanner BLACKLISTED_COMBOS to Next.js signal generator"
@@ -3001,3 +3004,4 @@ next_actions:
       md:grid-cols-5 to accommodate the new tile without removing existing stats.
       Verified with `npm run build` (330 pages) and `npm test -- --runInBand`
       (101 passed, 3 skipped, 0 failed).
+      Committed in 1b06eb42.
