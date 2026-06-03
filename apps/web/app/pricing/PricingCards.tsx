@@ -134,7 +134,15 @@ function ProCard({ def, interval }: ProCardProps) {
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           {def.name}
         </p>
-        <div className="mt-2 flex items-end gap-1">
+        {def.anchorLabel && (
+          <p
+            data-testid="pro-anchor"
+            className="mt-2 text-xs text-[var(--text-secondary)]"
+          >
+            <span className="line-through opacity-70">{def.anchorLabel}</span>
+          </p>
+        )}
+        <div className="mt-1 flex items-end gap-1">
           <span
             data-testid="pro-price-label"
             className="text-4xl font-bold text-[var(--foreground)]"
@@ -144,6 +152,14 @@ function ProCard({ def, interval }: ProCardProps) {
           <span className="mb-1 text-sm text-[var(--text-secondary)]">{priceSuffix}</span>
         </div>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">{priceLabel}</p>
+        {def.perDayLabel && (
+          <p
+            data-testid="pro-per-day"
+            className="mt-1 text-xs font-medium text-emerald-400"
+          >
+            That&apos;s {def.perDayLabel}
+          </p>
+        )}
         <p className="mt-3 text-sm text-[var(--text-secondary)]">{def.tagline}</p>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">{subtext}</p>
       </div>
@@ -381,7 +397,15 @@ function EliteCard({ def, interval }: EliteCardProps) {
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           {def.name}
         </p>
-        <div className="mt-2 flex items-end gap-1">
+        {def.anchorLabel && (
+          <p
+            data-testid="elite-anchor"
+            className="mt-2 text-xs text-[var(--text-secondary)]"
+          >
+            <span className="line-through opacity-70">{def.anchorLabel}</span>
+          </p>
+        )}
+        <div className="mt-1 flex items-end gap-1">
           <span
             data-testid="elite-price-label"
             className="text-4xl font-bold text-[var(--foreground)]"
@@ -391,6 +415,14 @@ function EliteCard({ def, interval }: EliteCardProps) {
           <span className="mb-1 text-sm text-[var(--text-secondary)]">{priceSuffix}</span>
         </div>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">{priceLabel}</p>
+        {def.perDayLabel && (
+          <p
+            data-testid="elite-per-day"
+            className="mt-1 text-xs font-medium text-purple-400"
+          >
+            That&apos;s {def.perDayLabel}
+          </p>
+        )}
         <p className="mt-3 text-sm text-[var(--text-secondary)]">{def.tagline}</p>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">{subtext}</p>
       </div>
