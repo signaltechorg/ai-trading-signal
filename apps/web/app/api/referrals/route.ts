@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [user, revenue, referredCount] = await Promise.all([
-      getUserById(session.userId),
+    const [revenue, referredCount, user] = await Promise.all([
       getReferralRevenueForReferrer(session.userId),
       getReferredUsersCount(session.userId),
+      getUserById(session.userId),
     ]);
 
     const referralCode = user?.referralCode ?? null;
