@@ -3,13 +3,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Run pending DB migrations before starting (fail-closed: a failed migration
-# short-circuits via && so the server never starts and the prior deploy keeps
-# serving). Previously this was just "node apps/web/server.js", which bypassed
-# the migration entrypoint and left new migrations unapplied in prod.
-startCommand = "node scripts/run-migrations.mjs && node apps/web/server.js"
+# Run pending DB migrations before starting the server. MUST be wrapped in `sh -c`:
+# Railway execs startCommand directly (no shell), so an unwrapped `&&` is passed as a
+# literal arg to node and the server never starts. Fail-closed: if migrations exit
+# non-zero the server never starts and the prior (healthy) deploy keeps serving.
+startCommand = "sh -c 'node scripts/run-migrations.mjs && node apps/web/server.js'"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
