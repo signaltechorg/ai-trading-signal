@@ -3,7 +3,11 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node apps/web/server.js"
+# Run pending DB migrations before starting (fail-closed: a failed migration
+# short-circuits via && so the server never starts and the prior deploy keeps
+# serving). Previously this was just "node apps/web/server.js", which bypassed
+# the migration entrypoint and left new migrations unapplied in prod.
+startCommand = "node scripts/run-migrations.mjs && node apps/web/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
