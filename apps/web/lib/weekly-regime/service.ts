@@ -18,7 +18,7 @@ import {
   isPastLockCutoff,
   evaluateWriteGate,
 } from './discipline';
-import { getCachedCard, setCachedCard } from './cache';
+import { getCachedCard, setCachedCard, invalidateCard } from './cache';
 import {
   ASSET_CLASSES,
   type RegimeInput,
@@ -50,7 +50,9 @@ function rowToCard(row: WeeklyRegimeRow): WeeklyRegimeCard {
     override_used: row.override_used,
     override_reason: row.override_reason,
     set_by: row.set_by,
-    set_at: row.set_at,
+    // node-pg returns TIMESTAMPTZ as a Date; normalize to ISO so a DB read and
+    // a cache (JSON) read carry the same string format the write path emits.
+    set_at: new Date(row.set_at).toISOString(),
   };
 }
 
@@ -78,7 +80,11 @@ export async function getWeeklyRegime(weekStart: string): Promise<WeeklyRegimeCa
   return card;
 }
 
-/** Read the current KL week's card. */
+/**
+ * Read the current KL week's card. Returns `null` when no card is set for the
+ * week — consumers (e.g. a signal filter) MUST treat `null` as the conservative
+ * NEUTRAL fail-safe rather than as an error.
+ */
 export async function getCurrentWeeklyRegime(now?: Date): Promise<WeeklyRegimeCard | null> {
   const weekStart = weekStartFor(now ?? new Date());
   return getWeeklyRegime(weekStart);
@@ -124,7 +130,9 @@ export async function setWeeklyRegime(
   }
 
   const locked = isPastLockCutoff(now, weekStart);
-  const overrideUsed = opts.override === true;
+  // An override is only "used" when it actually relaxes the post-lock gate.
+  // Stamping it on a pre-lock write would record a spurious override_used=true.
+  const overrideUsed = locked && opts.override === true;
   const overrideReason = overrideUsed ? (opts.reason?.trim() ?? null) : null;
   // Single timestamp shared by the persisted row and the returned card so they
   // match without a re-read.
@@ -161,8 +169,10 @@ export async function setWeeklyRegime(
     ],
   );
 
-  // Best-effort cache write — never let a cache failure break the write.
+  // Best-effort cache refresh — invalidate any stale entry, then warm with the
+  // freshly written card. Never let a cache failure break the write.
   try {
+    await invalidateCard(weekStart);
     await setCachedCard(card);
   } catch {
     // ignore

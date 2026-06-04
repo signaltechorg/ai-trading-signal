@@ -144,10 +144,19 @@ async function clearPending(telegramUserId: number): Promise<void> {
 // Formatting (plain text for Telegram; no emoji)
 // ---------------------------------------------------------------------------
 
+/**
+ * Escape the HTML metacharacters Telegram's `parse_mode: 'HTML'` cares about.
+ * Free-text fields (thesis, override reason) are admin-authored but still must
+ * be escaped or a stray `<`, `>`, or `&` breaks the whole message render.
+ */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** One plain-text line summarising a class's bias + conviction + derived regime. */
 function formatClassLine(label: string, bias: string, conviction: number, regime: string, thesis: string): string {
   const head = `${label}: ${regime} (${bias} c${conviction})`;
-  const tail = thesis.trim().length > 0 ? ` - ${thesis.trim()}` : '';
+  const tail = thesis.trim().length > 0 ? ` - ${escapeHtml(thesis.trim())}` : '';
   return `${head}${tail}`;
 }
 
@@ -177,7 +186,7 @@ export function formatCard(card: WeeklyRegimeCard): string {
   }
   if (card.override_used) {
     lines.push('');
-    lines.push(`Override used${card.override_reason ? `: ${card.override_reason}` : ''}`);
+    lines.push(`Override used${card.override_reason ? `: ${escapeHtml(card.override_reason)}` : ''}`);
   }
   return lines.join('\n');
 }
