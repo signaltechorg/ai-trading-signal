@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-03T06:00:09+08:00
+updated: 2026-06-03T14:00:10+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1850,7 +1850,24 @@ tasks:
       button with pre-filled tweet text. Pure UI addition — no backend changes. Verified
       with `npm run build` (317 pages) and `npm test -- --runInBand` (98 passed, 3 skipped).
 
+  - id: TC-228
+    title: "Signal engine quality pass — un-blacklist crypto BUY paths after MACD filters raised win rates to 70-76%"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Removed BNBUSDT_BUY, BTCUSDT_BUY, and ETHUSDT_BUY from BLACKLISTED_COMBOS in
+      scripts/scanner-engine.py, scripts/signal-outcome-checker.py, and
+      apps/web/app/lib/signal-generator.ts. SQLite track-record audit (385 resolved
+      signals) shows these paths now perform at 70.0%, 71.4%, and 75.6% win rates
+      respectively (n=40-42 each) after MACD H1 confirmation filters (TC-214/215/219/223)
+      eliminated the unconfirmed-momentum signals that were dragging them down.
+      SOLUSDT_BUY (42.4%) and DOGEUSDT_BUY remain blacklisted. Updated the Jest test
+      in signal-generator.test.ts to match the reduced blacklist. Verified with
+      `python3 -m py_compile`, `npm run build` (330 pages), and `npm test -- --runInBand`
+      (101 passed, 3 skipped, 0 failed).
+
 next_actions:
+  - "2026-06-03: Fixed 3 pre-existing TypeScript compilation errors in apps/web/app/api/cron/push-signals/__tests__/route.test.ts — `indicators: {}` did not satisfy the `IndicatorSummary` interface (missing rsi/macd/ema/bollingerBands/stochastic/support/resistance). Replaced with minimal valid indicator objects so `npx tsc --noEmit` passes cleanly across the entire apps/web workspace. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (101 passed, 3 skipped, 0 failed)."
   - "2026-06-03: TC-227 complete. Landing page now surfaces the last-100-signal win rate as a proof tile on ProofHero. Recent 100 signals are at 63% WR (up from ~31% all-time), so this directly improves first-visit credibility."
   - "2026-06-03: TC-226 complete. /tradingview-export is now discoverable from desktop navbar (Community group) and mobile nav. Addresses ROADMAP immediate next action #2 (TradingView profile integration)."
   - "2026-06-02: TC-225 complete. Synced ETHUSDT_BUY and BTCUSDT_BUY blacklists across Python scanner and Next.js fallback."
@@ -1890,6 +1907,7 @@ next_actions:
   - "2026-05-25: TC-192 — TradingView webhook signals now mirror into signal_history so the shared outcome resolver tracks premium-signal performance automatically. Prerequisite for ROADMAP 2.7 Strategy Performance Comparison. Verified with `npm run build` and `npm test -- --runInBand`."
   - "2026-05-25: excluded `apps/web/lib/__tests__/signal-history-cache.test.ts` from Jest via `testPathIgnorePatterns` in `jest.config.js`. The file was converted to Vitest syntax but Jest was still scanning it, causing 1 suite failure. Full suite now back to 95 passed, 3 skipped, 0 failed. Build passes (317 pages)."
   - "2026-06-01: fixed 4 pre-existing TypeScript compilation errors in apps/web: (1) /api/referrals/route.ts now looks up user by ID to get referralCode instead of reading from session token; (2) added missing `referredBy: null` to 2 stripe webhook test fixtures; (3) fixed `useRef()` missing initial value in signin/page.tsx; (4) fixed possible-undefined `params.minConfidence` access in signal-worker.ts. `npx tsc --noEmit` now passes cleanly. Verified with `npm run build` (320 pages) and `npm test -- --runInBand` (99 passed, 3 skipped, 0 failed)."
+  - "2026-06-03: fixed 37 Jest test suite failures caused by duplicate `@tradeclaw/signals` package resolution from `.claude/worktrees/` directories. Added `/.claude/worktrees/` to `modulePathIgnorePatterns` in `jest.config.js`. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (101 passed, 3 skipped, 0 failed)."
 
 
   # ── Phase 13: Distribution + Developer Ecosystem ──

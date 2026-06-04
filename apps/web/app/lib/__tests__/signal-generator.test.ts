@@ -226,7 +226,7 @@ describe('generateSignalsFromTA — classic profile produces byte-identical outp
     expect(allowed.filter((s) => s.direction === 'BUY').length).toBeGreaterThanOrEqual(0);
   });
 
-  it('drops blacklisted BUY combos (BNBUSD_BUY, SOLUSD_BUY, DOGEUSD_BUY, ETHUSD_BUY, BTCUSD_BUY)', () => {
+  it('drops blacklisted BUY combos (SOLUSD_BUY, DOGEUSD_BUY)', () => {
     const candles = buildFixture(120, 2718);
     const indicators = buildBullishIndicators(candles);
     const ts = candles[candles.length - 1].timestamp;
@@ -240,7 +240,7 @@ describe('generateSignalsFromTA — classic profile produces byte-identical outp
     }
     indicators.macd.current.histogram = 1;
 
-    for (const pair of ['BNBUSD', 'SOLUSD', 'DOGEUSD', 'ETHUSD', 'BTCUSD']) {
+    for (const pair of ['SOLUSD', 'DOGEUSD']) {
       const result = generateSignalsFromTA(pair, indicators, 'H1', 'real', ts);
       expect(result.filter((s) => s.direction === 'BUY')).toHaveLength(0);
     }
@@ -254,7 +254,7 @@ describe('generateSignalsFromTA — classic profile produces byte-identical outp
     }
     indicators.macd.current.histogram = -1;
 
-    for (const pair of ['BNBUSD', 'SOLUSD', 'DOGEUSD', 'ETHUSD', 'BTCUSD']) {
+    for (const pair of ['SOLUSD', 'DOGEUSD']) {
       const result = generateSignalsFromTA(pair, indicators, 'H1', 'real', ts);
       // SELL is not guaranteed to emit (other gates may block), but it should
       // not be blocked by the blacklist filter itself.

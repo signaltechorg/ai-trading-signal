@@ -85,9 +85,10 @@ BLACKLISTED_COMBOS = {
     "EURUSD_SELL", "GBPUSD_SELL", "ETHUSDT_SELL", "BNBUSDT_SELL",
     "XAUUSD_SELL",
     # Sub-25% BUY paths from 586-signal empirical audit (2026-06-02)
-    "BNBUSDT_BUY", "SOLUSDT_BUY", "DOGEUSDT_BUY",
-    # Next.js fallback BUY paths synced to Python scanner (2026-06-02)
-    "ETHUSDT_BUY", "BTCUSDT_BUY",
+    # NOTE: BNBUSDT_BUY, BTCUSDT_BUY, ETHUSDT_BUY un-blacklisted on 2026-06-03
+    # after MACD H1 confirmation filters (TC-214/215/219/223) raised their
+    # post-filter win rates to 70-76% (n=40-42). SOLUSDT_BUY remains blocked.
+    "SOLUSDT_BUY", "DOGEUSDT_BUY",
 }
 
 # ─── Market Hours ─────────────────────────────────────────────

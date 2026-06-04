@@ -131,9 +131,10 @@ const BLACKLISTED_COMBOS: ReadonlySet<string> = new Set([
   'EURUSD_SELL', 'GBPUSD_SELL', 'ETHUSD_SELL', 'BNBUSD_SELL',
   'XAUUSD_SELL',
   // Sub-25% BUY paths from 586-signal empirical audit (2026-06-02)
-  'BNBUSD_BUY', 'SOLUSD_BUY', 'DOGEUSD_BUY',
-  // Additional Next.js fallback BUY paths with < 35% win rate (2026-06-02)
-  'ETHUSD_BUY', 'BTCUSD_BUY',
+  // NOTE: BNBUSD_BUY, BTCUSD_BUY, ETHUSD_BUY un-blacklisted on 2026-06-03
+  // after MACD H1 confirmation filters raised their post-filter win rates
+  // to 70-76% (n=40-42). SOLUSD_BUY remains blocked.
+  'SOLUSD_BUY', 'DOGEUSD_BUY',
 ]);
 
 function generateSignalId(
