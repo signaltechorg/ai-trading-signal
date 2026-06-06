@@ -26,3 +26,4 @@ apps/web/data/performance-metrics.json
 # Python bytecode cache
 __pycache__/
 *.pyc
+apps/web/data/*.db
