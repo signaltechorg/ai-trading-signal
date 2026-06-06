@@ -8,12 +8,20 @@ jest.mock('../../../../../lib/signal-history', () => ({
   recordSignalsAsync: jest.fn().mockResolvedValue(1),
 }));
 
+jest.mock('../../../../../lib/paper-trading', () => ({
+  autoFollowSignal: jest.fn().mockResolvedValue({ portfolio: {}, position: {} }),
+  getDemoUserId: jest.fn().mockReturnValue('demo-user-123'),
+}));
+
 import { execute } from '../../../../../lib/db-pool';
 import { recordSignalsAsync } from '../../../../../lib/signal-history';
+import { autoFollowSignal, getDemoUserId } from '../../../../../lib/paper-trading';
 import { POST } from '../route';
 
 const mockedExecute = execute as jest.MockedFunction<typeof execute>;
 const mockedRecordSignalsAsync = recordSignalsAsync as jest.MockedFunction<typeof recordSignalsAsync>;
+const mockedAutoFollowSignal = autoFollowSignal as jest.MockedFunction<typeof autoFollowSignal>;
+const mockedGetDemoUserId = getDemoUserId as jest.MockedFunction<typeof getDemoUserId>;
 
 describe('POST /api/webhooks/tradingview', () => {
   const ORIGINAL_SECRET = process.env.TV_WEBHOOK_SECRET;
@@ -21,6 +29,7 @@ describe('POST /api/webhooks/tradingview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.TV_WEBHOOK_SECRET = 'super-secret-test-token-1234567890';
+    mockedGetDemoUserId.mockReturnValue('demo-user-123');
   });
 
   afterAll(() => {
@@ -128,6 +137,17 @@ describe('POST /api/webhooks/tradingview', () => {
         strategyId: 'tv-hafiz-synergy',
       },
     ]);
+    expect(mockedAutoFollowSignal).toHaveBeenCalledTimes(1);
+    expect(mockedAutoFollowSignal).toHaveBeenCalledWith({
+      userId: 'demo-user-123',
+      id: 'hafiz-xauusd-h1-1716208800',
+      symbol: 'XAUUSD',
+      direction: 'BUY',
+      entry: 2321.5,
+      stopLoss: 2310.25,
+      takeProfit: 2332.75,
+      positionSizePct: 0.05,
+    });
   });
 
   it('defaults confidence to 90 when omitted', async () => {
@@ -180,5 +200,28 @@ describe('POST /api/webhooks/tradingview', () => {
         strategyId: 'tv-zaky-classic',
       },
     ]);
+    // No SL/TP → auto-follow skipped
+    expect(mockedAutoFollowSignal).not.toHaveBeenCalled();
+  });
+
+  it('skips auto-follow when demo user is not configured', async () => {
+    mockedExecute.mockResolvedValueOnce(undefined);
+    mockedGetDemoUserId.mockReturnValue(null);
+
+    const payload = {
+      source_id: 'zaky-xauusd-h1-1716208802',
+      strategy_id: 'tv-zaky-classic',
+      symbol: 'XAUUSD',
+      timeframe: 'H1',
+      direction: 'BUY',
+      entry: 2321.5,
+      stop_loss: 2310.25,
+      take_profit_1: 2332.75,
+      signal_ts: '2026-05-20T10:10:00.000Z',
+    };
+
+    const res = await POST(makeReq(payload, process.env.TV_WEBHOOK_SECRET));
+    expect(res.status).toBe(200);
+    expect(mockedAutoFollowSignal).not.toHaveBeenCalled();
   });
 });

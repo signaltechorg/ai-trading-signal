@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { execute } from '../../../../lib/db-pool';
 import { recordSignalsAsync } from '../../../../lib/signal-history';
+import { autoFollowSignal, getDemoUserId } from '../../../../lib/paper-trading';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -157,6 +158,24 @@ export async function POST(req: NextRequest) {
   }]).catch((err) => {
     console.error('[tv-webhook] history_mirror_error:', err);
   });
+
+  // Copy-trading preview: auto-follow premium signals in paper trading
+  // for the demo user (ROADMAP 4.8).
+  const demoUserId = getDemoUserId();
+  if (demoUserId && p.stop_loss != null && p.take_profit_1 != null) {
+    await autoFollowSignal({
+      userId: demoUserId,
+      id: p.source_id,
+      symbol: p.symbol,
+      direction: p.direction,
+      entry: p.entry,
+      stopLoss: p.stop_loss,
+      takeProfit: p.take_profit_1,
+      positionSizePct: 0.05,
+    }).catch((err) => {
+      console.error('[tv-webhook] copy_trading_preview_error:', err);
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
