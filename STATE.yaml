@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-03T14:00:10+08:00
+updated: 2026-06-06T23:00:00+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1866,7 +1866,46 @@ tasks:
       `python3 -m py_compile`, `npm run build` (330 pages), and `npm test -- --runInBand`
       (101 passed, 3 skipped, 0 failed).
 
+  - id: TC-229
+    title: "Expo mobile app native assets — generate icon, splash, adaptive-icon, favicon PNGs from brand SVG"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Generated apps/mobile/assets/ (icon.png 1024×1024, adaptive-icon.png 1024×1024 transparent,
+      splash.png 1242×2436 dark, favicon.png 48×48) from apps/web/public/icon.svg using sharp.
+      Created scripts/generate-mobile-assets.js for reproducible asset generation.
+      This unblocks EAS Build packaging for distribution. Verified with npm run build (330 pages)
+      and npm test -- --runInBand (110 passed, 3 skipped, 0 failed).
+
+  - id: TC-230
+    title: "Expo EAS Build configuration — eas.json + .gitignore for mobile app distribution"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Created apps/mobile/eas.json with development, preview, and production build profiles.
+      Preview builds as APK for Android internal distribution and simulator builds for iOS.
+      Production profile auto-increments version. Added apps/mobile/.gitignore for Expo
+      build artifacts, native secrets, and local env files. Build verification: npm run build
+      passes (330 pages). Next step for actual distribution: run `eas init` to link an EAS
+      project, then `eas build --profile preview` for internal testing or `eas build --profile
+      production` for app store submission.
+
+  - id: TC-232
+    title: "Copy-trading preview — auto-follow premium signals in paper trading for demo user"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Implements ROADMAP 4.8 preview layer. When a TradingView webhook premium signal arrives
+      at /api/webhooks/tradingview, the route now auto-opens a paper-trade position for the
+      demo user (PUBLIC_WIDGET_DEMO_USER_ID) via autoFollowSignal with 5% position sizing.
+      Skipped when demo user is not configured or when SL/TP are missing. Adds Jest coverage
+      verifying auto-follow is called with correct args, skipped without SL/TP, and skipped
+      when demo user is null. 2026-06-06 follow-up: added missing `entry: p.entry` to the
+      autoFollowSignal call so the route satisfies the FollowSignalInput TypeScript contract.
+      Verified with `npx tsc --noEmit` (0 errors), targeted Jest (5 passed), and `npm run build`.
+
 next_actions:
+  - "2026-06-06: Ran `npm run resolve:outcomes` to advance the Signal Credibility Engine (ROADMAP 1.1/1.4). Resolver exited cleanly. signal-history.json now contains 586 resolved records + 2 recent pending signals still inside the 24h window (DOGEUSD_M15_SELL, XRPUSD_M15_BUY). SQLite track-record audit of 586 resolved signals shows no new sub-25% symbol+direction combos outside the current BLACKLISTED_COMBOS, so no blacklist update is needed this cycle. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed)."
   - "2026-06-03: Fixed 3 pre-existing TypeScript compilation errors in apps/web/app/api/cron/push-signals/__tests__/route.test.ts — `indicators: {}` did not satisfy the `IndicatorSummary` interface (missing rsi/macd/ema/bollingerBands/stochastic/support/resistance). Replaced with minimal valid indicator objects so `npx tsc --noEmit` passes cleanly across the entire apps/web workspace. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (101 passed, 3 skipped, 0 failed)."
   - "2026-06-03: TC-227 complete. Landing page now surfaces the last-100-signal win rate as a proof tile on ProofHero. Recent 100 signals are at 63% WR (up from ~31% all-time), so this directly improves first-visit credibility."
   - "2026-06-03: TC-226 complete. /tradingview-export is now discoverable from desktop navbar (Community group) and mobile nav. Addresses ROADMAP immediate next action #2 (TradingView profile integration)."
@@ -1877,9 +1916,9 @@ next_actions:
   - "2026-06-02: TC-218 complete. GitHub Actions workflow now triggers /api/cron/push-signals every 15 minutes."
   - "2026-06-02: TC-217 complete. Mobile push notification loop is end-to-end: token registration → backend storage → cron dispatch → Expo push API."
   - "2026-06-02: TC-222 complete. Next.js signal generator now respects the same BLACKLISTED_COMBOS as the Python scanner, closing the fallback-path leak where degraded scanner coverage exposed low-win-rate combos through the TA engine."
-  - "Signal engine quality pass remains highest ROADMAP priority — monitor rolling win rate and tighten further if it stays below 50%."
-  - "ROADMAP immediate next action #3 (Mobile app MVP) is substantially complete via TC-217; remaining polish is packaging the Expo app for distribution."
-  - "ROADMAP immediate next action #4 (Multi-provider marketplace scaffold) is complete via TC-221; next step is seeding verified providers."
+  - "Signal engine quality pass remains highest ROADMAP priority — monitor rolling win rate and tighten further if it stays below 50%. Next concrete step: wait for fresh resolved outcome data from production to identify new blacklist candidates."
+  - "2026-06-06: TC-230 complete. EAS Build configuration shipped (eas.json with dev/preview/production profiles, .gitignore). ROADMAP immediate next action #3 (Mobile app MVP) next step: run `eas init` + `eas build --profile preview` for internal distribution, then app store submission."
+  - "2026-06-06: TC-231 complete. Marketplace now shows 3 seed providers (Zaky, Alpha Desk, Forex Flow) when DB is empty. ROADMAP immediate next action #4 (Multi-provider marketplace) is now complete through TC-221 + TC-231. Next: invite real external traders to apply as providers."
   - "2026-05-21: published /results backtest validation snapshot with 12-month coverage (1,958 trades, 62.3% weighted win rate, Sharpe 1.53) and linked it from the hero; verified with npm run build."
   - "2026-05-21: /track-record resolution heartbeat now updates continuously and the leaderboard pair-detail modal guards against stale fetch races, so freshness cues stay honest while the page stays open; verified with npm run build."
   - "2026-05-21: allocation dashboard now pulls live gross/net exposure from /api/widget/portfolio instead of placeholder math, so Current Exposure and Headroom reflect the paper-trading snapshot; verified with npm run build."
