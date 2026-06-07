@@ -17,6 +17,7 @@ import { deriveHistoricalOutcomeStatus } from '@/lib/signal-outcome';
 import { symbolsForCategory, type CategoryFilter } from '@/app/lib/symbol-config';
 import { EmbedButton } from '../components/embed-button';
 import { ShareOnX } from '../components/share-on-x';
+import { ShareLinkedIn } from '../components/share-linkedin';
 
 type Period = '7d' | '30d' | '90d' | '180d' | '1y' | '5y' | 'all';
 
@@ -611,6 +612,11 @@ export function TrackRecordClient() {
           <div className="mt-2 flex items-center gap-2">
             <EmbedButton embedPath={`/embed/track-record?band=${embeddedBand}`} label="Embed this" width={600} height={360} />
             <ShareOnX
+              winRate={stats?.winRate}
+              resolved={stats?.resolved}
+              period={period}
+            />
+            <ShareLinkedIn
               winRate={stats?.winRate}
               resolved={stats?.resolved}
               period={period}

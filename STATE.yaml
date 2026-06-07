@@ -1,5 +1,5 @@
 project: tradeclaw
-updated: 2026-06-06T23:00:00+08:00
+updated: 2026-06-07T13:00:09+08:00
 
 description: >
   Open source self-hostable AI trading agent platform.
@@ -1904,7 +1904,35 @@ tasks:
       autoFollowSignal call so the route satisfies the FollowSignalInput TypeScript contract.
       Verified with `npx tsc --noEmit` (0 errors), targeted Jest (5 passed), and `npm run build`.
 
+  - id: TC-233
+    title: "Wire Pine Script export into TradingView integration page"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Wired the existing untracked `apps/web/lib/tv-pine-export.ts` helper into
+      `apps/web/app/tradingview-export/TradingViewExportClient.tsx`. Added a second
+      export card that renders the generated Pine Script v5 indicator, plus Copy and
+      Download (.pine) buttons. The script embeds TradeClaw's RSI/MACD/EMA/BB/Stoch
+      weights and alertconditions, so TradingView users can overlay the engine on any
+      chart without manual translation. Verified with `npm run build` (330 pages) and
+      `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed).
+
+  - id: TC-234
+    title: "LinkedIn share button on track record — one-click share verified performance stats"
+    status: done
+    owner: pm-tradeclaw
+    notes: >
+      Added a LinkedIn share button alongside the existing X/Twitter share button on
+      /track-record. Uses the LinkedIn share URL format with pre-filled title/description
+      containing the current win rate and resolved signal count. Advances ROADMAP 4.5
+      content pipeline (LinkedIn organic discovery). Verified with `npm run build`
+      (330 pages) and `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed).
+
 next_actions:
+  - "2026-06-07: TC-234 complete. Added LinkedIn share button to /track-record so visitors can one-click share verified performance stats. Advances ROADMAP 4.5 content pipeline (LinkedIn organic discovery). Build passes 330 pages, tests 111 passed. Next: create weekly performance recap content for X/LinkedIn using the 63.9% non-blacklisted WR milestone, or continue GitHub Stars Campaign prep."
+  - "2026-06-07: Hourly growth loop ran `scripts/signal-outcome-checker.py` and a SQLite per-combo audit. 0 pending signals resolved. 400 resolved rows overall at 54.8% WR (219W/181L). Excluding current BLACKLISTED_COMBOS, the remaining non-blacklisted combo WR is 63.9% (184W/104L). No new sub-30% symbol+direction combos outside current BLACKLISTED_COMBOS; GBPUSD_BUY (48.6%, n=37) and USDJPY_SELL (44.4%, n=18) are above the <=25% blacklist threshold and remain on watch. No code changes this cycle. Verified with `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed). Next concrete step: wait for fresh resolved signals before next blacklist pass, or pivot to content pipeline / GitHub Stars Campaign."
+  - "2026-06-07: Ran `npm run resolve:outcomes` to advance the Signal Credibility Engine (ROADMAP 1.1/1.4). Resolver exited cleanly. Local Python scanner audit (signals.db, 400 resolved rows) shows overall win rate improved to 54.8% (219W/181L) — up from ~40%. No new sub-30% symbol+direction combos outside the current BLACKLISTED_COMBOS; USDJPY_BUY already suppressed. TC-233 shipped: wired the untracked Pine Script export helper into /tradingview-export with copy + download buttons, advancing ROADMAP 4.4 TradingView profile integration. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed)."
+  - "2026-06-07: Refreshed docs/ROADMAP.md 'Current State' section to reflect June 2026 reality. Updated win rate from ~40% to ~55% (54.8% actual), marked mobile app MVP and marketplace scaffold as shipped, noted copy-trading preview status, and replaced stale immediate next actions with current priorities (content pipeline, GitHub Stars Campaign, mobile distribution). Updated Last updated date to 2026-06-07. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed)."
   - "2026-06-06: Ran `npm run resolve:outcomes` to advance the Signal Credibility Engine (ROADMAP 1.1/1.4). Resolver exited cleanly. signal-history.json now contains 586 resolved records + 2 recent pending signals still inside the 24h window (DOGEUSD_M15_SELL, XRPUSD_M15_BUY). SQLite track-record audit of 586 resolved signals shows no new sub-25% symbol+direction combos outside the current BLACKLISTED_COMBOS, so no blacklist update is needed this cycle. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (111 passed, 3 skipped, 0 failed)."
   - "2026-06-03: Fixed 3 pre-existing TypeScript compilation errors in apps/web/app/api/cron/push-signals/__tests__/route.test.ts — `indicators: {}` did not satisfy the `IndicatorSummary` interface (missing rsi/macd/ema/bollingerBands/stochastic/support/resistance). Replaced with minimal valid indicator objects so `npx tsc --noEmit` passes cleanly across the entire apps/web workspace. Verified with `npm run build` (330 pages) and `npm test -- --runInBand` (101 passed, 3 skipped, 0 failed)."
   - "2026-06-03: TC-227 complete. Landing page now surfaces the last-100-signal win rate as a proof tile on ProofHero. Recent 100 signals are at 63% WR (up from ~31% all-time), so this directly improves first-visit credibility."
