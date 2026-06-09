@@ -217,11 +217,11 @@ export async function middleware(request: NextRequest) {
         adminSecretWarningLogged = true;
       }
     } else {
-      // Check Bearer header (for external API calls)
+      // Check Bearer header (for external API calls). The scheme name is
+      // case-insensitive per RFC 7235, so accept any-case "bearer".
       const authHeader = request.headers.get("authorization");
-      const bearerToken = authHeader?.startsWith("Bearer ")
-        ? authHeader.slice(7)
-        : null;
+      const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i) ?? null;
+      const bearerToken = bearerMatch ? bearerMatch[1] : null;
 
       // Check httpOnly cookie (for browser sessions)
       const cookieToken = request.cookies.get("tc_admin")?.value ?? null;
