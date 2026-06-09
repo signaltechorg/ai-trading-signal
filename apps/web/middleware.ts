@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAdminSession } from "./lib/admin-session";
+import { verifyAdminSession, safeEqual } from "./lib/admin-session";
 
 // ---------------------------------------------------------------------------
 // 1. Rate-limit store (in-memory, per-IP, resets every 60 s)
@@ -226,10 +226,12 @@ export async function middleware(request: NextRequest) {
       // Check httpOnly cookie (for browser sessions)
       const cookieToken = request.cookies.get("tc_admin")?.value ?? null;
 
-      // Bearer tokens are still compared against the raw secret for API clients
+      // Bearer accepts either a signed session token or the raw ADMIN_SECRET
+      // (constant-time compared) for programmatic API clients / curl scripts.
       const bearerOk =
         bearerToken !== null &&
-        (await verifyAdminSession(bearerToken, adminSecret));
+        ((await verifyAdminSession(bearerToken, adminSecret)) ||
+          safeEqual(bearerToken, adminSecret));
       // Cookie tokens are verified as signed sessions
       const cookieOk =
         cookieToken !== null &&
