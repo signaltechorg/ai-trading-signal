@@ -16,6 +16,10 @@ export interface SignalOutcome {
   pnlPct: number;
   hit: boolean;
   target?: 'TP1' | 'TP2' | 'TP3' | 'SL' | 'expired';
+  /** Resolution provenance: wall-clock ISO timestamp when this outcome was written. Absent on legacy rows. */
+  resolvedAt?: string;
+  /** Resolution provenance: OHLCV provider that supplied the resolving candles (e.g. 'binance', 'stooq'), or 'force-expired'. Absent on legacy rows. */
+  source?: string;
 }
 
 // Auto-expire writes `{ pnlPct: 0, hit: false, target: 'expired' }` when a signal window elapses
@@ -75,6 +79,16 @@ export interface SignalHistoryRecord {
   gateBlocked?: boolean;
   /** Human-readable gate.reason at the moment of blocking. NULL unless gateBlocked is TRUE. */
   gateReason?: string;
+  /** Market regime resolved for this symbol at emission (migration 048). Undefined on pre-048 rows. */
+  regime?: string;
+  /** Pro-broadcast gate decision at emission: false = approved for broadcast, true = blocked. Undefined = decision not recorded (pre-048 rows). Tri-state is load-bearing — do NOT default to false. */
+  broadcastBlocked?: boolean;
+  /** Why the broadcast gate blocked this row (winning-cells / risk veto). Undefined unless broadcastBlocked is true. */
+  broadcastBlockReason?: string;
+  /** Allocator position size (% of equity) computed at emission. Undefined on pre-048 rows or when the pipeline did not run. */
+  allocationPct?: number;
+  /** Wall-clock publish stamp (DB-defaulted NOW() on insert), distinct from bar-time `timestamp`. Undefined on pre-048 rows. */
+  publishedAt?: number;
   outcomes: {
     '4h': SignalOutcome | null;
     '24h': SignalOutcome | null;
@@ -240,6 +254,11 @@ interface HistoryRow {
   max_adverse_excursion: string | number | null;
   gate_blocked: boolean | null;
   gate_reason: string | null;
+  regime?: string | null;
+  broadcast_blocked?: boolean | null;
+  broadcast_block_reason?: string | null;
+  allocation_pct?: string | number | null;
+  published_at?: string | null;
 }
 
 function rowToRecord(row: HistoryRow): SignalHistoryRecord {
@@ -264,6 +283,14 @@ function rowToRecord(row: HistoryRow): SignalHistoryRecord {
     maxAdverseExcursion: row.max_adverse_excursion != null ? Number(row.max_adverse_excursion) : undefined,
     gateBlocked: row.gate_blocked ?? false,
     gateReason: row.gate_reason ?? undefined,
+    regime: row.regime ?? undefined,
+    // Tri-state: NULL (pre-048 / decision not recorded) maps to undefined,
+    // NOT false — the broadcast scope must only include rows whose decision
+    // actually ran and approved.
+    broadcastBlocked: row.broadcast_blocked ?? undefined,
+    broadcastBlockReason: row.broadcast_block_reason ?? undefined,
+    allocationPct: row.allocation_pct != null ? Number(row.allocation_pct) : undefined,
+    publishedAt: row.published_at ? new Date(row.published_at).getTime() : undefined,
     outcomes: {
       '4h': row.outcome_4h ?? null,
       '24h': row.outcome_24h ?? null,
@@ -329,6 +356,17 @@ export async function readHistoryAsync(
 
 // ── Record single signal ─────────────────────────────────────
 
+/**
+ * Pro-broadcast gate decision computed at emission (migration 048). Recorded
+ * alongside the row so the broadcast-filtered subset is measurable.
+ */
+export interface BroadcastDecisionFields {
+  regime?: string;
+  blocked: boolean;
+  blockReason?: string;
+  allocationPct?: number;
+}
+
 export async function recordSignalAsync(
   pair: string,
   timeframe: string,
@@ -345,6 +383,7 @@ export async function recordSignalAsync(
   atrMultiplier?: number,
   gateBlocked?: boolean,
   gateReason?: string,
+  broadcast?: BroadcastDecisionFields,
 ): Promise<void> {
   const sigId = id ?? `${pair}-${timeframe}-${direction}-${Date.now()}`;
   const ts = timestamp ?? Date.now();
@@ -367,12 +406,16 @@ export async function recordSignalAsync(
       atrMultiplier,
       gateBlocked,
       gateReason,
+      regime: broadcast?.regime,
+      broadcastBlocked: broadcast?.blocked,
+      broadcastBlockReason: broadcast?.blockReason,
+      allocationPct: broadcast?.allocationPct,
     });
     return;
   }
 
   // File fallback
-  recordSignal(pair, timeframe, direction, confidence, entryPrice, sigId, tp1, sl, ts, strategyId, resolvedMode, entryAtr, atrMultiplier, gateBlocked, gateReason);
+  recordSignal(pair, timeframe, direction, confidence, entryPrice, sigId, tp1, sl, ts, strategyId, resolvedMode, entryAtr, atrMultiplier, gateBlocked, gateReason, broadcast);
 }
 
 /**
@@ -399,12 +442,49 @@ interface InsertRowArgs {
   atrMultiplier?: number;
   gateBlocked?: boolean;
   gateReason?: string;
+  regime?: string;
+  broadcastBlocked?: boolean;
+  broadcastBlockReason?: string;
+  allocationPct?: number;
 }
 
 let atrColumnsKnownMissing = false;
 let gateColumnsKnownMissing = false;
+let broadcastColumnsKnownMissing = false;
 
 async function insertSignalHistoryRow(args: InsertRowArgs): Promise<boolean> {
+  // Tier 0: full schema incl. 048 broadcast-scope cols. Only attempted when
+  // the caller actually has a broadcast decision to persist — otherwise the
+  // Tier 1 INSERT is identical in effect and skips a failure probe.
+  if (
+    !broadcastColumnsKnownMissing && !atrColumnsKnownMissing && !gateColumnsKnownMissing &&
+    args.broadcastBlocked !== undefined
+  ) {
+    try {
+      const result = await query<{ id: string }>(
+        `INSERT INTO signal_history (id, pair, timeframe, direction, confidence, entry_price, tp1, sl, created_at, strategy_id, mode, entry_atr, atr_multiplier, gate_blocked, gate_reason, regime, broadcast_blocked, broadcast_block_reason, allocation_pct)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         ON CONFLICT (id) DO UPDATE SET strategy_id = EXCLUDED.strategy_id
+           WHERE signal_history.strategy_id IS NULL AND EXCLUDED.strategy_id IS NOT NULL
+         RETURNING id`,
+        [args.id, args.pair, args.timeframe, args.direction, args.confidence, args.entryPrice, args.tp1 ?? null, args.sl ?? null, args.createdAt, args.strategyId ?? null, args.mode, args.entryAtr ?? null, args.atrMultiplier ?? null, args.gateBlocked ?? false, args.gateReason ?? null, args.regime ?? null, args.broadcastBlocked, args.broadcastBlockReason ?? null, args.allocationPct ?? null],
+      );
+      return result.length > 0;
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | null)?.code;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (code === '42703' && /regime|broadcast_blocked|broadcast_block_reason|allocation_pct/.test(msg)) {
+        console.warn('[signal-history] migration 048 not applied — falling back to pre-048 INSERT (broadcast decision dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql to record broadcast-scope decisions.');
+        broadcastColumnsKnownMissing = true;
+      } else if (code === '42703') {
+        // Older migration missing too — let the existing tiers diagnose.
+        broadcastColumnsKnownMissing = true;
+      } else {
+        throw err;
+      }
+    }
+  }
+
   // Tier 1: full schema (012 ATR + 017 gate cols).
   if (!atrColumnsKnownMissing && !gateColumnsKnownMissing) {
     try {
@@ -486,6 +566,7 @@ export function recordSignal(
   atrMultiplier?: number,
   gateBlocked?: boolean,
   gateReason?: string,
+  broadcast?: BroadcastDecisionFields,
 ): void {
   const records = readHistoryFile();
   const sigId = id ?? `${pair}-${timeframe}-${direction}-${Date.now()}`;
@@ -500,10 +581,74 @@ export function recordSignal(
     atrMultiplier,
     gateBlocked: gateBlocked ?? false,
     gateReason,
+    regime: broadcast?.regime,
+    broadcastBlocked: broadcast?.blocked,
+    broadcastBlockReason: broadcast?.blockReason,
+    allocationPct: broadcast?.allocationPct,
+    publishedAt: broadcast !== undefined ? Date.now() : undefined,
     outcomes: { '4h': null, '24h': null },
   });
   if (records.length > MAX_RECORDS) records.splice(MAX_RECORDS);
   writeHistoryFile(records);
+}
+
+// ── Broadcast decision late-stamp (catch-up rows) ────────────
+
+/**
+ * Stamps the Pro-broadcast gate decision onto rows that were recorded by the
+ * request-path writer BEFORE the cron's broadcast tick evaluated them (the
+ * catch-up set). Only fills rows whose decision is still NULL — a decision
+ * recorded at emission is never overwritten.
+ */
+export async function updateBroadcastDecisionAsync(
+  decisions: Array<{ id: string } & BroadcastDecisionFields>,
+): Promise<number> {
+  if (decisions.length === 0) return 0;
+
+  if (isDbEnabled()) {
+    if (broadcastColumnsKnownMissing) return 0;
+    let stamped = 0;
+    for (const d of decisions) {
+      try {
+        const result = await query<{ id: string }>(
+          `UPDATE signal_history
+              SET regime = COALESCE($2, regime),
+                  broadcast_blocked = $3,
+                  broadcast_block_reason = $4,
+                  allocation_pct = $5
+            WHERE id = $1 AND broadcast_blocked IS NULL
+            RETURNING id`,
+          [d.id, d.regime ?? null, d.blocked, d.blockReason ?? null, d.allocationPct ?? null],
+        );
+        stamped += result.length;
+      } catch (err: unknown) {
+        const code = (err as { code?: string } | null)?.code;
+        if (code === '42703') {
+          console.warn('[signal-history] migration 048 not applied — broadcast decisions not stamped. Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql.');
+          broadcastColumnsKnownMissing = true;
+          return stamped;
+        }
+        throw err;
+      }
+    }
+    return stamped;
+  }
+
+  // File fallback
+  const records = readHistoryFile();
+  const byId = new Map(decisions.map(d => [d.id, d]));
+  let stamped = 0;
+  for (const r of records) {
+    const d = byId.get(r.id);
+    if (!d || r.broadcastBlocked !== undefined) continue;
+    r.regime = d.regime ?? r.regime;
+    r.broadcastBlocked = d.blocked;
+    r.broadcastBlockReason = d.blockReason;
+    r.allocationPct = d.allocationPct;
+    stamped++;
+  }
+  if (stamped > 0) writeHistoryFile(records);
+  return stamped;
 }
 
 // ── Bulk record ──────────────────────────────────────────────
@@ -1108,9 +1253,30 @@ export async function updateRecordsAsync(
         sets.push(`last_verified = $${idx++}`);
         params.push(new Date(patch.lastVerified).toISOString());
       }
+      // MAE rides along with outcome resolution (cron path). COALESCE keeps
+      // the first-written value; skip entirely when migration 012 is absent.
+      if (patch.maxAdverseExcursion !== undefined && !atrColumnsKnownMissing) {
+        sets.push(`max_adverse_excursion = COALESCE(max_adverse_excursion, $${idx++})`);
+        params.push(patch.maxAdverseExcursion);
+      }
 
       if (sets.length === 0) continue;
-      await execute(`UPDATE signal_history SET ${sets.join(', ')} WHERE id = $1`, params);
+      try {
+        await execute(`UPDATE signal_history SET ${sets.join(', ')} WHERE id = $1`, params);
+      } catch (err: unknown) {
+        const code = (err as { code?: string } | null)?.code;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (code === '42703' && /max_adverse_excursion/.test(msg)) {
+          atrColumnsKnownMissing = true;
+          const maeIdx = sets.findIndex(s => s.includes('max_adverse_excursion'));
+          sets.splice(maeIdx, 1);
+          params.splice(maeIdx + 1, 1);
+          if (sets.length === 0) continue;
+          await execute(`UPDATE signal_history SET ${sets.join(', ')} WHERE id = $1`, params);
+        } else {
+          throw err;
+        }
+      }
       changed++;
     }
     return changed;
