@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: t.meta.ogTitle,
     description: t.meta.ogDescription,
-    url: "https://tradeclaw.com/ar",
+    url: "https://tradeclaw.win/ar",
     siteName: "TradeClaw",
     type: "website",
     locale: "ar",
@@ -27,12 +27,12 @@ export const metadata: Metadata = {
   },
   alternates: {
     languages: {
-      "en": "https://tradeclaw.com",
-      "es": "https://tradeclaw.com/es",
-      "zh-CN": "https://tradeclaw.com/zh",
-      "ms": "https://tradeclaw.com/ms",
-      "ar": "https://tradeclaw.com/ar",
-      "x-default": "https://tradeclaw.com",
+      "en": "https://tradeclaw.win",
+      "es": "https://tradeclaw.win/es",
+      "zh-CN": "https://tradeclaw.win/zh",
+      "ms": "https://tradeclaw.win/ms",
+      "ar": "https://tradeclaw.win/ar",
+      "x-default": "https://tradeclaw.win",
     },
   },
 };

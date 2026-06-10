@@ -108,12 +108,12 @@ export function TodayClient() {
   const signal = data?.signalOfTheDay;
 
   const shareText = signal
-    ? `🎯 Signal of the Day from TradeClaw\n\n${signal.symbol} ${signal.direction} @ ${signal.entry}\nConfidence: ${signal.confidence}%\nTP1: ${signal.takeProfit1} | SL: ${signal.stopLoss}\n\nhttps://tradeclaw.com/today`
+    ? `🎯 Signal of the Day from TradeClaw\n\n${signal.symbol} ${signal.direction} @ ${signal.entry}\nConfidence: ${signal.confidence}%\nTP1: ${signal.takeProfit1} | SL: ${signal.stopLoss}\n\nhttps://tradeclaw.win/today`
     : '';
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({ title: 'TradeClaw Signal of the Day', text: shareText, url: 'https://tradeclaw.com/today' });
+      navigator.share({ title: 'TradeClaw Signal of the Day', text: shareText, url: 'https://tradeclaw.win/today' });
     } else {
       navigator.clipboard.writeText(shareText);
       setCopied(true);
@@ -122,7 +122,7 @@ export function TodayClient() {
   };
 
   const tweetUrl = signal
-    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🎯 Signal of the Day: ${signal.symbol} ${signal.direction} (${signal.confidence}% confidence)\n\nTP1: ${signal.takeProfit1} | SL: ${signal.stopLoss}\n\n`)}&url=${encodeURIComponent('https://tradeclaw.com/today')}`
+    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🎯 Signal of the Day: ${signal.symbol} ${signal.direction} (${signal.confidence}% confidence)\n\nTP1: ${signal.takeProfit1} | SL: ${signal.stopLoss}\n\n`)}&url=${encodeURIComponent('https://tradeclaw.win/today')}`
     : '#';
 
   return (
