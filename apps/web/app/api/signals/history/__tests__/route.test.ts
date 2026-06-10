@@ -22,7 +22,7 @@ jest.mock('../../../../../lib/signal-history', () => {
 });
 
 jest.mock('../../../../../lib/signal-slice', () => ({
-  parseScope: jest.fn((raw: string | null | undefined) => raw === 'free' ? 'free' : 'pro'),
+  parseScope: jest.fn((raw: string | null | undefined) => raw === 'free' ? 'free' : raw === 'broadcast' ? 'broadcast' : 'pro'),
   getResolvedSlice: jest.fn(),
 }));
 
