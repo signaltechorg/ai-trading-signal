@@ -721,7 +721,7 @@ export const glossaryTerms: GlossaryTerm[] = [
     definition:
       "A condition where a trading strategy is excessively optimized to historical data, performing perfectly on past data but poorly on new, unseen data. Overfitting occurs when a model captures noise rather than genuine market patterns. It is the most common pitfall in strategy development and the primary reason backtests fail to translate to live performance.",
     tcRelevance:
-      "TradeClaw combats overfitting through walk-forward analysis, out-of-sample testing, and Monte Carlo simulations in its backtest engine, ensuring strategy robustness before deployment.",
+      "TradeClaw's primary defense against overfitting is its public forward track record: every published signal's outcome is recorded and scored after the fact, so performance evidence comes from live data rather than optimized backtests. The backtest page compares strategy presets on recent data using a disclosed fixed TP/SL model.",
     relatedTerms: ["backtesting", "sharpe-ratio", "win-rate"],
     relatedPage: "/backtest",
     tags: ["bias", "optimization", "robustness"],
