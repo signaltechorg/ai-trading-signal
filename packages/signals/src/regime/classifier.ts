@@ -162,13 +162,35 @@ function validateModel(model: HMMModelParams): void {
     }
   }
 
-  // transition_matrix must be n_states x n_states
+  // transition_matrix must be n_states x n_states and row-stochastic
   if (model.transition_matrix.length !== n) {
     throw new Error(`transition_matrix has ${model.transition_matrix.length} rows, expected ${n}`);
   }
   for (let i = 0; i < n; i++) {
     if (model.transition_matrix[i].length !== n) {
       throw new Error(`transition_matrix row ${i} has ${model.transition_matrix[i].length} cols, expected ${n}`);
+    }
+    let rowSum = 0;
+    for (const p of model.transition_matrix[i]) {
+      if (!isFinite(p) || p < 0) {
+        throw new Error(`transition_matrix row ${i} has a negative or non-finite entry`);
+      }
+      rowSum += p;
+    }
+    if (Math.abs(rowSum - 1) > 1e-4) {
+      throw new Error(`transition_matrix row ${i} sums to ${rowSum}, expected 1`);
+    }
+  }
+
+  // initial_probs, when present, must match n_states and sum to 1 — a bad
+  // vector silently corrupts forward-algorithm confidences (NaN log terms)
+  if (model.initial_probs !== undefined) {
+    if (!Array.isArray(model.initial_probs) || model.initial_probs.length !== n) {
+      throw new Error(`initial_probs has ${model.initial_probs?.length ?? 0} entries, expected ${n}`);
+    }
+    const piSum = model.initial_probs.reduce((a, b) => a + b, 0);
+    if (Math.abs(piSum - 1) > 1e-4) {
+      throw new Error(`initial_probs sums to ${piSum}, expected 1`);
     }
   }
 
@@ -262,7 +284,8 @@ export function getDefaultModel(assetClass: string): HMMModelParams {
     feature_means: featureMeans,
     feature_stds: featureStds,
     asset_class: assetClass,
-    trained_at: new Date().toISOString(),
+    // Deterministic marker — this model is code, not a training artifact
+    trained_at: 'builtin-fallback',
     initial_probs: [1 / 3, 1 / 3, 1 / 3],
   };
 }
@@ -291,7 +314,12 @@ export function classifyRegime(
   bars: RegimeBar[],
   options: { sequenceLength?: number } = {},
 ): RegimeClassification {
-  const sequenceLength = options.sequenceLength ?? DEFAULT_SEQUENCE_LENGTH;
+  // Clamp up to the minimum: a small sequenceLength with ample data must
+  // shrink the smoothing window, not trigger the insufficient-data throw.
+  const sequenceLength = Math.max(
+    options.sequenceLength ?? DEFAULT_SEQUENCE_LENGTH,
+    MIN_SEQUENCE_VECTORS,
+  );
   const assetClass = getSymbolCategory(symbol);
   const model = loadModel(assetClass);
 

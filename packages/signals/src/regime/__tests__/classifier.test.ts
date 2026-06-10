@@ -231,6 +231,13 @@ describe('classifyRegime — sequence classification', () => {
     expect(result.regime).toBe('trend');
   });
 
+  it('clamps sequenceLength below the minimum instead of throwing on ample data', () => {
+    // 500 bars yield hundreds of feature vectors; sequenceLength: 4 must be
+    // clamped up to the 8-vector minimum, not produce an insufficient-data throw.
+    const result = classifyRegime('BTCUSD', trendingBars(500), { sequenceLength: 4 });
+    expect(result.regime).toBe('trend');
+  });
+
   it('throws when the injected model is missing a state label', () => {
     const model = makeInjectedModel();
     const bad: HMMModelParams = {
@@ -240,6 +247,48 @@ describe('classifyRegime — sequence classification', () => {
     setModel('crypto', bad); // setModel bypasses validation
     expect(() => classifyRegime('BTCUSD', trendingBars(320))).toThrow();
     setModel('crypto', makeInjectedModel());
+  });
+});
+
+// ─── Standardization direction canary ────────────────────────────────────────
+
+describe('classifyRegime — standardization direction', () => {
+  afterAll(() => clearModelCache());
+
+  it('standardizes as (x - mean) / std, not the sign-flipped form', () => {
+    // Pin the range state's emission mean to the CORRECTLY standardized
+    // vector of the flat low-ADX fixture, and the trend state's mean to its
+    // exact negation. A sign flip in (x - mean) / std would land the
+    // observation on the negated mean and flip the label to trend.
+    const featureMeans = [22, 4, 0.5, 0];
+    const featureStds = [10, 3, 0.28, 0.25];
+    const raw = finalFeatureArray(rangeBars(320));
+    const zRange = raw.map((x, i) => (x - featureMeans[i]) / featureStds[i]);
+    const zFlipped = zRange.map((z) => -z);
+    const identityCov = (): number[][] =>
+      Array.from({ length: 4 }, (_, i) =>
+        Array.from({ length: 4 }, (__, j) => (i === j ? 1 : 0)),
+      );
+
+    setModel('crypto', {
+      n_states: 3,
+      state_labels: { '0': 'trend', '1': 'volatile', '2': 'range' },
+      transition_matrix: [
+        [0.9, 0.05, 0.05],
+        [0.05, 0.9, 0.05],
+        [0.05, 0.05, 0.9],
+      ],
+      emission_means: [zFlipped, zRange.map((z, i) => z + (i < 2 ? 10 : 0)), zRange],
+      emission_covariances: [identityCov(), identityCov(), identityCov()],
+      feature_names: ['adx14', 'bbBandwidthPct', 'atrPercentile', 'returnAutocorr1'],
+      feature_means: featureMeans,
+      feature_stds: featureStds,
+      asset_class: 'crypto',
+      trained_at: '2026-06-11T00:00:00Z',
+      initial_probs: [1 / 3, 1 / 3, 1 / 3],
+    });
+
+    expect(classifyRegime('BTCUSD', rangeBars(320)).regime).toBe('range');
   });
 });
 
@@ -302,6 +351,62 @@ describe('loadModel — invalid model file fallback policy', () => {
     // Result is cached: a second load neither re-reads nor re-warns.
     loadModel('crypto');
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a model file with a non-row-stochastic transition matrix', () => {
+    const bad = { ...getDefaultModel('crypto') };
+    bad.transition_matrix = [
+      [0.5, 0.2, 0.2], // sums to 0.9
+      [0.025, 0.95, 0.025],
+      [0.025, 0.025, 0.95],
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'crypto_hmm.json'), JSON.stringify(bad));
+
+    const model = loadModel('crypto');
+    expect(model.n_states).toBe(3);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const message = String(warnSpy.mock.calls[0][0]);
+    expect(message).toContain('row 0');
+    expect(message).toContain('sums to');
+  });
+
+  it('rejects a model file with negative transition probabilities', () => {
+    const bad = { ...getDefaultModel('crypto') };
+    bad.transition_matrix = [
+      [0.95, 0.025, 0.025],
+      [1.5, -0.5, 0], // sums to 1 but has a negative entry
+      [0.025, 0.025, 0.95],
+    ];
+    fs.writeFileSync(path.join(tmpDir, 'crypto_hmm.json'), JSON.stringify(bad));
+
+    const model = loadModel('crypto');
+    expect(model.n_states).toBe(3);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(String(warnSpy.mock.calls[0][0])).toContain('negative');
+  });
+
+  it('rejects a model file with wrong-length initial_probs', () => {
+    // A wrong-length initial_probs silently corrupts forward-algorithm
+    // confidences (NaN log terms contaminate the alpha sums) — it must fail
+    // validation and fall back, never load.
+    const bad = { ...getDefaultModel('crypto'), initial_probs: [0.5, 0.5] };
+    fs.writeFileSync(path.join(tmpDir, 'crypto_hmm.json'), JSON.stringify(bad));
+
+    const model = loadModel('crypto');
+    expect(model.n_states).toBe(3);
+    expect(model.initial_probs).toHaveLength(3);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(String(warnSpy.mock.calls[0][0])).toContain('initial_probs');
+  });
+
+  it('rejects a model file whose initial_probs do not sum to 1', () => {
+    const bad = { ...getDefaultModel('crypto'), initial_probs: [0.5, 0.4, 0.4] };
+    fs.writeFileSync(path.join(tmpDir, 'crypto_hmm.json'), JSON.stringify(bad));
+
+    const model = loadModel('crypto');
+    expect(model.n_states).toBe(3);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(String(warnSpy.mock.calls[0][0])).toContain('initial_probs');
   });
 
   it('falls back with a warning when the file is unparseable', () => {

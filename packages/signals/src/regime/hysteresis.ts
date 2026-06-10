@@ -15,7 +15,11 @@ import type { MarketRegime } from './types.js';
 
 export interface HysteresisState {
   regime: MarketRegime;
-  /** Number of bars the current regime label has been held. */
+  /**
+   * Number of bars the current regime label has been held. Caller contract:
+   * reset after every accepted switch (the new label starts counting from
+   * its first bar); incremented only while the label is unchanged.
+   */
   barsHeld: number;
 }
 

@@ -55,6 +55,19 @@ describe('applyHysteresis', () => {
     expect(applyHysteresis(prev, 'range', 0.79)).toBe('trend');
   });
 
+  it('dwell-gates again immediately after an accepted switch (caller resets barsHeld)', () => {
+    // Dwell satisfied → switch is accepted
+    const prev: HysteresisState = { regime: 'range', barsHeld: 6 };
+    const switched = applyHysteresis(prev, 'trend', 0.5);
+    expect(switched).toBe('trend');
+
+    // Caller bookkeeping per the barsHeld contract: reset after the switch,
+    // counting from 1. An immediate low-confidence flip back must be
+    // suppressed by the dwell gate.
+    const fresh: HysteresisState = { regime: switched, barsHeld: 1 };
+    expect(applyHysteresis(fresh, 'range', 0.5)).toBe('trend');
+  });
+
   it('respects custom minDwellBars and overrideConfidence options', () => {
     const prev: HysteresisState = { regime: 'range', barsHeld: 2 };
     // Dwell satisfied under a custom minimum of 2
