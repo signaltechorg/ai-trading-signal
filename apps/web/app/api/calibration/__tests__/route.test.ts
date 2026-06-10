@@ -86,6 +86,19 @@ describe('GET /api/calibration', () => {
     expect(body.brier).toBeCloseTo(expectedBrier, 6);
   });
 
+  it('confidence exactly 100 lands in the top bucket instead of falling out of all buckets', async () => {
+    mockedHistory.mockResolvedValue([
+      mkRecord({ id: 'conf100', confidence: 100 }),
+    ]);
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.totalSignals).toBe(1);
+    const top = body.buckets.find((b: { label: string }) => b.label === '90-99%');
+    expect(top).toMatchObject({ count: 1, wins: 1, winRate: 1 });
+  });
+
   it('returns null brier/ece with no counted rows instead of fabricated values', async () => {
     mockedHistory.mockResolvedValue([
       mkRecord({ id: 'sim-only', isSimulated: true }),

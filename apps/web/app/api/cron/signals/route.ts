@@ -301,7 +301,26 @@ export async function GET(request: NextRequest): Promise<Response> {
     // unfiltered broadcast (Pro must not silently mute) — those rows record
     // NO decision (NULL) because the gate never actually ran.
     const broadcastInputs: NewlyRecordedSignal[] = [...candidates, ...catchupSignals];
-    const decisions = await computeBroadcastDecisions(broadcastInputs);
+    // computeBroadcastDecisions guards its internals (regime fetch + pipeline),
+    // but an unexpected throw here must not skip recording/resolution — fall
+    // back to "no decision computed": rows record NULL and broadcast
+    // unfiltered, mirroring the pipeline-outage philosophy.
+    let decisions: Awaited<ReturnType<typeof computeBroadcastDecisions>>;
+    try {
+      decisions = await computeBroadcastDecisions(broadcastInputs);
+    } catch (err) {
+      console.warn(
+        '[cron/signals] Broadcast decision computation failed entirely — recording without decisions, broadcasting unfiltered:',
+        err instanceof Error ? err.message : String(err),
+      );
+      decisions = new Map(
+        broadcastInputs.map((s) => [s.id, { id: s.id, blocked: false, recordable: false }]),
+      );
+    }
+    const outageCount = [...decisions.values()].filter((d) => !d.recordable).length;
+    if (outageCount > 0) {
+      console.warn(`[cron/signals] ${outageCount} signal(s) broadcast via outage fallback this tick — no gate decision recorded (rows stay NULL and are excluded from scope=broadcast)`);
+    }
 
     // Record new candidates with their decision inline.
     const newSignals: NewlyRecordedSignal[] = [];

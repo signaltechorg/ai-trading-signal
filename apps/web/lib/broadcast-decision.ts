@@ -88,15 +88,21 @@ export async function computeBroadcastDecisions(
       })),
       regimeMap,
     );
-    const allocBySymbol = new Map(
-      result.report.allocations.map((a) => [a.symbol, a.positionSizePct]),
-    );
+    // report.allocations is pushed one entry per input signal IN INPUT ORDER
+    // (risk-pipeline.ts signal loop) but keyed only by symbol — a symbol with
+    // both BUY and SELL in the same tick would collide in a symbol-keyed map
+    // and persist the wrong positionSizePct. Zip by index instead.
+    const allocByIndex = result.report.allocations;
+    const allocOf = (id: string): number | undefined => {
+      const idx = curated.findIndex((c) => c.id === id);
+      return idx >= 0 ? allocByIndex[idx]?.positionSizePct : undefined;
+    };
     for (const s of result.approved) {
       decisions.set(s.id, {
         id: s.id,
         regime: regimeOf(s.symbol),
         blocked: false,
-        allocationPct: allocBySymbol.get(s.symbol),
+        allocationPct: allocOf(s.id),
         recordable: true,
       });
     }
@@ -106,7 +112,7 @@ export async function computeBroadcastDecisions(
         regime: regimeOf(v.signal.symbol),
         blocked: true,
         blockReason: `${v.vetoedBy}: ${v.reason}`,
-        allocationPct: allocBySymbol.get(v.signal.symbol),
+        allocationPct: allocOf(v.signal.id),
         recordable: true,
       });
     }

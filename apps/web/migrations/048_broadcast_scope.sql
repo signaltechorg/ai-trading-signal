@@ -17,9 +17,11 @@ ALTER TABLE signal_history ADD COLUMN IF NOT EXISTS broadcast_block_reason TEXT;
 ALTER TABLE signal_history ADD COLUMN IF NOT EXISTS allocation_pct REAL;
 
 -- Wall-clock publish stamp, distinct from the writer-supplied bar-time
--- created_at. Added WITHOUT a default first: a volatile DEFAULT on ADD COLUMN
--- would rewrite the table and stamp migration-time NOW() onto historical rows
--- — falsifying history. The default applies to future inserts only.
+-- created_at. Added WITHOUT a default first: ADD COLUMN ... DEFAULT NOW()
+-- (now() is STABLE in PG>=11, no rewrite) would take the attmissingval fast
+-- path and stamp the single migration-time value onto ALL existing rows —
+-- falsifying history. Split this way, existing rows stay NULL and the
+-- catalog-only SET DEFAULT applies to future inserts only.
 ALTER TABLE signal_history ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
 ALTER TABLE signal_history ALTER COLUMN published_at SET DEFAULT NOW();
 

@@ -47,8 +47,12 @@ export async function GET() {
       .filter((s) => s.confidence >= 0.5);
 
     const buckets: CalibrationBucket[] = BUCKETS.map((b) => {
+      // Top bucket is inclusive so confidence exactly 100 (normalized 1.0)
+      // lands in 90-99% instead of falling out of every bucket while still
+      // counting in totalSignals/Brier.
+      const topInclusive = b.confMax === 1.0;
       const inBucket = resolved.filter(
-        (s) => s.confidence >= b.confMin && s.confidence < b.confMax
+        (s) => s.confidence >= b.confMin && (topInclusive ? s.confidence <= b.confMax : s.confidence < b.confMax)
       );
       const wins = inBucket.filter((s) => s.outcomes['24h']?.hit).length;
       const winRate = inBucket.length > 0 ? wins / inBucket.length : null;

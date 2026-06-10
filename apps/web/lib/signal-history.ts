@@ -474,7 +474,7 @@ async function insertSignalHistoryRow(args: InsertRowArgs): Promise<boolean> {
       const code = (err as { code?: string } | null)?.code;
       const msg = err instanceof Error ? err.message : String(err);
       if (code === '42703' && /regime|broadcast_blocked|broadcast_block_reason|allocation_pct/.test(msg)) {
-        console.warn('[signal-history] migration 048 not applied — falling back to pre-048 INSERT (broadcast decision dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql to record broadcast-scope decisions.');
+        console.warn('[signal-history] migration 048 not applied — falling back to pre-048 INSERT (broadcast decision dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql THEN RESTART the service — this flag sticks for the process lifetime.');
         broadcastColumnsKnownMissing = true;
       } else if (code === '42703') {
         // Older migration missing too — let the existing tiers diagnose.
@@ -599,6 +599,12 @@ export function recordSignal(
  * request-path writer BEFORE the cron's broadcast tick evaluated them (the
  * catch-up set). Only fills rows whose decision is still NULL — a decision
  * recorded at emission is never overwritten.
+ *
+ * Semantics: broadcast_blocked is the FIRST RECORDED gate decision, not the
+ * delivery outcome. A row stamped blocked=TRUE can still be re-evaluated and
+ * broadcast on a later tick while it remains in the catch-up window (the
+ * stamp no-ops), and a row stamped FALSE can fail its fire-and-forget send.
+ * Join against telegram_pro_message_id for actual-delivery analytics.
  */
 export async function updateBroadcastDecisionAsync(
   decisions: Array<{ id: string } & BroadcastDecisionFields>,
@@ -624,7 +630,7 @@ export async function updateBroadcastDecisionAsync(
       } catch (err: unknown) {
         const code = (err as { code?: string } | null)?.code;
         if (code === '42703') {
-          console.warn('[signal-history] migration 048 not applied — broadcast decisions not stamped. Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql.');
+          console.warn('[signal-history] migration 048 not applied — broadcast decisions not stamped. Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql THEN RESTART the service — this flag sticks for the process lifetime.');
           broadcastColumnsKnownMissing = true;
           return stamped;
         }
@@ -849,14 +855,20 @@ export async function resolveRealOutcomes(): Promise<void> {
       if (!needs4h && !needs24h) continue;
 
       let candles: import('../app/lib/ohlcv').OHLCV[] = [];
+      let candleSource = 'unknown';
 
       try {
         const result = await getOHLCV(r.pair, getOutcomeResolutionTimeframe(r));
         candles = result.candles;
+        candleSource = result.source;
       } catch (err) {
         console.error(`[signal-history] OHLCV fetch failed for ${r.pair}: ${err instanceof Error ? err.message : String(err)}`);
       }
 
+      // Resolution provenance — both writers (this request-path resolver and
+      // the cron) must stamp it or the detection property doesn't hold:
+      // whichever writer wins the race owns the row.
+      const resolvedAt = new Date(now).toISOString();
       let outcome4h = r.outcomes['4h'];
       let outcome24h = r.outcomes['24h'];
       let mae24h: number | null = null;
@@ -865,19 +877,19 @@ export async function resolveRealOutcomes(): Promise<void> {
         const windowEnd = r.timestamp + FOUR_H;
         const window = candles.filter(c => c.timestamp > r.timestamp && c.timestamp <= windowEnd);
         const resolved = resolveFromCandles(r, window, age >= FOUR_H);
-        outcome4h = resolved?.outcome ?? outcome4h;
+        outcome4h = resolved ? { ...resolved.outcome, resolvedAt, source: candleSource } : outcome4h;
         if (!outcome4h && age >= FOUR_H * 2) {
-          outcome4h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
+          outcome4h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired', resolvedAt, source: 'force-expired' };
         }
       }
       if (needs24h) {
         const windowEnd = r.timestamp + TWENTY_FOUR_H;
         const window = candles.filter(c => c.timestamp > r.timestamp && c.timestamp <= windowEnd);
         const resolved = resolveFromCandles(r, window, age >= TWENTY_FOUR_H);
-        outcome24h = resolved?.outcome ?? outcome24h;
+        outcome24h = resolved ? { ...resolved.outcome, resolvedAt, source: candleSource } : outcome24h;
         mae24h = resolved?.maxAdverseExcursion ?? null;
         if (!outcome24h && age >= TWENTY_FOUR_H * 2) {
-          outcome24h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
+          outcome24h = { price: r.entryPrice, pnlPct: 0, hit: false, target: 'expired', resolvedAt, source: 'force-expired' };
         }
       }
 
@@ -1122,7 +1134,13 @@ export async function recordTradeOutcomeToHistory(
 ): Promise<void> {
   if (!isDbEnabled()) return;
 
-  const outcome: SignalOutcome = { price: exitPrice, pnlPct, hit: isHit };
+  const outcome: SignalOutcome = {
+    price: exitPrice,
+    pnlPct,
+    hit: isHit,
+    resolvedAt: new Date().toISOString(),
+    source: 'trade-close',
+  };
 
   await execute(
     `UPDATE signal_history
@@ -1255,6 +1273,9 @@ export async function updateRecordsAsync(
       }
       // MAE rides along with outcome resolution (cron path). COALESCE keeps
       // the first-written value; skip entirely when migration 012 is absent.
+      // INVARIANT: this MUST stay the LAST pushed SET — the 42703 retry below
+      // splices it off the end, which only preserves $-placeholder numbering
+      // for a trailing element.
       if (patch.maxAdverseExcursion !== undefined && !atrColumnsKnownMissing) {
         sets.push(`max_adverse_excursion = COALESCE(max_adverse_excursion, $${idx++})`);
         params.push(patch.maxAdverseExcursion);
@@ -1269,8 +1290,10 @@ export async function updateRecordsAsync(
         if (code === '42703' && /max_adverse_excursion/.test(msg)) {
           atrColumnsKnownMissing = true;
           const maeIdx = sets.findIndex(s => s.includes('max_adverse_excursion'));
-          sets.splice(maeIdx, 1);
-          params.splice(maeIdx + 1, 1);
+          if (maeIdx >= 0) {
+            sets.splice(maeIdx, 1);
+            params.splice(maeIdx + 1, 1);
+          }
           if (sets.length === 0) continue;
           await execute(`UPDATE signal_history SET ${sets.join(', ')} WHERE id = $1`, params);
         } else {
