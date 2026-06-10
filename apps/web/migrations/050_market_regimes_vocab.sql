@@ -26,15 +26,22 @@ BEGIN
 
   DELETE FROM market_regimes WHERE regime NOT IN ('trend', 'volatile', 'range');
 
-  -- Drop every CHECK constraint that references the regime column, whatever
-  -- Postgres happened to auto-name it (also covers re-runs of this file).
+  -- Drop the regime *vocabulary* CHECKs only, whatever Postgres happened to
+  -- auto-name them: the old 5-state definition (matched via its 'crash'
+  -- label) or this file's own 3-state definition (matched via the quoted
+  -- 'trend' label, so re-runs stay idempotent). Deliberately NOT a bare
+  -- '%regime%' match — that would swallow any future unrelated CHECK that
+  -- mentions a column with 'regime' in its name.
   FOR con IN
     SELECT c.conname
     FROM pg_constraint c
     JOIN pg_class t ON c.conrelid = t.oid
     WHERE t.relname = 'market_regimes'
       AND c.contype = 'c'
-      AND pg_get_constraintdef(c.oid) LIKE '%regime%'
+      AND (
+        pg_get_constraintdef(c.oid) LIKE '%crash%'
+        OR pg_get_constraintdef(c.oid) LIKE '%''trend''%'
+      )
   LOOP
     EXECUTE format('ALTER TABLE market_regimes DROP CONSTRAINT IF EXISTS %I', con);
   END LOOP;

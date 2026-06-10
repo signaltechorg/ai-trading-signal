@@ -114,10 +114,12 @@ export function AllocationClient() {
     regimeCounts[normalizeRegime(e.regime)]++;
   }
   const dominant = REGIME_ORDER.reduce((a, b) => (regimeCounts[a] >= regimeCounts[b] ? a : b), 'range' as RegimeName);
-  const activeRule = ALLOCATION_RULES.find((r) => r.regime === dominant);
+  // dominant is normalized onto the 3-state union and ALLOCATION_RULES covers
+  // all three, so this lookup cannot miss.
+  const activeRule = ALLOCATION_RULES.find((r) => r.regime === dominant)!;
 
-  // Calculate current allocation summary (fallback = range max exposure)
-  const maxExposureNum = activeRule ? parseInt(activeRule.maxExposure) : 30;
+  // Calculate current allocation summary
+  const maxExposureNum = parseInt(activeRule.maxExposure);
   const currentExposure = portfolioSnapshot?.grossExposurePct ?? null;
   const headroom = currentExposure !== null ? +(maxExposureNum - currentExposure).toFixed(1) : null;
 
