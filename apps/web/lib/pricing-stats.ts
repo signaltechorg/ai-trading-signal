@@ -64,6 +64,10 @@ export async function getPricingStats(): Promise<PricingStats> {
           WHERE outcome_24h IS NOT NULL
             AND is_simulated = FALSE
             AND COALESCE(gate_blocked, FALSE) = FALSE
+            -- Auto-expired (no TP/SL hit) rows are transparency-only, not
+            -- resolved trades — same contract as landing-stats and the
+            -- history/equity APIs.
+            AND outcome_24h->>'target' IS DISTINCT FROM 'expired'
             AND NOT ((outcome_24h->>'pnlPct')::numeric = 0
                      AND (outcome_24h->>'hit')::boolean = FALSE)
        )

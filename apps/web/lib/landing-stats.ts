@@ -64,6 +64,10 @@ export async function getLandingStats(): Promise<LandingStats> {
         WHERE outcome_24h IS NOT NULL
           AND is_simulated = FALSE
           AND COALESCE(gate_blocked, FALSE) = FALSE
+          -- Auto-expired (no TP/SL hit) rows are transparency-only, not
+          -- resolved trades — exclude from cumulative P&L / profit factor to
+          -- match isCountedResolved and the stat-hints "resolved" contract.
+          AND outcome_24h->>'target' IS DISTINCT FROM 'expired'
           AND NOT ((outcome_24h->>'pnlPct')::numeric = 0
                    AND (outcome_24h->>'hit')::boolean = FALSE)
      )

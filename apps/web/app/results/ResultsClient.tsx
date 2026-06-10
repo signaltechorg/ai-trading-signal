@@ -217,34 +217,36 @@ export function ResultsClient() {
 
         {/* ─── Hero ─────────────────────────────────────── */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium mb-4">
             <BarChart3 className="w-3.5 h-3.5" />
-            Verified Backtests
+            Illustrative Examples
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-            Backtesting Results
+            Strategy Profiles
           </h1>
           <p className="text-zinc-400 text-sm max-w-xl mx-auto leading-relaxed">
-            Pre-computed performance across 5 strategies and 3 major assets.
-            All results generated on 12 months of historical data with realistic slippage and fees.
+            Illustrative profiles of 5 strategy archetypes across 3 major assets.
+            These figures are hand-authored examples of how each strategy behaves —
+            they are not output of the TradeClaw engine and include no slippage or fee model.
+            For real performance, see the live <a href="/track-record" className="text-emerald-400 hover:text-emerald-300 underline">track record</a>.
           </p>
           <div className="mx-auto mt-5 grid max-w-4xl grid-cols-1 gap-2 sm:grid-cols-3">
             <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Validation window</div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Example window</div>
               <div className="mt-1 font-mono text-sm font-semibold text-white">
                 {VALIDATION_SUMMARY.windowStart} &rarr; {VALIDATION_SUMMARY.windowEnd}
               </div>
-              <div className="mt-1 text-[11px] text-zinc-500">12-month public backtest snapshot</div>
+              <div className="mt-1 text-[11px] text-zinc-500">Illustrative 12-month framing</div>
             </div>
             <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
               <div className="text-[10px] uppercase tracking-wider text-zinc-500">Coverage</div>
               <div className="mt-1 font-mono text-sm font-semibold text-white">
                 {VALIDATION_SUMMARY.strategyRuns} strategy/asset runs · {VALIDATION_SUMMARY.totalTrades.toLocaleString()} trades
               </div>
-              <div className="mt-1 text-[11px] text-zinc-500">Across {VALIDATION_SUMMARY.assetCount} assets with slippage + fees</div>
+              <div className="mt-1 text-[11px] text-zinc-500">Across {VALIDATION_SUMMARY.assetCount} assets · hand-authored examples</div>
             </div>
             <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Performance snapshot</div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Example snapshot</div>
               <div className="mt-1 font-mono text-sm font-semibold text-white">
                 {VALIDATION_SUMMARY.weightedWinRate.toFixed(1)}% win rate · Sharpe {VALIDATION_SUMMARY.averageSharpe.toFixed(2)}
               </div>
@@ -258,7 +260,7 @@ export function ResultsClient() {
           </div>
           <div className="flex items-center justify-center gap-1.5 mt-3 text-[11px] text-zinc-400/80">
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Simulated results. Past performance does not guarantee future returns.</span>
+            <span>Illustrative example data — not real, backtested, or live performance. Past performance does not guarantee future returns.</span>
           </div>
         </div>
 
@@ -353,7 +355,7 @@ export function ResultsClient() {
             {/* ─── Equity Curve ────────────────────────────── */}
             <div className="glass-card rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold">Equity Curve</span>
+                <span className="text-sm font-semibold">Equity Curve <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
                 <span className="text-[10px] text-zinc-500 font-mono">
                   {result.metrics.startDate} &rarr; {result.metrics.endDate}
                 </span>
@@ -363,7 +365,7 @@ export function ResultsClient() {
 
             {/* ─── Monthly Returns Heatmap ─────────────────── */}
             <div className="glass-card rounded-2xl p-5 mb-6">
-              <span className="text-sm font-semibold mb-3 block">Monthly Returns</span>
+              <span className="text-sm font-semibold mb-3 block">Monthly Returns <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
               <div className="grid grid-cols-12 gap-1.5">
                 {result.monthlyReturns.map((m) => (
                   <div
@@ -393,7 +395,7 @@ export function ResultsClient() {
               <div className="bg-white/[0.02] rounded-lg py-3 px-4 border border-white/5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <BarChart3 className="w-3.5 h-3.5 text-zinc-500" />
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Test Period</span>
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Example Period</span>
                 </div>
                 <span className="font-mono tabular-nums text-sm font-semibold text-white">
                   {result.metrics.startDate} &mdash; {result.metrics.endDate}
@@ -477,7 +479,7 @@ export function ResultsClient() {
           <Trophy className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
           <h2 className="text-lg font-semibold mb-2">Run Your Own Backtest</h2>
           <p className="text-xs text-zinc-400 mb-4 max-w-md mx-auto">
-            These are pre-computed results. Want to test your own parameters, timeframes, and stop-loss settings?
+            These profiles are hand-authored examples. Run a real comparison with your own parameters, timeframes, and stop-loss settings:
           </p>
           <Link
             href={`/backtest?strategy=${activeStrategy}`}
