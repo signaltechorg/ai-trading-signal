@@ -66,6 +66,15 @@ export interface GetTrackedSignalsParams {
   ctx?: StrategyAccess;
 }
 
+// In-process throttle for the Writer A side-effect pipeline. The DB dedup
+// (2h ON CONFLICT window) already makes re-recording a no-op, but every
+// anonymous request still paid for the INSERT attempts, cache invalidation,
+// one self-HTTP dispatch per signal, and social enqueues. Skip the whole
+// block when this process handled the same signal set within the window.
+const SIDE_EFFECT_THROTTLE_MS = 60_000;
+let lastSideEffectKey = '';
+let lastSideEffectAt = 0;
+
 export async function getTrackedSignals(params: GetTrackedSignalsParams) {
   // Dispatch engine profile from SIGNAL_ENGINE_PRESET. Unknown ids fall back
   // to 'classic' (current production label is 'hmm-top3', which is not yet a
@@ -180,7 +189,13 @@ export async function getTrackedSignals(params: GetTrackedSignalsParams) {
     });
 
     // Record to PostgreSQL (or file fallback) — fire and forget
-    if (recordPayload.length > 0) {
+    const sideEffectKey = recordPayload.map((s) => s.id).sort().join('|');
+    const sideEffectDue =
+      sideEffectKey !== lastSideEffectKey ||
+      Date.now() - lastSideEffectAt >= SIDE_EFFECT_THROTTLE_MS;
+    if (recordPayload.length > 0 && sideEffectDue) {
+      lastSideEffectKey = sideEffectKey;
+      lastSideEffectAt = Date.now();
       recordSignalsAsync(recordPayload).catch(() => {});
       invalidateHistoryCache().catch(() => {});
 
