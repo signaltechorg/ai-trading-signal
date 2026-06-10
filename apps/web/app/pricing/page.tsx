@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Navbar } from '../components/navbar';
-import { SiteFooter } from '../../components/landing/site-footer';
 import { PricingCards } from './PricingCards';
 import { FREE_SYMBOLS } from '../../lib/tier-client';
 import { TIER_HISTORY_DAYS } from '../../lib/tier';
@@ -197,7 +196,6 @@ export default async function PricingPage() {
           </p>
         </div>
       </main>
-      <SiteFooter />
     </>
   );
 }

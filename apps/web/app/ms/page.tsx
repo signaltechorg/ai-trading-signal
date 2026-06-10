@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Navbar } from "../components/navbar";
-import { SiteFooter } from "../../components/landing/site-footer";
 import { LocalizedLanding } from "../../components/landing/localized-landing";
 import { getTranslations } from "../../lib/translations";
 
@@ -44,7 +43,6 @@ export default function MalayPage() {
       <main lang="ms">
         <LocalizedLanding t={t} locale="ms" />
       </main>
-      <SiteFooter />
     </>
   );
 }
