@@ -49,6 +49,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function fetchBinance(pair: string, timeframe: string, fromTs: number, toTs: number): Promise<StoredCandle[]> {
   const interval = BINANCE_INTERVAL[timeframe];
   if (!interval) throw new Error(`Unsupported timeframe for Binance: ${timeframe}`);
+  // Snapshot BEFORE fetching: a bar that closes between the Binance response
+  // and the filter below must still be treated as open, or a partial OHLCV
+  // gets locked into the never-overwrite store forever.
+  const fetchStartTs = Date.now();
   const out: StoredCandle[] = [];
   let cursor = fromTs;
   while (cursor < toTs) {
@@ -73,10 +77,9 @@ async function fetchBinance(pair: string, timeframe: string, fromTs: number, toT
     if (rows.length < BINANCE_PAGE) break;
     await sleep(250); // friendly pacing, well under public rate limits
   }
-  // Drop the still-open bar: its close time is in the future.
+  // Drop any bar not provably closed BEFORE the fetch started.
   const barMs = { H1: 3_600_000, H4: 14_400_000, D1: 86_400_000 }[timeframe]!;
-  const nowTs = Date.now();
-  return out.filter((c) => c.timestamp + barMs <= nowTs && c.timestamp <= toTs);
+  return out.filter((c) => c.timestamp + barMs <= fetchStartTs && c.timestamp <= toTs);
 }
 
 async function fetchStooqDaily(code: string, fromTs: number, toTs: number): Promise<StoredCandle[]> {
@@ -142,4 +145,7 @@ async function fetchStooqDaily(code: string, fromTs: number, toTs: number): Prom
   } finally {
     await client.end();
   }
-})();
+})().catch((err) => {
+  console.error('backfill-candles failed:', err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

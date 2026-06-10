@@ -35,11 +35,14 @@ export interface BacktestResult {
 const START_BALANCE = 10_000;
 
 /**
- * Wilder ATR over the candles strictly up to and including barIndex.
- * Returns null when there is not enough history for the warmup.
+ * ATR as a simple average of the last `period` true ranges (prev-close
+ * aware). Deliberately NOT Wilder's recursive smoothing — the shipped
+ * engine's calculateATR uses exactly this SMA-of-TR method, and live
+ * parity is the point of LIVE_GEOMETRY. Returns null during warmup or on
+ * an out-of-range barIndex.
  */
-function wilderAtr(candles: OHLCV[], barIndex: number, period: number): number | null {
-  if (barIndex < period) return null;
+function smaTrueRangeAtr(candles: OHLCV[], barIndex: number, period: number): number | null {
+  if (barIndex < period || barIndex >= candles.length) return null;
   let sum = 0;
   for (let i = barIndex - period + 1; i <= barIndex; i++) {
     const prevClose = candles[i - 1].close;
@@ -65,7 +68,7 @@ function stopLevels(
       ? { tp: entry * (1 + geometry.tpPct), sl: entry * (1 - geometry.slPct) }
       : { tp: entry * (1 - geometry.tpPct), sl: entry * (1 + geometry.slPct) };
   }
-  const atr = wilderAtr(candles, sig.barIndex, geometry.period);
+  const atr = smaTrueRangeAtr(candles, sig.barIndex, geometry.period);
   if (atr === null || atr <= 0) return null;
   const risk = atr * geometry.slMult;
   return sig.direction === 'BUY'
@@ -166,7 +169,8 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
 
   if (candles.length === 0) return zeroResult(strategy.id, 'no-data');
 
-  const generated = strategy.entry.generateSignals(candles, { symbol: 'BACKTEST', timeframe: 'H1' });
+  const context = options?.context ?? { symbol: 'BACKTEST', timeframe: 'H1' };
+  const generated = strategy.entry.generateSignals(candles, context);
   // Entry modules may return signals in non-chronological order (e.g. hmm-top3
   // sorts by confidence desc). The overlap guard, drawdown slice, and
   // equity-curve fill all assume chronological barIndex order, so process a
@@ -192,7 +196,9 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
     const positionSize = sizePosition(balance, sig, strategy.allocation, trades);
     const entry = sig.price;
     const levels = stopLevels(geometry, candles, sig);
-    if (!levels) continue; // ATR warmup — signal not tradable under this geometry
+    // Null = not tradable under this geometry: ATR warmup, zero ATR on a
+    // flat series, or an out-of-range barIndex from a malformed signal.
+    if (!levels) continue;
     const { tp, sl } = levels;
 
     let exit = entry;
@@ -215,9 +221,11 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
     // Friction: slippage worsens both fills, fees charge both sides, funding
     // accrues with holding time. Modeled as a flat % drag on the trade's
     // return — order triggers stay at the raw levels (the exchange fills the
-    // order; the friction is what YOU realize).
+    // order; the friction is what YOU realize). A zero-duration trade (signal
+    // on the final bar — the exit loop never ran) never opened a position,
+    // so it is charged nothing rather than a phantom round trip.
     const heldHours = Math.max(0, (exitBar - sig.barIndex) * barHours);
-    const costPct = hasCosts
+    const costPct = hasCosts && exitBar > sig.barIndex
       ? 2 * costs.feePctPerSide + 2 * costs.slippagePctPerSide + costs.fundingPctPer8h * (heldHours / 8)
       : 0;
 
@@ -237,7 +245,8 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
       pnlPct,
       win: pnl > 0,
       exitReason,
-      ...(hasCosts ? { costPct: +costPct.toFixed(4) } : {}),
+      // Unrounded so trade.pnlPct + costPct/100 reconciles exactly to gross.
+      ...(hasCosts ? { costPct } : {}),
     });
 
     for (let k = exitBar; k < equityCurve.length; k++) equityCurve[k] = balance;
@@ -246,6 +255,11 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
 
   return {
     strategyId: strategy.id,
+    // Signals existed but none were tradable (e.g. all inside the ATR
+    // warmup): surface the same 'no-signals' reason instead of an
+    // unexplained empty result. Unreachable on the legacy fixed-geometry
+    // path, where levels are never null and the first signal always trades.
+    ...(trades.length === 0 ? { reason: 'no-signals' as const } : {}),
     totalTrades: trades.length,
     winRate: trades.length > 0 ? trades.filter((t) => t.win).length / trades.length : 0,
     profitFactor: computeProfitFactor(trades),

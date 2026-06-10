@@ -122,5 +122,41 @@ describe('runBacktest ATR (live) geometry', () => {
     const result = runBacktest(candles, strategy, { geometry: LIVE_GEOMETRY });
 
     expect(result.totalTrades).toBe(0);
+    expect(result.reason).toBe('no-signals');
+  });
+});
+
+describe('runBacktest review-fix regressions', () => {
+  it('charges nothing on a zero-duration last-bar trade', () => {
+    const candles = flatCandles(50, 100);
+    const strategy = oneShotStrategy(49, 100); // final bar — exit loop never runs
+
+    const result = runBacktest(candles, strategy, { costs: CRYPTO_PERP_COSTS });
+
+    expect(result.totalTrades).toBe(1);
+    expect(result.trades[0].costPct).toBe(0);
+    expect(result.trades[0].pnlPct).toBe(0);
+    expect(result.endBalance).toBe(result.startBalance);
+  });
+
+  it('threads options.context through to the entry module (regime models resolve by symbol)', () => {
+    const seen: Array<{ symbol: string; timeframe: string }> = [];
+    const strategy: Strategy = {
+      id: 'classic',
+      name: 'ctx-probe',
+      description: 'test stub',
+      entry: {
+        id: 'ctx-probe',
+        generateSignals: (_c, ctx) => { seen.push(ctx); return []; },
+      },
+      allocation: { kind: 'flat' },
+      risk: { kind: 'none' },
+    };
+
+    runBacktest(flatCandles(30, 100), strategy);
+    runBacktest(flatCandles(30, 100), strategy, { context: { symbol: 'BTCUSD', timeframe: 'H4' } });
+
+    expect(seen[0]).toEqual({ symbol: 'BACKTEST', timeframe: 'H1' });
+    expect(seen[1]).toEqual({ symbol: 'BTCUSD', timeframe: 'H4' });
   });
 });

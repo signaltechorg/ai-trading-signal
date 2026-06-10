@@ -26,5 +26,9 @@ CREATE TABLE IF NOT EXISTS candles (
   PRIMARY KEY (symbol, timeframe, ts)
 );
 
+-- NOTE: redundant with the PRIMARY KEY btree (which serves range scans in
+-- both directions) — kept because this migration was applied to prod as-is
+-- on 2026-06-10; dropping it is not worth a follow-up migration. Do not
+-- copy this pattern into future tables.
 CREATE INDEX IF NOT EXISTS idx_candles_lookup
   ON candles (symbol, timeframe, ts DESC);

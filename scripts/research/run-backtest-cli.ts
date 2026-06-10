@@ -2,14 +2,22 @@
  * Headless research backtest runner (engine-makeover Phase 2).
  *
  * The missing middle of the research loop: hypothesis → COSTED backtest on
- * STORED candles → walk-forward folds → registered result. Reads exclusively
+ * STORED candles → sub-period folds → registered result. Reads exclusively
  * from the `candles` store so the same spec always replays the same bars —
  * never from live providers.
  *
+ * Fold semantics: --folds N runs each preset on N CONTIGUOUS SUB-PERIODS in
+ * addition to the full range. This is stability inspection, NOT walk-forward
+ * optimization (no presets have fitted parameters yet). Caveats per fold:
+ * indicator/regime warmup restarts at the fold boundary, and a trade open at
+ * fold end force-closes at the last bar ('EOD'). Negligible on H1 folds,
+ * material on short D1 folds.
+ *
  * Determinism contract: `spec` + `results` are pure functions of the stored
- * data; only `meta.runAt` varies between identical runs. Output filename is
- * derived from the spec, so re-running an experiment overwrites its file
- * instead of forking a near-duplicate.
+ * candles, the code, and the HMM model files (whose content hash is recorded
+ * in spec.hmmModels); only `meta.runAt` varies between identical runs. The
+ * output filename is derived from the spec, so re-running an experiment
+ * overwrites its file instead of forking a near-duplicate.
  *
  * Usage:
  *   railway run --service Postgres npx tsx scripts/research/run-backtest-cli.ts \
@@ -19,6 +27,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import {
   PRESETS,
   runBacktest,
@@ -41,6 +50,29 @@ function arg(name: string, fallback: string): string {
 }
 
 const TF_HOURS: Record<string, number> = { H1: 1, H4: 4, D1: 24 };
+
+/**
+ * Presets whose semantics do not survive a single multi-year window:
+ * hmm-top3 (and full-risk, which wraps it) caps signals to the top 3 BY
+ * WINDOW — production applies that cap per 5-minute scan cycle, so a 2-year
+ * run yields 3 trades and measures nothing about the deployed preset.
+ */
+const WINDOW_CAPPED_PRESETS = new Set(['hmm-top3', 'full-risk']);
+
+/** Identity of the HMM model files regime presets classify with — part of the determinism contract. */
+function hmmModelIdentity(): Record<string, string> {
+  const dir = process.env.HMM_MODEL_DIR ?? path.join('scripts', 'hmm-regime', 'models');
+  const out: Record<string, string> = {};
+  try {
+    for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
+      const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(dir, f))).digest('hex').slice(0, 16);
+      out[f] = hash;
+    }
+  } catch {
+    out['(none)'] = 'hand-tuned-default-model';
+  }
+  return out;
+}
 
 function metrics(r: BacktestResult) {
   const avgCostPct = r.trades.length > 0
@@ -75,6 +107,14 @@ function metrics(r: BacktestResult) {
   }
   const fromTs = Date.parse(`${from}T00:00:00Z`);
   const toTs = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(fromTs) || !Number.isFinite(toTs) || fromTs >= toTs) {
+    console.error(`Invalid date range: --from ${from} --to ${to}`);
+    process.exit(2);
+  }
+  if (!Number.isFinite(folds)) {
+    console.error('--folds must be a number');
+    process.exit(2);
+  }
 
   const geometry = geometryArg === 'legacy' ? FIXED_LEGACY_GEOMETRY : LIVE_GEOMETRY;
   const costs =
@@ -85,10 +125,15 @@ function metrics(r: BacktestResult) {
     : costModelFor(symbol);
   const options: BacktestOptions = { costs, geometry, barHours: TF_HOURS[timeframe] ?? 1 };
 
-  const presetIds = (presetsArg === 'all'
+  const requestedPresets = presetsArg === 'all'
     ? (Object.keys(PRESETS) as StrategyId[])
-    : (presetsArg.split(',').map((s) => s.trim()) as StrategyId[])
-  ).filter((id) => id in PRESETS);
+    : (presetsArg.split(',').map((s) => s.trim()) as StrategyId[]);
+  const unknown = requestedPresets.filter((id) => !(id in PRESETS));
+  if (unknown.length > 0) {
+    console.error(`Unknown preset(s): ${unknown.join(', ')}. Valid: ${Object.keys(PRESETS).join(', ')}`);
+    process.exit(2);
+  }
+  const presetIds = requestedPresets;
 
   const client = await connect();
   try {
@@ -108,27 +153,35 @@ function metrics(r: BacktestResult) {
     const foldSize = Math.floor(candles.length / folds);
     const results: Record<string, { full: ReturnType<typeof metrics>; folds: Array<ReturnType<typeof metrics> & { from: string; to: string }> }> = {};
 
+    const runOptions = { ...options, context: { symbol, timeframe } };
     for (const id of presetIds) {
       const preset = PRESETS[id];
-      const full = metrics(runBacktest(candles, preset, options));
+      const full = metrics(runBacktest(candles, preset, runOptions));
       const foldResults = [];
       for (let f = 0; f < folds; f++) {
         const start = f * foldSize;
         const end = f === folds - 1 ? candles.length : (f + 1) * foldSize;
         const slice = candles.slice(start, end);
         foldResults.push({
-          ...metrics(runBacktest(slice, preset, options)),
+          ...metrics(runBacktest(slice, preset, runOptions)),
           from: new Date(slice[0].timestamp).toISOString().slice(0, 10),
           to: new Date(slice[slice.length - 1].timestamp).toISOString().slice(0, 10),
         });
       }
       results[id] = { full, folds: foldResults };
+      const capped = WINDOW_CAPPED_PRESETS.has(id) ? '  [WINDOW-CAPPED — not production-comparable]' : '';
       console.log(
         `${id.padEnd(14)} trades=${String(full.totalTrades).padStart(4)} winRate=${(full.winRate * 100).toFixed(1)}% ` +
-        `return=${(full.totalReturn * 100).toFixed(1)}% maxDD=${(full.maxDrawdown * 100).toFixed(1)}% PF=${full.profitFactor ?? '∞'} avgCost=${full.avgCostPct}%`,
+        `return=${(full.totalReturn * 100).toFixed(1)}% maxDD=${(full.maxDrawdown * 100).toFixed(1)}% PF=${full.profitFactor ?? '∞'} avgCost=${full.avgCostPct}%${capped}`,
       );
     }
 
+    const caveats = [
+      'folds are contiguous sub-periods (stability inspection, not walk-forward optimization); per-fold indicator/regime warmup restarts and open trades force-close EOD at fold end',
+      ...presetIds.filter((id) => WINDOW_CAPPED_PRESETS.has(id)).map(
+        (id) => `${id}: top-3 cap applies to the WHOLE window under this runner (production caps per scan cycle) — its numbers are not production-comparable`,
+      ),
+    ];
     const spec = {
       symbol,
       timeframe,
@@ -141,17 +194,23 @@ function metrics(r: BacktestResult) {
       firstBar: new Date(candles[0].timestamp).toISOString(),
       lastBar: new Date(candles[candles.length - 1].timestamp).toISOString(),
       presets: presetIds,
+      entryContext: { symbol, timeframe },
+      hmmModels: hmmModelIdentity(),
+      caveats,
     };
     const payload = { meta: { runAt: new Date().toISOString() }, spec, results };
 
     fs.mkdirSync(outDir, { recursive: true });
-    const fileName = `${symbol}-${timeframe}-${from}-${to}-${geometryArg}-${costsArg}.json`;
+    const fileName = `${symbol}-${timeframe}-${from}-${to}-${geometryArg}-${costsArg}-${presetIds.join('_')}-f${folds}.json`;
     const outPath = path.join(outDir, fileName);
     fs.writeFileSync(outPath, JSON.stringify(payload, null, 2));
 
     const registryPath = path.join(outDir, 'REGISTRY.md');
     const headline = presetIds
-      .map((id) => `${id} ${(results[id].full.totalReturn * 100).toFixed(1)}%/${(results[id].full.winRate * 100).toFixed(0)}%wr`)
+      .map((id) => {
+        const tag = WINDOW_CAPPED_PRESETS.has(id) ? ' (window-capped)' : '';
+        return `${id} ${(results[id].full.totalReturn * 100).toFixed(1)}%/${(results[id].full.winRate * 100).toFixed(0)}%wr${tag}`;
+      })
       .join(' · ');
     fs.appendFileSync(
       registryPath,
@@ -161,4 +220,7 @@ function metrics(r: BacktestResult) {
   } finally {
     await client.end();
   }
-})();
+})().catch((err) => {
+  console.error('run-backtest-cli failed:', err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

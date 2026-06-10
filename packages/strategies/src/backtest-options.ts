@@ -69,6 +69,14 @@ export interface BacktestOptions {
   geometry?: Geometry;
   /** Bar duration in hours, for funding accrual. Default 1 (H1). */
   barHours?: number;
+  /**
+   * Entry context passed to the strategy's signal generator. Regime-aware
+   * presets resolve their HMM model BY SYMBOL — the legacy hardcoded
+   * 'BACKTEST' placeholder falls through to the forex model, silently
+   * classifying crypto series with the wrong regime model. Always pass the
+   * real symbol/timeframe for research runs.
+   */
+  context?: { symbol: string; timeframe: string };
 }
 
 export function costModelFor(symbol: string): CostModel {
