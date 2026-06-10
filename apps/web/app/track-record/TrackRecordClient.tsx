@@ -232,7 +232,7 @@ function formatOutcomeCell(
 
 
 type DirectionFilter = 'ALL' | 'BUY' | 'SELL';
-type Scope = 'pro' | 'free';
+type Scope = 'pro' | 'free' | 'broadcast';
 type EquityBand = 'premium' | 'standard' | 'all';
 
 function parseEquityBand(raw: string | null): EquityBand {
@@ -513,9 +513,9 @@ export function TrackRecordClient() {
     if (category === 'thematic') {
       return `${symbolsForCategory('thematic').length} narrative-driven symbols. Wider coverage, more noise — useful for breadth, not for headline win rate.`;
     }
-    return scope === 'free'
-      ? `Every free-tier symbol in the last ${FREE_HISTORY_DAYS} days.`
-      : 'Every tracked symbol, full archive.';
+    if (scope === 'free') return `Every free-tier symbol in the last ${FREE_HISTORY_DAYS} days.`;
+    if (scope === 'broadcast') return 'Gate-approved signals only — decisions recorded since 2026-06-10.';
+    return 'Every tracked symbol, full archive.';
   }, [category, scope]);
   const noFreeSymbolsInCategory = scope === 'free' && category !== 'all' && !freeCategoryHasSymbols;
 
@@ -690,12 +690,16 @@ export function TrackRecordClient() {
           })}
         </div>
 
-        {/* Scope tabs — default Pro, Free is a comparison view */}
+        {/* Scope tabs — default Pro (full firehose), Free is a comparison
+            view, Broadcast is the subset the risk gate APPROVED for the Pro
+            group (decision recorded per row since migration 048; approval is
+            not delivery — outage fallbacks and failed sends differ). */}
         <div className="mb-3 flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] w-fit">
           {(
             [
               { value: 'pro', label: 'Pro track record' },
               { value: 'free', label: 'Free track record' },
+              { value: 'broadcast', label: 'Pro broadcast (gated)' },
             ] as const
           ).map(({ value, label }) => (
             <button
@@ -706,7 +710,9 @@ export function TrackRecordClient() {
                 scope === value
                   ? value === 'pro'
                     ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'bg-white/[0.08] text-[var(--foreground)]'
+                    : value === 'broadcast'
+                      ? 'bg-cyan-500/15 text-cyan-400'
+                      : 'bg-white/[0.08] text-[var(--foreground)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -714,6 +720,14 @@ export function TrackRecordClient() {
             </button>
           ))}
         </div>
+        {scope === 'broadcast' && (
+          <p className="mb-3 text-[11px] text-[var(--text-secondary)] max-w-xl">
+            Only signals the live gate (regime + curation + risk pipeline) approved
+            for the Pro Telegram broadcast. Gate decisions are recorded per row
+            since 2026-06-10 — earlier signals carry no decision and are excluded
+            from this view entirely.
+          </p>
+        )}
 
         {/* Category tabs — display-only segmentation over the same signal history */}
         <div className="mb-2 flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] w-fit overflow-x-auto max-w-full">
@@ -765,6 +779,21 @@ export function TrackRecordClient() {
                 Get these signals live
               </Link>
             )}
+          </div>
+        ) : scope === 'broadcast' ? (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 text-cyan-300">
+              <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                Pro broadcast view — only signals the live risk gate approved for the Pro Telegram group. Decisions are recorded per row since 2026-06-10; older signals are excluded.
+              </span>
+            </div>
+            <button
+              onClick={() => setScope('pro')}
+              className="shrink-0 rounded-md border border-emerald-500/30 px-3 py-1 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+            >
+              Switch to full record
+            </button>
           </div>
         ) : (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm">

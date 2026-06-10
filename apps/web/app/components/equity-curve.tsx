@@ -291,7 +291,7 @@ function drawChart(
   };
 }
 
-type EquityScope = 'pro' | 'free';
+type EquityScope = 'pro' | 'free' | 'broadcast';
 type EquityBand = 'all' | 'premium' | 'standard';
 
 interface EquityCurveProps {
@@ -368,11 +368,12 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
     : HYPOTHETICAL_START;
 
   const isPro = scope === 'pro';
+  const isBroadcast = scope === 'broadcast';
 
   return (
     <section
       className={`glass-card rounded-2xl p-5 mb-6 border-l-2 ${
-        isPro ? 'border-emerald-500/50' : 'border-white/10'
+        isPro ? 'border-emerald-500/50' : isBroadcast ? 'border-cyan-500/50' : 'border-white/10'
       }`}
     >
       {/* Header */}
@@ -384,11 +385,13 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
               className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider ${
                 isPro
                   ? 'bg-emerald-500/15 text-emerald-400'
-                  : 'bg-white/[0.06] text-zinc-400'
+                  : isBroadcast
+                    ? 'bg-cyan-500/15 text-cyan-400'
+                    : 'bg-white/[0.06] text-zinc-400'
               }`}
             >
               <Lock className="h-3 w-3" aria-hidden="true" />
-              {isPro ? 'Pro' : 'Free'} view
+              {isPro ? 'Pro' : isBroadcast ? 'Broadcast' : 'Free'} view
             </span>
           </h2>
           <p className="text-[11px] text-zinc-600 mt-0.5">
@@ -396,9 +399,13 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
               ? summary
                 ? `Full Pro track record. ${summary.riskPerTradePct}% risk per trade, fixed-fractional${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R per trade` : ''}, after ${summary.roundTripCostPct}% round-trip costs. Verified against real market data.`
                 : 'Full Pro track record. Verified against real market data.'
-              : summary
-                ? `Free-tier slice — last ${FREE_HISTORY_DAYS} days on free symbols only. Subset of what Pro subscribers see. ${summary.riskPerTradePct}% risk per trade${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R` : ''} after costs.`
-                : `Free-tier slice — last ${FREE_HISTORY_DAYS} days on free symbols only. Subset of what Pro subscribers see.`}
+              : isBroadcast
+                ? summary
+                  ? `Gate-approved broadcast subset — decisions recorded since 2026-06-10. ${summary.riskPerTradePct}% risk per trade${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R` : ''} after ${summary.roundTripCostPct}% round-trip costs.`
+                  : 'Gate-approved broadcast subset — decisions recorded since 2026-06-10.'
+                : summary
+                  ? `Free-tier slice — last ${FREE_HISTORY_DAYS} days on free symbols only. Subset of what Pro subscribers see. ${summary.riskPerTradePct}% risk per trade${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R` : ''} after costs.`
+                  : `Free-tier slice — last ${FREE_HISTORY_DAYS} days on free symbols only. Subset of what Pro subscribers see.`}
           </p>
           {summary && summary.sizedTrades !== undefined && summary.sizedTrades > 0 && (
             <p className="text-[10px] text-zinc-600 mt-1">

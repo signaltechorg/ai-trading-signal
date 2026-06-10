@@ -8,6 +8,7 @@ import {
   getRecentRecordForSymbolAsync,
   getPendingRecordsAsync,
   updateRecordsAsync,
+  updateBroadcastDecisionAsync,
   markTelegramPosted,
   resolveFromCandles,
   getOutcomeResolutionTimeframe,
@@ -16,9 +17,7 @@ import {
 } from '../../../../lib/signal-history';
 import { PUBLISHED_SIGNAL_MIN_CONFIDENCE } from '../../../../lib/signal-thresholds';
 import { broadcastSignalsToProGroup } from '../../../../lib/telegram-pro-broadcast';
-import { isWinningCell, getWinningCellsMode } from '../../../../lib/winning-cells';
-import { runRiskPipeline } from '../../../../lib/risk-pipeline';
-import { fetchRegimeMap } from '../../../../lib/regime-filter';
+import { computeBroadcastDecisions } from '../../../../lib/broadcast-decision';
 import { recordSignalRun } from '../../../../lib/signal-run-log';
 import { requireCronAuth } from '../../../../lib/cron-auth';
 import { precomputeSignals } from '../../../../lib/signal-worker';
@@ -43,7 +42,16 @@ type NewlyRecordedSignal = {
   timestamp: number;
 };
 
-async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal[]> {
+/**
+ * Selects the candidate set to record this tick (best per symbol+direction,
+ * market open, no recent duplicate). Does NOT persist — Phase 1 re-sequenced
+ * the cron so the broadcast gate decision is computed BEFORE persistence and
+ * recorded on the row (docs/plans/2026-06-10-engine-makeover.md).
+ */
+async function collectNewSignals(strategyId: string): Promise<{
+  candidates: NewlyRecordedSignal[];
+  effectiveStrategyId: string;
+}> {
   let signals: Array<{
     id: string;
     symbol: string;
@@ -93,10 +101,10 @@ async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal
       }));
   }
 
-  const recorded: NewlyRecordedSignal[] = [];
+  const candidates: NewlyRecordedSignal[] = [];
 
-  // Track symbols already recorded in this run to prevent dupes within a batch
-  const recordedThisRun = new Set<string>();
+  // Track symbols already selected in this run to prevent dupes within a batch
+  const selectedThisRun = new Set<string>();
 
   // Pick the best signal per symbol+direction (highest confidence)
   const bestBySymDir = new Map<string, (typeof signals)[number]>();
@@ -112,31 +120,18 @@ async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal
     if (!isMarketOpen(sig.symbol)) continue;
 
     const dedupKey = `${sig.symbol}:${sig.direction}`;
-    if (recordedThisRun.has(dedupKey)) continue;
+    if (selectedThisRun.has(dedupKey)) continue;
 
     const existing = await getRecentRecordForSymbolAsync(sig.symbol, sig.direction, TWO_HOURS_MS);
     if (existing) continue;
 
-    const id = sig.id;
     const parsedCandleTs = Date.parse(sig.timestamp);
     const timestamp = Number.isFinite(parsedCandleTs) ? parsedCandleTs : Date.now();
-    await recordSignalAsync(
-      sig.symbol,
-      sig.timeframe,
-      sig.direction,
-      sig.confidence,
-      sig.entry,
-      id,
-      sig.takeProfit1,
-      sig.stopLoss,
-      timestamp,
-      strategyId,
-    );
 
-    recordedThisRun.add(dedupKey);
+    selectedThisRun.add(dedupKey);
 
-    recorded.push({
-      id,
+    candidates.push({
+      id: sig.id,
       symbol: sig.symbol,
       timeframe: sig.timeframe,
       direction: sig.direction,
@@ -148,12 +143,14 @@ async function recordNewSignals(strategyId: string): Promise<NewlyRecordedSignal
     });
   }
 
-  return recorded;
+  return { candidates, effectiveStrategyId: strategyId };
 }
 
 // ── Resolve logic ─────────────────────────────────────────────
-// Outcome math now lives in lib/signal-history.ts → resolveFromCandles. Cron
-// just discards the MAE field (only the request-path writer feeds calibration).
+// Outcome math lives in lib/signal-history.ts → resolveFromCandles. The cron
+// stamps resolution provenance (resolvedAt + OHLCV source) onto each outcome
+// and persists MAE alongside — re-resolution against a different provider is
+// detectable instead of silently rewriting history.
 
 async function resolveOldSignals(): Promise<{ resolved: number; pending: number; errors: string[] }> {
   const pending = await getPendingRecordsAsync();
@@ -169,18 +166,22 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
     if (!record.tp1 || !record.sl) continue;
 
     let candles: Array<{ timestamp: number; high: number; low: number; close: number; open: number; volume: number }> = [];
+    let candleSource = 'unknown';
 
     try {
       const result = await getOHLCV(record.pair, getOutcomeResolutionTimeframe(record));
       candles = result.candles;
+      candleSource = result.source;
     } catch (err) {
       const msg = `OHLCV fetch failed for ${record.pair}: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[cron/signals] ${msg}`);
       errors.push(msg);
     }
 
+    const resolvedAt = new Date(now).toISOString();
     const newOutcomes = { ...record.outcomes };
     let changed = false;
+    let mae24h: number | null = null;
 
     if (needs4h) {
       const windowEnd = record.timestamp + FOUR_HOURS_MS;
@@ -190,10 +191,10 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
       const windowComplete = age >= FOUR_HOURS_MS;
       const result = resolveFromCandles(record, window, windowComplete);
       if (result) {
-        newOutcomes['4h'] = result.outcome;
+        newOutcomes['4h'] = { ...result.outcome, resolvedAt, source: candleSource };
         changed = true;
       } else if (age >= FOUR_HOURS_MS * 2) {
-        newOutcomes['4h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
+        newOutcomes['4h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired', resolvedAt, source: 'force-expired' };
         changed = true;
       }
     }
@@ -206,16 +207,24 @@ async function resolveOldSignals(): Promise<{ resolved: number; pending: number;
       const windowComplete = age >= TWENTY_FOUR_HOURS_MS;
       const result = resolveFromCandles(record, window, windowComplete);
       if (result) {
-        newOutcomes['24h'] = result.outcome;
+        newOutcomes['24h'] = { ...result.outcome, resolvedAt, source: candleSource };
+        mae24h = result.maxAdverseExcursion;
         changed = true;
       } else if (age >= TWENTY_FOUR_HOURS_MS * 2) {
-        newOutcomes['24h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired' };
+        newOutcomes['24h'] = { price: record.entryPrice, pnlPct: 0, hit: false, target: 'expired', resolvedAt, source: 'force-expired' };
         changed = true;
       }
     }
 
     if (changed) {
-      updates.push({ id: record.id, patch: { outcomes: newOutcomes, lastVerified: now } });
+      updates.push({
+        id: record.id,
+        patch: {
+          outcomes: newOutcomes,
+          lastVerified: now,
+          ...(mae24h !== null ? { maxAdverseExcursion: mae24h } : {}),
+        },
+      });
     }
   }
 
@@ -252,24 +261,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   try {
     const preset = getActivePreset();
-    const newSignals = await recordNewSignals(preset.id);
-    const { resolved, pending, errors } = await resolveOldSignals();
+    const { candidates, effectiveStrategyId } = await collectNewSignals(preset.id);
 
-    const taggedSignals = newSignals.map((s) => ({ ...s, strategyId: preset.id }));
-
-    // Pro Telegram broadcast — fire on the deterministic 5-min cron cadence.
-    // After the duplicate-spam audit (2026-05-03) this is the SINGLE source
-    // of Pro broadcasts: the request-side path in tracked-signals.ts was
-    // removed, and the dedup gate inside broadcastSignalsToProGroup catches
-    // any retries. Pipeline order:
-    //   winning-cells curation → risk pipeline (allocator + circuit breakers
-    //   + LLM advisory) → broadcast.
-    // Risk pipeline mirrors the free channel's safety filter so Pro buyers
-    // are not exposed to signals the system itself flagged as drawdown-risky.
-    // Pipeline failure falls back to unfiltered broadcast — Pro's value prop
-    // is real-time delivery, so a transient risk-state outage must not
-    // silently mute the channel.
-    //
     // Catch-up set: tracked-signals.ts still records via /api/signals when
     // free traffic hits, but only broadcasts when the caller is paid. Those
     // rows land in signal_history with telegram_pro_message_id NULL and
@@ -279,9 +272,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     let catchupSignals: NewlyRecordedSignal[] = [];
     try {
       const catchupRecords = await getUnpostedProSignalsAsync(CATCHUP_WINDOW_MS);
-      const taggedIds = new Set(newSignals.map((s) => s.id));
+      const candidateIds = new Set(candidates.map((s) => s.id));
       catchupSignals = catchupRecords
-        .filter((r) => !taggedIds.has(r.id) && r.tp1 != null && r.sl != null)
+        .filter((r) => !candidateIds.has(r.id) && r.tp1 != null && r.sl != null)
         .map((r) => ({
           id: r.id,
           symbol: r.pair,
@@ -300,65 +293,107 @@ export async function GET(request: NextRequest): Promise<Response> {
       );
     }
 
-    const broadcastInputs: NewlyRecordedSignal[] = [...newSignals, ...catchupSignals];
-    let broadcastableCount = 0;
-    let curatedCount = 0;
-    if (broadcastInputs.length > 0) {
-      const winningCellsActive = getWinningCellsMode() === 'active';
-      const curated = broadcastInputs.filter((s) =>
-        !winningCellsActive || isWinningCell(s.symbol, s.direction),
+    // Phase 1 re-sequence: ONE gate decision per tick, computed BEFORE
+    // persistence, over the merged set (new candidates + catch-up). The
+    // decision (winning-cells curation → risk pipeline: circuit breakers +
+    // allocator + veto + LLM advisory) is recorded on each row so the
+    // Pro-broadcast subset is measurable. Pipeline failure falls back to
+    // unfiltered broadcast (Pro must not silently mute) — those rows record
+    // NO decision (NULL) because the gate never actually ran.
+    const broadcastInputs: NewlyRecordedSignal[] = [...candidates, ...catchupSignals];
+    // computeBroadcastDecisions guards its internals (regime fetch + pipeline),
+    // but an unexpected throw here must not skip recording/resolution — fall
+    // back to "no decision computed": rows record NULL and broadcast
+    // unfiltered, mirroring the pipeline-outage philosophy.
+    let decisions: Awaited<ReturnType<typeof computeBroadcastDecisions>>;
+    try {
+      decisions = await computeBroadcastDecisions(broadcastInputs);
+    } catch (err) {
+      console.warn(
+        '[cron/signals] Broadcast decision computation failed entirely — recording without decisions, broadcasting unfiltered:',
+        err instanceof Error ? err.message : String(err),
       );
-      curatedCount = curated.length;
+      decisions = new Map(
+        broadcastInputs.map((s) => [s.id, { id: s.id, blocked: false, recordable: false }]),
+      );
+    }
+    const outageCount = [...decisions.values()].filter((d) => !d.recordable).length;
+    if (outageCount > 0) {
+      console.warn(`[cron/signals] ${outageCount} signal(s) broadcast via outage fallback this tick — no gate decision recorded (rows stay NULL and are excluded from scope=broadcast)`);
+    }
 
-      let approvedIds: Set<string> | null = null;
-      try {
-        const regimeMap = await fetchRegimeMap();
-        const riskResult = await runRiskPipeline(
-          curated.map((s) => ({
-            id: s.id,
-            symbol: s.symbol,
-            direction: s.direction,
-            confidence: s.confidence,
-            entry: s.entry,
-            stopLoss: s.stopLoss,
-            takeProfit1: s.takeProfit1,
-            takeProfit2: null,
-            takeProfit3: null,
-            timeframe: s.timeframe,
-          })),
-          regimeMap,
-        );
-        approvedIds = new Set(riskResult.approved.map((s) => s.id));
-        if (riskResult.vetoed.length > 0) {
-          console.warn(
-            `[cron/signals] Risk pipeline vetoed ${riskResult.vetoed.length} Pro signal(s):`,
-            riskResult.vetoed.map((v) => `${v.signal.symbol}:${v.reason}`).join('; '),
-          );
-        }
-      } catch (err) {
-        console.warn(
-          '[cron/signals] Risk pipeline failed, broadcasting curated signals unfiltered:',
-          err instanceof Error ? err.message : String(err),
-        );
-      }
+    // Record new candidates with their decision inline.
+    const newSignals: NewlyRecordedSignal[] = [];
+    for (const sig of candidates) {
+      const d = decisions.get(sig.id);
+      await recordSignalAsync(
+        sig.symbol,
+        sig.timeframe,
+        sig.direction,
+        sig.confidence,
+        sig.entry,
+        sig.id,
+        sig.takeProfit1,
+        sig.stopLoss,
+        sig.timestamp,
+        effectiveStrategyId,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        d && d.recordable
+          ? { regime: d.regime, blocked: d.blocked, blockReason: d.blockReason, allocationPct: d.allocationPct }
+          : undefined,
+      );
+      newSignals.push(sig);
+    }
 
-      const broadcastable = curated
-        .filter((s) => approvedIds === null || approvedIds.has(s.id))
-        .map((s) => ({
-          id: s.id,
-          symbol: s.symbol,
-          timeframe: s.timeframe,
-          direction: s.direction,
-          confidence: s.confidence,
-          entry: s.entry,
-          takeProfit1: s.takeProfit1,
-          stopLoss: s.stopLoss,
-          gateBlocked: false,
-        }));
-      broadcastableCount = broadcastable.length;
-      if (broadcastable.length > 0) {
-        broadcastSignalsToProGroup(broadcastable).catch(() => undefined);
-      }
+    // Late-stamp catch-up rows (recorded earlier by the request path with no
+    // broadcast decision). Only fills NULL — never overwrites.
+    const catchupDecisions = catchupSignals
+      .map((s) => decisions.get(s.id))
+      .filter((d): d is NonNullable<typeof d> => d !== undefined && d.recordable)
+      .map((d) => ({ id: d.id, regime: d.regime, blocked: d.blocked, blockReason: d.blockReason, allocationPct: d.allocationPct }));
+    try {
+      await updateBroadcastDecisionAsync(catchupDecisions);
+    } catch (err) {
+      console.warn(
+        '[cron/signals] Failed to stamp catch-up broadcast decisions:',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
+    const { resolved, pending, errors } = await resolveOldSignals();
+
+    const taggedSignals = newSignals.map((s) => ({ ...s, strategyId: preset.id }));
+
+    // Pro Telegram broadcast — fire on the deterministic 5-min cron cadence.
+    // After the duplicate-spam audit (2026-05-03) this is the SINGLE source
+    // of Pro broadcasts: the dedup gate inside broadcastSignalsToProGroup
+    // catches any retries. Broadcast set = rows the decision approved
+    // (blocked === false), identical to the pre-Phase-1 curated ∩ approved.
+    const vetoedCount = [...decisions.values()].filter((d) => d.blocked && !d.blockReason?.startsWith('winning_cells')).length;
+    if (vetoedCount > 0) {
+      console.warn(`[cron/signals] Risk pipeline vetoed ${vetoedCount} Pro signal(s) — decisions recorded on rows`);
+    }
+    const curatedCount = [...decisions.values()].filter((d) => !d.blockReason?.startsWith('winning_cells')).length;
+    const broadcastable = broadcastInputs
+      .filter((s) => decisions.get(s.id)?.blocked === false)
+      .map((s) => ({
+        id: s.id,
+        symbol: s.symbol,
+        timeframe: s.timeframe,
+        direction: s.direction,
+        confidence: s.confidence,
+        entry: s.entry,
+        takeProfit1: s.takeProfit1,
+        stopLoss: s.stopLoss,
+        gateBlocked: false,
+      }));
+    const broadcastableCount = broadcastable.length;
+    if (broadcastable.length > 0) {
+      broadcastSignalsToProGroup(broadcastable).catch(() => undefined);
     }
 
     const auditRowId = await recordSignalRun({
