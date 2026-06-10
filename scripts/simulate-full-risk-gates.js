@@ -91,7 +91,12 @@ async function main() {
     ssl: { rejectUnauthorized: false },
   });
 
-  console.log('Loading signal_history (resolved hmm-top3 only)...');
+  console.log('Loading signal_history (resolved hmm-top3 only, PR-#110 outcome semantics)...');
+  // PR #110 alignment: drift-expired closes (target='expired') and the
+  // auto-expire sentinel (pnlPct=0 AND hit=false) are NOT real trade
+  // outcomes — the original +22.6pp validation of these gates counted them
+  // and may be partly an artifact. COALESCE handles legacy rows lacking a
+  // target field.
   const { rows } = await pool.query(`
     SELECT id, pair, direction, created_at,
            (outcome_24h->>'hit')::boolean    AS hit,
@@ -100,9 +105,11 @@ async function main() {
     WHERE strategy_id = 'hmm-top3'
       AND is_simulated = FALSE
       AND outcome_24h IS NOT NULL
+      AND COALESCE(outcome_24h->>'target', '') <> 'expired'
+      AND NOT ((outcome_24h->>'pnlPct')::numeric = 0 AND (outcome_24h->>'hit')::boolean = FALSE)
     ORDER BY created_at ASC
   `);
-  console.log(`Loaded ${rows.length} resolved signals.\n`);
+  console.log(`Loaded ${rows.length} resolved signals (expired + sentinel rows excluded per PR #110).\n`);
 
   if (rows.length < 50) {
     console.error('Not enough resolved signals for a meaningful simulation.');
