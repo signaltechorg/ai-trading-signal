@@ -108,8 +108,14 @@ export default async function PricingPage() {
                   </div>
                 </div>
               </div>
-              <p className="mt-4 text-center text-xs text-[var(--text-secondary)]">
-                Every signal, entry, and outcome is recorded in our public Postgres.{' '}
+              {stats.payoffRatio != null && stats.breakEvenWinRatePct != null && (
+                <p className="mt-4 text-center text-xs text-[var(--text-secondary)]">
+                  Wins average {stats.payoffRatio.toFixed(1)}x the size of losses — break-even
+                  win rate at this risk/reward is {stats.breakEvenWinRatePct.toFixed(1)}%.
+                </p>
+              )}
+              <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+                All-time, every resolved signal. Recorded live in our public Postgres.{' '}
                 <Link href="/track-record" className="text-emerald-400 hover:underline">
                   Verify the full archive →
                 </Link>
