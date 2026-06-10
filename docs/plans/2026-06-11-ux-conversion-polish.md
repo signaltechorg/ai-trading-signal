@@ -22,16 +22,26 @@ Fix (layered commits):
 
 Product call flagged for review: marketing surfaces switch from 30d to all-time framing. Decided autonomously because the 30d framing currently shows engine-refused trades as losses and contradicts /track-record's own math.
 
-## Finding 2 — Onboarding checklist renders for anonymous visitors (HIGH, pending verification)
+## Findings 2–11 — confirmed by audit agents and fixed (one commit each)
 
-"Getting Started" panel mounts for anonymous visitors on /, /signin, /today; covers the hero on 390px mobile. Audit agent confirming mount conditions + fix (hide for anonymous or collapse on mobile).
+2. **Onboarding checklist blocked sign-in on mobile (CRITICAL).** 340px panel, no auth/route guard, covered 100% of the sign-in form at 390px. Now authenticated-only, pill-by-default on small screens, 36px touch targets; PWA banner yields to it.
+3. **Share/SEO URLs pointed at tradeclaw.com (HIGH, top ROI).** A stale openresty mirror — every /today share, OG footer, hreflang alternate, and email CTA sent traffic off the live product. 45 occurrences → tradeclaw.win (self-hoster placeholder `your-tradeclaw.com` untouched). Ops follow-up: 301 the .com mirror at the server level.
+4. **/free-signals frozen at build time (HIGH).** No revalidate on an SEO page promising real-time alerts → `export const revalidate = 300`.
+5. **Screener rescue buttons were dead + errors blamed the user (CRITICAL).** Filter changes now trigger a debounced rescan; failed scans clear stale stat tiles and show "Scan failed — retry" instead of "your criteria are too restrictive". Copy said 12 assets; engine scans 37 (`SYMBOLS.length`).
+6. **Double footers on 12 money pages (HIGH).** Global layout footer + a second landing footer back-to-back. Per-page renders deleted; dead component removed.
+7. **Raw magic-link error codes (MEDIUM).** "Sign-in failed (consumed)" → human copy steering users to request a fresh link; auth buttons no longer hidden behind the session round-trip.
+8. **Nav label mismatch (MEDIUM).** "Signals" → /screener ("Asset Screener") renamed to "Screener" in navbar, mobile nav, footer.
+9. **/today dead page states (HIGH).** No nav, no freshness despite "updated every 5 minutes", lone spinner, empty drought state. Now: PageNavBar, "Generated Xm ago", card skeleton, empty state links to track-record/free-signals/GitHub.
+10. **Writer A side-effects unthrottled (HIGH, scale).** Every anonymous signal request fired INSERT attempts + per-signal self-HTTP + social enqueues (no-ops after DB dedup, full cost anyway). 60s in-process throttle keyed on the signal set.
+11. **Money APIs uncacheable (MEDIUM).** `private, s-maxage` is self-contradictory; /api/screener had no header. Anonymous: `public, max-age=60, swr=240`; signed-in: `private, no-store`. /live poll 10s → 60s (engine cadence is 5 min).
 
-## Finding 3+ — pending audit agents
+## ⚠️ Deferred (logged, not implemented)
 
-- Screener default-filter empty state ("8 of 37" tiles vs "No assets match your filters" table contradiction).
-- /today loading skeleton (lone spinner pre-hydration).
-- Possible duplicated footer on mobile landing.
-- Nav dead links, mobile overflow, perf/static-ification wins.
+- Tools dropdown trim (16 entries incl. vendor deploy pages) + promoting Pricing into primary nav — IA opinion call for Naim.
+- Static skeleton for /screener dynamic-import fallback (LOW; in-table skeletons already good).
+- 301 redirect of the tradeclaw.com mirror — server/ops task outside this repo.
+- /free-signals client always-refetch on mount (ISR at 300s judged sufficient).
+- Audit praised and untouched: checkout-intent threading through OAuth, Stripe webhook race handling on /welcome, Redis/OHLCV cache layering, screener scan-sequence guard.
 
 ## Verification
 
