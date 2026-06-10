@@ -32,6 +32,7 @@ jest.mock('./sizing', () => ({
 
 jest.mock('./telegram', () => ({
   notifyEntryFilled: jest.fn(),
+  notifyError: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('./universe-runner', () => ({
@@ -45,7 +46,7 @@ jest.mock('../../app/lib/ohlcv', () => ({
 import { cancelOrder, getAccount, getExchangeInfo, placeOrder } from './binance-futures';
 import { execute, query, withClient } from '../db-pool';
 import { computeSize } from './sizing';
-import { notifyEntryFilled } from './telegram';
+import { notifyEntryFilled, notifyError } from './telegram';
 import { runExecutorTick } from './executor';
 
 const mockedCancelOrder = cancelOrder as jest.MockedFunction<typeof cancelOrder>;
@@ -57,6 +58,7 @@ const mockedQuery = query as jest.MockedFunction<typeof query>;
 const mockedWithClient = withClient as jest.MockedFunction<typeof withClient>;
 const mockedComputeSize = computeSize as jest.MockedFunction<typeof computeSize>;
 const mockedNotify = notifyEntryFilled as jest.MockedFunction<typeof notifyEntryFilled>;
+const mockedNotifyError = notifyError as jest.MockedFunction<typeof notifyError>;
 
 const SIGNAL_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
@@ -86,6 +88,7 @@ const entryOrder = {
   type: 'MARKET',
   side: 'BUY',
   origQty: '0.5',
+  executedQty: '0.5',
   price: '0',
   avgPrice: '50000',
   stopPrice: '0',
@@ -96,11 +99,19 @@ const entryOrder = {
 
 const tpOrder = { ...entryOrder, orderId: 103, type: 'TAKE_PROFIT_MARKET', side: 'SELL', reduceOnly: true };
 const slOrder = { ...entryOrder, orderId: 102, type: 'STOP_MARKET', side: 'SELL', status: 'NEW' };
-const closeOrder = { ...entryOrder, orderId: 104, side: 'SELL', reduceOnly: true };
+const closeFilled = { ...entryOrder, orderId: 104, side: 'SELL', reduceOnly: true, avgPrice: '49900' };
+const closeExpired = { ...closeFilled, status: 'EXPIRED', executedQty: '0' };
 
-function findExecuteCall(sqlFragment: string) {
-  return mockedExecute.mock.calls.find(
+function findExecuteIndex(sqlFragment: string): number {
+  return mockedExecute.mock.calls.findIndex(
     (c) => typeof c[0] === 'string' && c[0].includes(sqlFragment),
+  );
+}
+
+function findCloseCallIndex(): number {
+  return mockedPlaceOrder.mock.calls.findIndex(
+    (c) => (c[0] as { reduceOnly?: boolean; type: string }).reduceOnly === true
+      && (c[0] as { type: string }).type === 'MARKET',
   );
 }
 
@@ -133,11 +144,11 @@ beforeEach(() => {
 });
 
 describe('runExecutorTick — SL placement failure after a filled entry', () => {
-  it('flattens the position reduce-only, cancels the dangling TP, and persists a closed row', async () => {
+  it('persists the row FIRST, flattens reduce-only, cancels the dangling TP, then marks closed', async () => {
     mockedPlaceOrder.mockImplementation((async (input: { type: string; reduceOnly?: boolean }) => {
       if (input.type === 'STOP_MARKET') throw new Error('-2021 order would immediately trigger');
       if (input.type === 'TAKE_PROFIT_MARKET') return tpOrder;
-      if (input.type === 'MARKET' && input.reduceOnly) return closeOrder;
+      if (input.type === 'MARKET' && input.reduceOnly) return closeFilled;
       return entryOrder;
     }) as never);
 
@@ -148,12 +159,10 @@ describe('runExecutorTick — SL placement failure after a filled entry', () => 
     // The dangling TP leg is cancelled.
     expect(mockedCancelOrder).toHaveBeenCalledWith('BTCUSDT', 103);
 
-    // Emergency close: reduce-only MARKET on the opposite side for the filled qty.
-    const closeCall = mockedPlaceOrder.mock.calls.find(
-      (c) => (c[0] as { reduceOnly?: boolean }).reduceOnly === true && (c[0] as { type: string }).type === 'MARKET',
-    );
-    expect(closeCall).toBeDefined();
-    expect(closeCall![0]).toMatchObject({
+    // Emergency close: reduce-only MARKET on the opposite side for the FILLED qty.
+    const closeIdx = findCloseCallIndex();
+    expect(closeIdx).toBeGreaterThanOrEqual(0);
+    expect(mockedPlaceOrder.mock.calls[closeIdx][0]).toMatchObject({
       symbol: 'BTCUSDT',
       side: 'SELL',
       type: 'MARKET',
@@ -161,17 +170,27 @@ describe('runExecutorTick — SL placement failure after a filled entry', () => 
       reduceOnly: true,
     });
 
-    // The row is ALWAYS persisted — here as closed (flat).
-    const persistCall = findExecuteCall('INSERT INTO executions');
-    expect(persistCall).toBeDefined();
-    expect((persistCall![1] as unknown[])[14]).toBe('closed');
+    // Persist-first: the INSERT (status 'filled') lands BEFORE the close order
+    // goes out, so a crash mid-cleanup can never leave the position untracked.
+    const insertIdx = findExecuteIndex('INSERT INTO executions');
+    expect(insertIdx).toBeGreaterThanOrEqual(0);
+    expect((mockedExecute.mock.calls[insertIdx][1] as unknown[])[14]).toBe('filled');
+    expect(mockedExecute.mock.invocationCallOrder[insertIdx]).toBeLessThan(
+      mockedPlaceOrder.mock.invocationCallOrder[closeIdx],
+    );
+
+    // Confirmed FILLED close → row updated to closed with the close fill price.
+    const updateIdx = findExecuteIndex('UPDATE executions');
+    expect(updateIdx).toBeGreaterThanOrEqual(0);
+    expect(mockedExecute.mock.calls[updateIdx][0]).toContain("status='closed'");
+    expect((mockedExecute.mock.calls[updateIdx][1] as unknown[])[1]).toBe(49900);
 
     expect(mockedNotify).not.toHaveBeenCalled();
     expect(result.rejected).toBe(1);
     expect(result.executed).toBe(0);
   });
 
-  it('persists a filled row and logs naked_position when the emergency close also fails', async () => {
+  it('keeps the row filled, logs naked_position, and alerts when the emergency close throws', async () => {
     mockedPlaceOrder.mockImplementation((async (input: { type: string; reduceOnly?: boolean }) => {
       if (input.type === 'STOP_MARKET') throw new Error('-2021 order would immediately trigger');
       if (input.type === 'TAKE_PROFIT_MARKET') return tpOrder;
@@ -181,11 +200,10 @@ describe('runExecutorTick — SL placement failure after a filled entry', () => 
 
     const result = await runExecutorTick();
 
-    // Position is live — the row MUST exist so the position manager and
-    // reconciliation can see it.
-    const persistCall = findExecuteCall('INSERT INTO executions');
-    expect(persistCall).toBeDefined();
-    expect((persistCall![1] as unknown[])[14]).toBe('filled');
+    const insertIdx = findExecuteIndex('INSERT INTO executions');
+    expect(insertIdx).toBeGreaterThanOrEqual(0);
+    expect((mockedExecute.mock.calls[insertIdx][1] as unknown[])[14]).toBe('filled');
+    expect(findExecuteIndex('UPDATE executions')).toBe(-1);
 
     const errorCall = mockedExecute.mock.calls.find(
       (c) =>
@@ -194,10 +212,61 @@ describe('runExecutorTick — SL placement failure after a filled entry', () => 
         (c[1] as unknown[])[4] === 'naked_position',
     );
     expect(errorCall).toBeDefined();
+    expect(mockedNotifyError).toHaveBeenCalledWith(
+      'naked_position',
+      SIGNAL_ID,
+      expect.stringContaining('NO STOP'),
+    );
 
     expect(mockedNotify).not.toHaveBeenCalled();
     expect(result.errors).toBe(1);
     expect(result.executed).toBe(0);
+  });
+
+  it('treats a non-FILLED (EXPIRED) close as naked — the row must NOT be marked closed', async () => {
+    mockedPlaceOrder.mockImplementation((async (input: { type: string; reduceOnly?: boolean }) => {
+      if (input.type === 'STOP_MARKET') throw new Error('-2021 order would immediately trigger');
+      if (input.type === 'TAKE_PROFIT_MARKET') return tpOrder;
+      if (input.type === 'MARKET' && input.reduceOnly) return closeExpired;
+      return entryOrder;
+    }) as never);
+
+    const result = await runExecutorTick();
+
+    const insertIdx = findExecuteIndex('INSERT INTO executions');
+    expect((mockedExecute.mock.calls[insertIdx][1] as unknown[])[14]).toBe('filled');
+    expect(findExecuteIndex('UPDATE executions')).toBe(-1);
+
+    const errorCall = mockedExecute.mock.calls.find(
+      (c) =>
+        typeof c[0] === 'string' &&
+        c[0].includes('INSERT INTO execution_errors') &&
+        (c[1] as unknown[])[4] === 'naked_position',
+    );
+    expect(errorCall).toBeDefined();
+    expect(mockedNotifyError).toHaveBeenCalled();
+    expect(result.errors).toBe(1);
+  });
+
+  it('persists a cancelled row and places no close when the entry itself had zero fill', async () => {
+    const entryExpired = { ...entryOrder, status: 'EXPIRED', executedQty: '0', avgPrice: '0' };
+    mockedPlaceOrder.mockImplementation((async (input: { type: string; reduceOnly?: boolean }) => {
+      if (input.type === 'STOP_MARKET') throw new Error('-2021 order would immediately trigger');
+      if (input.type === 'TAKE_PROFIT_MARKET') return tpOrder;
+      if (input.type === 'MARKET' && input.reduceOnly) throw new Error('should not be called');
+      return entryExpired;
+    }) as never);
+
+    const result = await runExecutorTick();
+
+    const insertIdx = findExecuteIndex('INSERT INTO executions');
+    expect(insertIdx).toBeGreaterThanOrEqual(0);
+    expect((mockedExecute.mock.calls[insertIdx][1] as unknown[])[14]).toBe('cancelled');
+
+    expect(findCloseCallIndex()).toBe(-1);
+    expect(mockedNotifyError).not.toHaveBeenCalled();
+    expect(result.rejected).toBe(1);
+    expect(result.errors).toBe(0);
   });
 
   it('regression: full bracket success persists a filled row and counts executed', async () => {
@@ -210,9 +279,9 @@ describe('runExecutorTick — SL placement failure after a filled entry', () => 
     const result = await runExecutorTick();
 
     expect(mockedCancelOrder).not.toHaveBeenCalled();
-    const persistCall = findExecuteCall('INSERT INTO executions');
-    expect(persistCall).toBeDefined();
-    expect((persistCall![1] as unknown[])[14]).toBe('filled');
+    const insertIdx = findExecuteIndex('INSERT INTO executions');
+    expect(insertIdx).toBeGreaterThanOrEqual(0);
+    expect((mockedExecute.mock.calls[insertIdx][1] as unknown[])[14]).toBe('filled');
     expect(result.executed).toBe(1);
     expect(result.rejected).toBe(0);
   });
