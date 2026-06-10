@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PieChart, TrendingUp, TrendingDown, Minus, Zap, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { PieChart, TrendingUp, MoveHorizontal, Zap, ShieldCheck } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────
 
-type RegimeName = 'crash' | 'bear' | 'neutral' | 'bull' | 'euphoria';
+type RegimeName = 'trend' | 'volatile' | 'range';
 
 interface RegimeEntry {
   symbol: string;
@@ -33,38 +33,35 @@ interface PortfolioSnapshot {
 // ─── Constants ───────────────────────────────────────────────
 
 const REGIME_COLORS: Record<RegimeName, { color: string; bg: string; border: string }> = {
-  crash:    { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.12)', border: 'rgba(220, 38, 38, 0.3)' },
-  bear:     { color: '#F97316', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.3)' },
-  neutral:  { color: '#6B7280', bg: 'rgba(107, 114, 128, 0.12)', border: 'rgba(107, 114, 128, 0.3)' },
-  bull:     { color: '#22C55E', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.3)' },
-  euphoria: { color: '#A855F7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.3)' },
+  trend:    { color: '#22C55E', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.3)' },
+  volatile: { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.12)', border: 'rgba(220, 38, 38, 0.3)' },
+  range:    { color: '#6B7280', bg: 'rgba(107, 114, 128, 0.12)', border: 'rgba(107, 114, 128, 0.3)' },
 };
 
+// Display mirror of REGIME_ALLOCATION_RULES in
+// packages/signals/src/allocation/regime-rules.ts (plan D3) — the previous
+// table showed values that never matched the engine. Keep in sync.
 const ALLOCATION_RULES: AllocationRule[] = [
-  { regime: 'crash',    maxExposure: '0%',   leverage: '1x', directions: 'None',       maxPosition: '0%',  tightenStops: true },
-  { regime: 'bear',     maxExposure: '25%',  leverage: '1x', directions: 'SELL only',  maxPosition: '5%',  tightenStops: true },
-  { regime: 'neutral',  maxExposure: '50%',  leverage: '2x', directions: 'BUY & SELL', maxPosition: '10%', tightenStops: false },
-  { regime: 'bull',     maxExposure: '80%',  leverage: '3x', directions: 'BUY & SELL', maxPosition: '15%', tightenStops: false },
-  { regime: 'euphoria', maxExposure: '60%',  leverage: '2x', directions: 'BUY only',   maxPosition: '10%', tightenStops: true },
+  { regime: 'trend',    maxExposure: '80%', leverage: '2x', directions: 'BUY & SELL', maxPosition: '15%', tightenStops: false },
+  { regime: 'volatile', maxExposure: '40%', leverage: '1x', directions: 'BUY & SELL', maxPosition: '8%',  tightenStops: true },
+  { regime: 'range',    maxExposure: '30%', leverage: '1x', directions: 'BUY & SELL', maxPosition: '6%',  tightenStops: false },
 ];
 
-const REGIME_ORDER: RegimeName[] = ['crash', 'bear', 'neutral', 'bull', 'euphoria'];
+const REGIME_ORDER: RegimeName[] = ['trend', 'volatile', 'range'];
 
 // ─── Helpers ─────────────────────────────────────────────────
 
 function normalizeRegime(raw: string): RegimeName {
   const lower = raw.toLowerCase();
   if (REGIME_ORDER.includes(lower as RegimeName)) return lower as RegimeName;
-  return 'neutral';
+  return 'range'; // unified unknown-label fallback (plan D1)
 }
 
 function getRegimeIcon(regime: RegimeName) {
   switch (regime) {
-    case 'crash': return <AlertTriangle className="w-4 h-4" />;
-    case 'bear': return <TrendingDown className="w-4 h-4" />;
-    case 'neutral': return <Minus className="w-4 h-4" />;
-    case 'bull': return <TrendingUp className="w-4 h-4" />;
-    case 'euphoria': return <Zap className="w-4 h-4" />;
+    case 'trend': return <TrendingUp className="w-4 h-4" />;
+    case 'volatile': return <Zap className="w-4 h-4" />;
+    case 'range': return <MoveHorizontal className="w-4 h-4" />;
   }
 }
 
@@ -112,15 +109,15 @@ export function AllocationClient() {
   }, [fetchData]);
 
   // Determine dominant regime from API data
-  const regimeCounts: Record<RegimeName, number> = { crash: 0, bear: 0, neutral: 0, bull: 0, euphoria: 0 };
+  const regimeCounts: Record<RegimeName, number> = { trend: 0, volatile: 0, range: 0 };
   for (const e of regimeData) {
     regimeCounts[normalizeRegime(e.regime)]++;
   }
-  const dominant = REGIME_ORDER.reduce((a, b) => (regimeCounts[a] >= regimeCounts[b] ? a : b), 'neutral' as RegimeName);
+  const dominant = REGIME_ORDER.reduce((a, b) => (regimeCounts[a] >= regimeCounts[b] ? a : b), 'range' as RegimeName);
   const activeRule = ALLOCATION_RULES.find((r) => r.regime === dominant);
 
-  // Calculate current allocation summary
-  const maxExposureNum = activeRule ? parseInt(activeRule.maxExposure) : 50;
+  // Calculate current allocation summary (fallback = range max exposure)
+  const maxExposureNum = activeRule ? parseInt(activeRule.maxExposure) : 30;
   const currentExposure = portfolioSnapshot?.grossExposurePct ?? null;
   const headroom = currentExposure !== null ? +(maxExposureNum - currentExposure).toFixed(1) : null;
 
