@@ -167,8 +167,13 @@ export async function GET(request: NextRequest) {
     const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
     const expired = records.filter(r => {
       if (r.isSimulated || r.gateBlocked) return false;
-      if (r.outcomes['24h'] && !isRealOutcome(r.outcomes['24h'])) return true;
-      return !r.outcomes['24h'] && (now - r.timestamp) >= TWENTY_FOUR_HOURS_MS;
+      // Two kinds of expired: auto-expire placeholders (fail isRealOutcome) and
+      // drift-expired closes (real pnl but target='expired'). Both are excluded
+      // from resolved/win-rate by isCountedResolved, so both belong in this
+      // transparency bucket — otherwise drift-expired rows vanish from every count.
+      const o = r.outcomes['24h'];
+      if (o && (!isRealOutcome(o) || o.target === 'expired')) return true;
+      return !o && (now - r.timestamp) >= TWENTY_FOUR_HOURS_MS;
     }).length;
     const gateBlocked = records.filter(r => r.gateBlocked).length;
     const pending = records.filter(r =>

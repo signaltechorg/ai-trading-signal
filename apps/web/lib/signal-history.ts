@@ -37,7 +37,16 @@ export function isRealOutcome(o: SignalOutcome | null | undefined): o is SignalO
 export function isCountedResolved(r: SignalHistoryRecord): boolean {
   if (r.isSimulated) return false;
   if (r.gateBlocked) return false;
-  return isRealOutcome(r.outcomes['24h']);
+  const o = r.outcomes['24h'];
+  if (!isRealOutcome(o)) return false;
+  // Auto-expired closes (window elapsed with neither TP nor SL hit) are
+  // recorded for transparency only. The UI captions promise it: stat-hints
+  // `resolved` = "TP or SL hit … Excludes … auto-expired rows" and `winRate24h`
+  // = "Excludes auto-expired and gate-blocked rows". Honor that contract in the
+  // one canonical predicate so equity, win-rate, and resolved counts match the
+  // stated methodology instead of folding drift-expired rows in as wins/losses.
+  if (o.target === 'expired') return false;
+  return true;
 }
 
 export interface SignalHistoryRecord {
