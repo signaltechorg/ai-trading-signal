@@ -57,6 +57,9 @@ export const regimeAwareEntry: EntryModule = {
         return allowedDirections.includes(sig.direction);
       } catch {
         // Classification failure → fail open (entry allowed).
+        // LIVE-PATH WARNING: this same catch fires on live data. If this
+        // module is ever reused outside backtests, replace fail-open with a
+        // hard reject or surface the error to the caller.
         return true;
       }
     });

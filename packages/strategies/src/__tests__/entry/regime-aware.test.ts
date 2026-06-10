@@ -8,14 +8,22 @@ import { setModel, getDefaultModel } from '@tradeclaw/signals';
 import type { HMMModelParams } from '@tradeclaw/signals';
 
 /**
- * Model injection note: the classifier caches models per ASSET CLASS and the
- * cache cannot be cleared from here (clearModelCache is not part of the
- * package public API). Each injecting test therefore uses a symbol from an
- * asset class no other test touches: XAUUSD → metals (valid model),
- * EURUSD → forex (broken model). BTCUSD/crypto tests never inject.
+ * Model-cache isolation strategy: the classifier caches models per ASSET
+ * CLASS, so tests partition by asset class — BTCUSD → crypto (valid default,
+ * pinned in beforeAll), XAUUSD → metals (valid default), EURUSD → forex
+ * (deliberately broken model, restored to a valid default in afterAll via
+ * the public setModel API).
+ *
+ * Models are injected up front so loadModel never walks the disk: a stale
+ * 5-label model JSON in a parent checkout would otherwise emit the loadModel
+ * fallback console.warn into the test output.
  */
 
 describe('regime-aware entry module', () => {
+  beforeAll(() => {
+    setModel('crypto', getDefaultModel('crypto'));
+  });
+
   it('has id "regime-aware"', () => {
     expect(regimeAwareEntry.id).toBe('regime-aware');
   });
@@ -60,6 +68,12 @@ describe('regime-aware entry module', () => {
   });
 
   describe('fail-open contract', () => {
+    // The classifier-throw test below caches a broken forex model; restore a
+    // valid default so later loads in this registry never see it.
+    afterAll(() => {
+      setModel('forex', getDefaultModel('forex'));
+    });
+
     it('allows all signals through when the window is too short to classify', () => {
       const short = (candles as any[]).slice(0, MIN_REGIME_CLASSIFICATION_BARS - 1);
       const ctx = { symbol: 'BTCUSD', timeframe: 'H1' };
