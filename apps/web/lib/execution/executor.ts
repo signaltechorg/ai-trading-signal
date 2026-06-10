@@ -288,14 +288,73 @@ async function runExecutorTickLocked(
           })
         : null;
 
-      // 3d. If SL failed but entry filled, cancel entry to avoid naked exposure
+      // 3d. SL placement failed after the entry order went in. A filled
+      // MARKET entry cannot be cancelled (cancelOrder throws -2011), so
+      // flatten it with a reduce-only MARKET close instead — and ALWAYS
+      // persist the executions row first, so the position is never
+      // untracked even if the close itself fails.
       if (entryOrder && !slOrder) {
-        try {
-          await cancelOrder(binancePair, entryOrder.orderId);
-        } catch (err) {
-          await logError({ signalId: sig.id, stage: 'cancel', errorMsg: getMsg(err) });
+        if (tpOrder) {
+          try {
+            await cancelOrder(binancePair, tpOrder.orderId);
+          } catch (err) {
+            await logError({ signalId: sig.id, stage: 'cancel', errorMsg: getMsg(err) });
+          }
         }
-        result.rejected++;
+
+        const closeQty = roundDownToStep(
+          Number(entryOrder.origQty) || sizing.qty,
+          filters.stepSize,
+          filters.quantityPrecision,
+        );
+        let closed = false;
+        try {
+          const closeOrder = await placeOrder({
+            symbol: binancePair,
+            side: sig.direction === 'BUY' ? 'SELL' : 'BUY',
+            type: 'MARKET',
+            quantity: closeQty,
+            reduceOnly: true,
+            clientOrderId: ids.close,
+          });
+          closed = closeOrder != null;
+        } catch (err) {
+          await logError({
+            signalId: sig.id,
+            stage: 'cancel',
+            errorCode: 'naked_position',
+            errorMsg: `emergency close failed — position is OPEN with no SL: ${getMsg(err)}`,
+          });
+        }
+
+        await persistExecution({
+          signalId: sig.id,
+          symbol: binancePair,
+          side: sig.direction,
+          qty: sizing.qty,
+          entryPrice: Number(entryOrder.avgPrice ?? entryOrder.price ?? sig.entryPrice) || sig.entryPrice,
+          stopPrice: sizing.stopPrice,
+          tp1Price: sizing.tp1Price,
+          leverage: sizing.leverage,
+          notionalUsd: sizing.notionalUsd,
+          riskUsd: sizing.riskUsd,
+          clientOrderId: ids.entry,
+          exchangeOrderId: entryOrder.orderId?.toString() ?? null,
+          status: closed ? 'closed' : 'filled',
+          slOrderId: null,
+          tpOrderId: null,
+          mode: isTestnet() ? 'testnet' : 'live',
+        });
+
+        if (closed) {
+          result.rejected++;
+        } else {
+          // Naked live position: count it open so concurrency caps hold and
+          // the position manager picks the row up on its next tick.
+          result.errors++;
+          liveOpen++;
+          inTickSymbols.add(binancePair);
+        }
         continue;
       }
 
