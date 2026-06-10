@@ -60,6 +60,10 @@ export async function getLandingStats(): Promise<LandingStats> {
         WHERE outcome_24h IS NOT NULL
           AND created_at >= NOW() - INTERVAL '30 days'
           AND is_simulated = FALSE
+          -- Auto-expired (no TP/SL hit) rows are transparency-only, not
+          -- resolved trades — exclude from cumulative P&L / profit factor to
+          -- match isCountedResolved and the stat-hints "resolved" contract.
+          AND outcome_24h->>'target' IS DISTINCT FROM 'expired'
           AND NOT ((outcome_24h->>'pnlPct')::numeric = 0
                    AND (outcome_24h->>'hit')::boolean = FALSE)
      )
@@ -88,19 +92,19 @@ export async function getLandingStats(): Promise<LandingStats> {
 
   const recentRes = await queryOne<RecentWinRateRow>(
     `WITH recent AS (
-       SELECT (outcome_24h->>'hit')::boolean AS hit,
-              outcome_24h->>'target' AS target,
-              (outcome_24h->>'pnlPct')::numeric AS pnl_pct
+       SELECT (outcome_24h->>'hit')::boolean AS hit
          FROM signal_history
         WHERE outcome_24h IS NOT NULL
           AND is_simulated = FALSE
+          -- Exclude auto-expired rows entirely: the stat-hints contract says
+          -- expired is "not counted in win-rate". Counting expired-with-drift
+          -- as a win (the old OR clause) contradicted that promise.
+          AND outcome_24h->>'target' IS DISTINCT FROM 'expired'
         ORDER BY created_at DESC
         LIMIT 100
      )
      SELECT COUNT(*)::text AS total,
-            SUM(CASE WHEN hit = true
-                      OR (target = 'expired' AND pnl_pct > 0)
-                 THEN 1 ELSE 0 END)::text AS wins
+            SUM(CASE WHEN hit = true THEN 1 ELSE 0 END)::text AS wins
        FROM recent`
   );
   const recentTotal = Number(recentRes?.total ?? 0);
