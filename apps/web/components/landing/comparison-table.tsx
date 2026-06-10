@@ -222,7 +222,7 @@ export function ComparisonTable() {
 
         <p className="mt-6 text-center text-xs text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
           Purpose-built tools with transparent, auditable technical analysis
-          beat black-box agent plugins on inspectability: every TradeClaw
+          are easier to audit than black-box agent plugins: every TradeClaw
           signal shows its indicator inputs and is tracked publicly after the
           fact. Prices as of March 2026.
         </p>

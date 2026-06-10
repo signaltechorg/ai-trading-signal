@@ -246,7 +246,7 @@ export function ResultsClient() {
               <div className="mt-1 text-[11px] text-zinc-500">Across {VALIDATION_SUMMARY.assetCount} assets · hand-authored examples</div>
             </div>
             <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Performance snapshot</div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Example snapshot</div>
               <div className="mt-1 font-mono text-sm font-semibold text-white">
                 {VALIDATION_SUMMARY.weightedWinRate.toFixed(1)}% win rate · Sharpe {VALIDATION_SUMMARY.averageSharpe.toFixed(2)}
               </div>
@@ -355,7 +355,7 @@ export function ResultsClient() {
             {/* ─── Equity Curve ────────────────────────────── */}
             <div className="glass-card rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold">Equity Curve</span>
+                <span className="text-sm font-semibold">Equity Curve <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
                 <span className="text-[10px] text-zinc-500 font-mono">
                   {result.metrics.startDate} &rarr; {result.metrics.endDate}
                 </span>
@@ -365,7 +365,7 @@ export function ResultsClient() {
 
             {/* ─── Monthly Returns Heatmap ─────────────────── */}
             <div className="glass-card rounded-2xl p-5 mb-6">
-              <span className="text-sm font-semibold mb-3 block">Monthly Returns</span>
+              <span className="text-sm font-semibold mb-3 block">Monthly Returns <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
               <div className="grid grid-cols-12 gap-1.5">
                 {result.monthlyReturns.map((m) => (
                   <div
@@ -395,7 +395,7 @@ export function ResultsClient() {
               <div className="bg-white/[0.02] rounded-lg py-3 px-4 border border-white/5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <BarChart3 className="w-3.5 h-3.5 text-zinc-500" />
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Test Period</span>
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Example Period</span>
                 </div>
                 <span className="font-mono tabular-nums text-sm font-semibold text-white">
                   {result.metrics.startDate} &mdash; {result.metrics.endDate}
@@ -479,7 +479,7 @@ export function ResultsClient() {
           <Trophy className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
           <h2 className="text-lg font-semibold mb-2">Run Your Own Backtest</h2>
           <p className="text-xs text-zinc-400 mb-4 max-w-md mx-auto">
-            These are pre-computed results. Want to test your own parameters, timeframes, and stop-loss settings?
+            These profiles are hand-authored examples. Run a real comparison with your own parameters, timeframes, and stop-loss settings:
           </p>
           <Link
             href={`/backtest?strategy=${activeStrategy}`}
