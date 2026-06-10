@@ -69,6 +69,8 @@ export const REGIME_FEATURE_NAMES = [
  * Minimum number of ATR/close samples required before a percentile rank is
  * emitted. Below this floor the rank is statistically meaningless, so the
  * feature stays null.
+ *
+ * @internal
  */
 export const MIN_ATR_PERCENTILE_SAMPLES = 30;
 
@@ -166,6 +168,11 @@ function computeBbBandwidthPctSeries(
     const middle = sum / period;
     if (Math.abs(middle) < 1e-12) continue; // middle ~ 0 -> bandwidth undefined
     // Rolling population variance; clamp tiny negative FP residue to 0.
+    // Precision note: the sumSq/n - mean^2 form suffers catastrophic
+    // cancellation only when variance is many orders of magnitude below
+    // mean^2; for price-scale inputs (>= ~0.1) double precision is ample.
+    // Switch to Welford's algorithm if this is ever extended to
+    // near-zero-price or near-zero-variance series.
     const variance = Math.max(0, sumSq / period - middle * middle);
     const stdDev = Math.sqrt(variance);
     out[i] = ((2 * multiplier * stdDev) / middle) * 100;
@@ -182,6 +189,8 @@ function computeBbBandwidthPctSeries(
  *
  * Exported for white-box tests only — not part of the package public API
  * (not re-exported from src/index.ts).
+ *
+ * @internal
  */
 export function computeAtrSeries(bars: RegimeBar[], period: number): (number | null)[] {
   const out: (number | null)[] = new Array(bars.length).fill(null);
@@ -209,6 +218,8 @@ export function computeAtrSeries(bars: RegimeBar[], period: number): (number | n
  * [0,1]. Null until at least MIN_ATR_PERCENTILE_SAMPLES ratios are in the
  * window, or when ATR is null / close is non-positive.
  *
+ * The `ratios` buffer is capped at `window` entries (shift() is O(window),
+ * fine at the default 252) so memory stays bounded on long series.
  * The rank scan is O(window) per bar — O(n*window) overall. That is inherent
  * to a trailing percentile rank and acceptable (window is a fixed option).
  */
@@ -225,13 +236,17 @@ function computeAtrPercentileSeries(
     if (atr === null || !(close > 0)) continue;
     const ratio = atr / close;
     ratios.push(ratio);
-    const windowCount = Math.min(window, ratios.length);
+    if (ratios.length > window) ratios.shift();
+    const windowCount = ratios.length;
     if (windowCount < MIN_ATR_PERCENTILE_SAMPLES) continue;
     let countLE = 0;
-    for (let j = ratios.length - windowCount; j < ratios.length; j++) {
+    for (let j = 0; j < windowCount; j++) {
       if (ratios[j] <= ratio) countLE++;
     }
-    out[i] = clamp((countLE - 1) / (windowCount - 1), 0, 1);
+    // Guard the single-sample case at the division site: (countLE-1)/0 would
+    // be NaN and clamp() passes NaN through. Not reachable while the
+    // MIN_ATR_PERCENTILE_SAMPLES floor holds, but do not rely on it.
+    out[i] = windowCount <= 1 ? 0 : clamp((countLE - 1) / (windowCount - 1), 0, 1);
   }
   return out;
 }

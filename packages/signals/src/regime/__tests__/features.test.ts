@@ -131,6 +131,16 @@ describe('bbBandwidthPct', () => {
       expect(must(vectors[i]).bbBandwidthPct).toBeCloseTo(expected, 6);
     }
   });
+
+  it('scales proportionally with bbMultiplier (3σ = 1.5x the default 2σ bandwidth)', () => {
+    const bars = barsFromCloses(syntheticCloses(60));
+    const defaultBands = computeRegimeFeatureSeries(bars);
+    const wideBands = computeRegimeFeatureSeries(bars, { bbMultiplier: 3 });
+    expect(must(wideBands[59]).bbBandwidthPct).toBeCloseTo(
+      must(defaultBands[59]).bbBandwidthPct * 1.5,
+      10,
+    );
+  });
 });
 
 // ─── ATR (SMA of true range — white-box) ─────────────────────────────────────
@@ -191,6 +201,28 @@ describe('atrPercentile', () => {
       }
     }
     expect(must(vectors[109]).atrPercentile).toBe(1);
+  });
+
+  it('honors the atrPercentileWindow override (small window re-ranks the current ratio)', () => {
+    // High volatility for bars 0..79, then quiet bars with slowly rising
+    // spreads: the final ATR ratio is the max of the recent 30 ratios but far
+    // below the early high-vol ratios.
+    const bars: RegimeBar[] = [];
+    for (let i = 0; i < 140; i++) {
+      const spread = i < 80 ? 5 : 0.3 + (i - 80) * 0.001;
+      bars.push({
+        timestamp: T0 + i * HOUR_MS,
+        open: 100,
+        high: 100 + spread,
+        low: 100 - spread,
+        close: 100,
+        volume: 1_000,
+      });
+    }
+    const fullWindow = computeRegimeFeatureSeries(bars);
+    const smallWindow = computeRegimeFeatureSeries(bars, { atrPercentileWindow: 30 });
+    expect(must(smallWindow[139]).atrPercentile).toBe(1);
+    expect(must(fullWindow[139]).atrPercentile).toBeLessThan(1);
   });
 });
 
@@ -258,5 +290,22 @@ describe('determinism', () => {
   it('same input twice → deep-equal output', () => {
     const bars = barsFromCloses(syntheticCloses(80));
     expect(computeRegimeFeatureSeries(bars)).toEqual(computeRegimeFeatureSeries(bars));
+  });
+});
+
+// ─── Long-series stability (capped percentile buffer, no NaN) ────────────────
+
+describe('long-series stability', () => {
+  it('600-bar deterministic walk: no NaN/Infinity, no gaps after warmup', () => {
+    // 600 bars > atrPercentileWindow=252, so the capped ratio buffer's
+    // shift() path is exercised; every emitted value must stay finite.
+    const vectors = computeRegimeFeatureSeries(barsFromCloses(syntheticCloses(600)));
+    const nonNull = vectors.filter((v): v is RegimeFeatureVector => v !== null);
+    expect(nonNull).toHaveLength(600 - 43);
+    for (const v of nonNull) {
+      for (const name of REGIME_FEATURE_NAMES) {
+        expect(Number.isFinite(v[name])).toBe(true);
+      }
+    }
   });
 });
