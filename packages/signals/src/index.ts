@@ -73,6 +73,16 @@ export type {
   HMMModelParams,
   PriceBar,
 } from './regime/index.js';
+export {
+  computeRegimeFeatureSeries,
+  featureVectorToArray,
+  REGIME_FEATURE_NAMES,
+} from './regime/features.js';
+export type {
+  RegimeBar,
+  RegimeFeatureVector,
+  RegimeFeatureOptions,
+} from './regime/features.js';
 
 // ─── Dynamic Allocation ─────────────────────────────
 export {
