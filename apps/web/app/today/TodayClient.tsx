@@ -10,7 +10,6 @@ import {
   Target,
   Share2,
   CheckCircle2,
-  RefreshCw,
   Star,
   ArrowRight,
   BarChart3,
@@ -95,6 +94,7 @@ export function TodayClient() {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [freshnessLabel, setFreshnessLabel] = useState<string | null>(null);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -108,15 +108,23 @@ export function TodayClient() {
 
   const signal = data?.signalOfTheDay;
 
-  const freshnessLabel = (() => {
-    if (!data?.generatedAt) return null;
-    const ageMs = Date.now() - new Date(data.generatedAt).getTime();
-    if (!Number.isFinite(ageMs) || ageMs < 0) return null;
-    const mins = Math.round(ageMs / 60000);
-    if (mins < 1) return 'Generated just now';
-    if (mins < 60) return `Generated ${mins}m ago`;
-    return `Generated ${Math.round(mins / 60)}h ago`;
-  })();
+  // Recomputed in an effect (Date.now is impure during render) and ticked
+  // every minute so the label stays honest while the tab sits open.
+  const generatedAt = data?.generatedAt;
+  useEffect(() => {
+    const compute = (): string | null => {
+      if (!generatedAt) return null;
+      const ageMs = Date.now() - new Date(generatedAt).getTime();
+      if (!Number.isFinite(ageMs) || ageMs < 0) return null;
+      const mins = Math.round(ageMs / 60000);
+      if (mins < 1) return 'Generated just now';
+      if (mins < 60) return `Generated ${mins}m ago`;
+      return `Generated ${Math.round(mins / 60)}h ago`;
+    };
+    setFreshnessLabel(compute()); // eslint-disable-line react-hooks/set-state-in-effect
+    const timer = setInterval(() => setFreshnessLabel(compute()), 60_000);
+    return () => clearInterval(timer);
+  }, [generatedAt]);
 
   const shareText = signal
     ? `🎯 Signal of the Day from TradeClaw\n\n${signal.symbol} ${signal.direction} @ ${signal.entry}\nConfidence: ${signal.confidence}%\nTP1: ${signal.takeProfit1} | SL: ${signal.stopLoss}\n\nhttps://tradeclaw.win/today`
