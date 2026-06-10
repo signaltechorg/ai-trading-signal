@@ -66,7 +66,7 @@ describe('recordSignalAsync with a broadcast decision (Tier 0)', () => {
     await mod.recordSignalAsync(
       'BTCUSD', 'H1', 'BUY', 80, 50000, 'sig-1', 51000, 49500, Date.now(), 'hmm-top3',
       undefined, undefined, undefined, undefined, undefined,
-      { regime: 'bull', blocked: true, blockReason: 'circuit_breaker: streak', allocationPct: 7.5 },
+      { regime: 'trend', blocked: true, blockReason: 'circuit_breaker: streak', allocationPct: 7.5 },
     );
 
     expect(query).toHaveBeenCalledTimes(1);
@@ -75,7 +75,7 @@ describe('recordSignalAsync with a broadcast decision (Tier 0)', () => {
     expect(sql).toContain('broadcast_block_reason');
     expect(sql).toContain('allocation_pct');
     expect(sql).toContain('regime');
-    expect(params).toEqual(expect.arrayContaining(['bull', true, 'circuit_breaker: streak', 7.5]));
+    expect(params).toEqual(expect.arrayContaining(['trend', true, 'circuit_breaker: streak', 7.5]));
   });
 
   it('falls back to the pre-048 INSERT when the broadcast columns are missing, and skips Tier 0 afterwards', async () => {
@@ -124,8 +124,8 @@ describe('rowToRecord tri-state mapping (via readHistoryAsync)', () => {
     const { mod, query } = freshModule();
     query.mockResolvedValue([
       { ...baseRow, id: 'null-row', broadcast_blocked: null, regime: null },
-      { ...baseRow, id: 'approved-row', broadcast_blocked: false, regime: 'bull', allocation_pct: '7.5' },
-      { ...baseRow, id: 'blocked-row', broadcast_blocked: true, broadcast_block_reason: 'risk_veto: halt', regime: 'bear' },
+      { ...baseRow, id: 'approved-row', broadcast_blocked: false, regime: 'trend', allocation_pct: '7.5' },
+      { ...baseRow, id: 'blocked-row', broadcast_blocked: true, broadcast_block_reason: 'risk_veto: halt', regime: 'volatile' },
     ]);
 
     const records = await mod.readHistoryAsync();
@@ -134,7 +134,7 @@ describe('rowToRecord tri-state mapping (via readHistoryAsync)', () => {
     expect(byId.get('null-row')!.broadcastBlocked).toBeUndefined();
     expect(byId.get('approved-row')!.broadcastBlocked).toBe(false);
     expect(byId.get('approved-row')!.allocationPct).toBe(7.5);
-    expect(byId.get('approved-row')!.regime).toBe('bull');
+    expect(byId.get('approved-row')!.regime).toBe('trend');
     expect(byId.get('blocked-row')!.broadcastBlocked).toBe(true);
     expect(byId.get('blocked-row')!.broadcastBlockReason).toBe('risk_veto: halt');
   });
@@ -146,13 +146,13 @@ describe('updateBroadcastDecisionAsync (catch-up late-stamp)', () => {
     query.mockResolvedValue([{ id: 'sig-1' }]);
 
     const stamped = await mod.updateBroadcastDecisionAsync([
-      { id: 'sig-1', regime: 'neutral', blocked: false, allocationPct: 5 },
+      { id: 'sig-1', regime: 'range', blocked: false, allocationPct: 5 },
     ]);
 
     expect(stamped).toBe(1);
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain('broadcast_blocked IS NULL');
-    expect(params).toEqual(['sig-1', 'neutral', false, null, 5]);
+    expect(params).toEqual(['sig-1', 'range', false, null, 5]);
   });
 
   it('no-ops gracefully when migration 048 is missing', async () => {

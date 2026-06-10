@@ -48,7 +48,7 @@ export async function computeBroadcastDecisions(
   try {
     regimeMap = await fetchRegimeMap();
   } catch {
-    // Empty map → everything resolves 'neutral', same as the filter layer.
+    // Empty map → everything resolves 'range', same as the filter layer.
   }
   const dominant = getDominantRegime(regimeMap);
   const regimeOf = (symbol: string): string =>
