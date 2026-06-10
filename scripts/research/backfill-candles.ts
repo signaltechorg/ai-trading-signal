@@ -5,6 +5,11 @@
  * no geo block), paginated 1000 bars/page. FX/metals: Stooq daily CSV (full
  * history, D1 only — Stooq's free intraday depth is too shallow to bother).
  *
+ * KNOWN BLOCKER (2026-06-10): Stooq fronts the CSV endpoint with a JS
+ * proof-of-work challenge — programmatic FX/metals backfill returns 0 rows.
+ * Acceptable for v1: the approved execution universe is crypto-only (plan
+ * decision 4). Revisit with a licensed FX feed when the MT5 leg lands.
+ *
  * Idempotent: re-runs insert only missing bars (ON CONFLICT DO NOTHING).
  * The LAST bar returned by Binance can be the still-open bar — it is dropped
  * so the store only ever contains closed candles.
