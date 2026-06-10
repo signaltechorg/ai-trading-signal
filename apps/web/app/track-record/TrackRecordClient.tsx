@@ -232,7 +232,7 @@ function formatOutcomeCell(
 
 
 type DirectionFilter = 'ALL' | 'BUY' | 'SELL';
-type Scope = 'pro' | 'free';
+type Scope = 'pro' | 'free' | 'broadcast';
 type EquityBand = 'premium' | 'standard' | 'all';
 
 function parseEquityBand(raw: string | null): EquityBand {
@@ -690,12 +690,15 @@ export function TrackRecordClient() {
           })}
         </div>
 
-        {/* Scope tabs — default Pro, Free is a comparison view */}
+        {/* Scope tabs — default Pro (full firehose), Free is a comparison
+            view, Broadcast is the risk-gated subset actually sent to the Pro
+            group (decision recorded per row since migration 048). */}
         <div className="mb-3 flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] w-fit">
           {(
             [
               { value: 'pro', label: 'Pro track record' },
               { value: 'free', label: 'Free track record' },
+              { value: 'broadcast', label: 'Pro broadcast (gated)' },
             ] as const
           ).map(({ value, label }) => (
             <button
@@ -706,7 +709,9 @@ export function TrackRecordClient() {
                 scope === value
                   ? value === 'pro'
                     ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'bg-white/[0.08] text-[var(--foreground)]'
+                    : value === 'broadcast'
+                      ? 'bg-cyan-500/15 text-cyan-400'
+                      : 'bg-white/[0.08] text-[var(--foreground)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -714,6 +719,14 @@ export function TrackRecordClient() {
             </button>
           ))}
         </div>
+        {scope === 'broadcast' && (
+          <p className="mb-3 text-[11px] text-[var(--text-secondary)] max-w-xl">
+            Only signals the live gate (regime + curation + risk pipeline) approved
+            for the Pro Telegram broadcast. Gate decisions are recorded per row
+            since 2026-06-10 — earlier signals carry no decision and are excluded
+            from this view entirely.
+          </p>
+        )}
 
         {/* Category tabs — display-only segmentation over the same signal history */}
         <div className="mb-2 flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] w-fit overflow-x-auto max-w-full">

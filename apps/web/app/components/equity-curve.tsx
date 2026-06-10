@@ -291,7 +291,7 @@ function drawChart(
   };
 }
 
-type EquityScope = 'pro' | 'free';
+type EquityScope = 'pro' | 'free' | 'broadcast';
 type EquityBand = 'all' | 'premium' | 'standard';
 
 interface EquityCurveProps {
