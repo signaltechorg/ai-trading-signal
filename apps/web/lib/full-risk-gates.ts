@@ -4,7 +4,8 @@
 // caller (`tracked-signals.ts`) carries the `server-only` guard for the
 // whole import chain.
 import { readHistoryAsync, type SignalHistoryRecord } from './signal-history';
-import { fetchRegimeMap, getDominantRegime } from './regime-filter';
+import { fetchResolvedRegimeMap } from './regime-resolution';
+import { getDominantRegime } from './regime-filter';
 import type { MarketRegime } from '@tradeclaw/signals';
 
 export interface GateThresholds {
@@ -265,8 +266,8 @@ export async function fetchGateState(): Promise<GateState> {
   }
 
   try {
-    const regimeMap = await fetchRegimeMap();
-    const regime = getDominantRegime(regimeMap);
+    const regimeResolved = await fetchResolvedRegimeMap();
+    const regime = getDominantRegime(regimeResolved.regimes);
     const thresholds = getGateThresholds(regime);
 
     const all = await readHistoryAsync();

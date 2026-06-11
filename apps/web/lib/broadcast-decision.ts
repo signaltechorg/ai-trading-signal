@@ -17,7 +17,8 @@
 
 import { isWinningCell, getWinningCellsMode } from './winning-cells';
 import { runRiskPipeline } from './risk-pipeline';
-import { fetchRegimeMap, getDominantRegime } from './regime-filter';
+import { fetchResolvedRegimeMap } from './regime-resolution';
+import { getDominantRegime } from './regime-filter';
 import type { BroadcastDecisionFields } from './signal-history';
 import type { MarketRegime } from '@tradeclaw/signals';
 
@@ -46,7 +47,8 @@ export async function computeBroadcastDecisions(
 
   let regimeMap = new Map<string, MarketRegime>();
   try {
-    regimeMap = await fetchRegimeMap();
+    const resolved = await fetchResolvedRegimeMap();
+    regimeMap = resolved.regimes;
   } catch {
     // Empty map → everything resolves 'range', same as the filter layer.
   }

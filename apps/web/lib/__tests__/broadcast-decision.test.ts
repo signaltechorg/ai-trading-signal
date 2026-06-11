@@ -8,19 +8,24 @@ jest.mock('../risk-pipeline', () => ({
 }));
 
 jest.mock('../regime-filter', () => ({
-  fetchRegimeMap: jest.fn(() => Promise.resolve(new Map())),
   getDominantRegime: jest.fn(() => 'range'),
+}));
+
+jest.mock('../regime-resolution', () => ({
+  fetchResolvedRegimeMap: jest.fn(() =>
+    Promise.resolve({ regimes: new Map(), classTilts: new Map() }),
+  ),
 }));
 
 import { computeBroadcastDecisions, type BroadcastCandidate } from '../broadcast-decision';
 import { isWinningCell, getWinningCellsMode } from '../winning-cells';
 import { runRiskPipeline } from '../risk-pipeline';
-import { fetchRegimeMap } from '../regime-filter';
+import { fetchResolvedRegimeMap } from '../regime-resolution';
 
 const mockedIsWinningCell = isWinningCell as jest.MockedFunction<typeof isWinningCell>;
 const mockedCellsMode = getWinningCellsMode as jest.MockedFunction<typeof getWinningCellsMode>;
 const mockedPipeline = runRiskPipeline as jest.MockedFunction<typeof runRiskPipeline>;
-const mockedRegimeMap = fetchRegimeMap as jest.MockedFunction<typeof fetchRegimeMap>;
+const mockedRegimeMap = fetchResolvedRegimeMap as jest.MockedFunction<typeof fetchResolvedRegimeMap>;
 
 function candidate(id: string, symbol: string): BroadcastCandidate {
   return {
@@ -57,7 +62,7 @@ function pipelineResult(approved: Array<{ id: string; symbol: string }>, vetoed:
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedRegimeMap.mockResolvedValue(new Map() as never);
+  mockedRegimeMap.mockResolvedValue({ regimes: new Map(), classTilts: new Map() } as never);
   mockedCellsMode.mockReturnValue('shadow' as never);
   mockedIsWinningCell.mockReturnValue(true as never);
 });
@@ -67,13 +72,13 @@ describe('computeBroadcastDecisions', () => {
     const decisions = await computeBroadcastDecisions([]);
     expect(decisions.size).toBe(0);
     expect(mockedPipeline).not.toHaveBeenCalled();
-    expect(mockedRegimeMap).not.toHaveBeenCalled();
+    expect(mockedRegimeMap).not.toHaveBeenCalled(); // fetchResolvedRegimeMap not called for empty input
   });
 
   it('records approved and vetoed decisions with regime + allocation', async () => {
     const a = candidate('a', 'BTCUSD');
     const b = candidate('b', 'ETHUSD');
-    mockedRegimeMap.mockResolvedValue(new Map([['BTCUSD', 'trend']]) as never);
+    mockedRegimeMap.mockResolvedValue({ regimes: new Map([['BTCUSD', 'trend']]), classTilts: new Map() } as never);
     mockedPipeline.mockResolvedValue(pipelineResult(
       [{ id: 'a', symbol: 'BTCUSD' }],
       [{ id: 'b', symbol: 'ETHUSD', reason: 'streak blocked', vetoedBy: 'circuit_breaker' }],
