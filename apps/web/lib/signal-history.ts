@@ -94,7 +94,11 @@ export interface SignalHistoryRecord {
   // which is honest and expected. costEstimatePct is populated for every cron row.
   /** TA-engine confidence BEFORE the MTF confluence bonus (0-100). Undefined on pre-051 rows / scanner rows. */
   preBoostConfidence?: number;
-  /** Multi-timeframe agreement count (0-4) at emission. Undefined on pre-051 rows / scanner rows. */
+  /**
+   * Agreement count from signal-generator.ts's 4-timeframe generateMultiTFSignal
+   * survey (range 0-4). Undefined on pre-051 rows / scanner rows. NOT current.ts's
+   * separate 3-TF agreementCount (range 0-3) — only the 4-TF survey is persisted.
+   */
   mtfAgreement?: number;
   /** Confluence bonus actually added to preBoostConfidence at emission. Undefined on pre-051 rows / scanner rows. */
   confluenceBonus?: number;
@@ -402,6 +406,10 @@ export interface BroadcastDecisionFields {
  */
 export interface CalibrationFeatures {
   preBoostConfidence?: number;
+  /**
+   * 4-timeframe agreement count (range 0-4) from signal-generator.ts's
+   * generateMultiTFSignal survey. NOT current.ts's separate 3-TF count.
+   */
   mtfAgreement?: number;
   confluenceBonus?: number;
   costEstimatePct?: number;
@@ -500,20 +508,40 @@ interface InsertRowArgs {
 let atrColumnsKnownMissing = false;
 let gateColumnsKnownMissing = false;
 let broadcastColumnsKnownMissing = false;
+// Tracked SEPARATELY from broadcastColumnsKnownMissing: a DB can have migration
+// 048 applied but 051 not yet (the tiered-insert fallback exists for exactly
+// this ordering gap). A missing-051 error must downgrade ONLY the calibration
+// columns — never the 048 broadcast columns — so broadcast decisions keep
+// persisting while the 051 deploy catches up.
+let calibrationColumnsKnownMissing = false;
+
+/** Column-name fragments that identify each tier's optional column set in a 42703 message. */
+const CALIBRATION_COLUMN_RE = /pre_boost_confidence|mtf_agreement|confluence_bonus|cost_estimate_pct/;
+const BROADCAST_COLUMN_RE = /regime|broadcast_blocked|broadcast_block_reason|allocation_pct/;
 
 async function insertSignalHistoryRow(args: InsertRowArgs): Promise<boolean> {
-  // Tier 0: full schema incl. 048 broadcast-scope + 051 calibration cols. Only
-  // attempted when the caller has a broadcast decision OR calibration features
-  // to persist — otherwise the Tier 1 INSERT is identical in effect and skips a
+  // Whether this row carries anything beyond the Tier-1 schema. Tier 0/0b are
+  // only attempted when there's a broadcast decision OR calibration features to
+  // persist — otherwise the Tier 1 INSERT is identical in effect and skips a
   // failure probe. costEstimatePct is universal on the cron path, so it keeps
-  // Tier 0 firing even on the rare broadcast-outage fallback (no decision).
+  // the Tier-0 family firing even on the rare broadcast-outage fallback.
+  const hasTier0Payload =
+    args.broadcastBlocked !== undefined ||
+    args.preBoostConfidence !== undefined ||
+    args.mtfAgreement !== undefined ||
+    args.confluenceBonus !== undefined ||
+    args.costEstimatePct !== undefined;
+
+  // Tier 0: full schema incl. 048 broadcast-scope + 051 calibration cols.
+  // A 42703 on a 051 column downgrades ONLY calibration (sets
+  // calibrationColumnsKnownMissing) and falls through to Tier 0b, which still
+  // persists the 048 broadcast decision. A 42703 on a 048 column downgrades
+  // broadcast and falls through to Tier 1. The two flags are independent so a
+  // 051-only deploy gap never disables 048 persistence.
   if (
-    !broadcastColumnsKnownMissing && !atrColumnsKnownMissing && !gateColumnsKnownMissing &&
-    (args.broadcastBlocked !== undefined ||
-      args.preBoostConfidence !== undefined ||
-      args.mtfAgreement !== undefined ||
-      args.confluenceBonus !== undefined ||
-      args.costEstimatePct !== undefined)
+    !broadcastColumnsKnownMissing && !calibrationColumnsKnownMissing &&
+    !atrColumnsKnownMissing && !gateColumnsKnownMissing &&
+    hasTier0Payload
   ) {
     try {
       const result = await query<{ id: string }>(
@@ -528,11 +556,49 @@ async function insertSignalHistoryRow(args: InsertRowArgs): Promise<boolean> {
     } catch (err: unknown) {
       const code = (err as { code?: string } | null)?.code;
       const msg = err instanceof Error ? err.message : String(err);
-      if (code === '42703' && /regime|broadcast_blocked|broadcast_block_reason|allocation_pct|pre_boost_confidence|mtf_agreement|confluence_bonus|cost_estimate_pct/.test(msg)) {
-        console.warn('[signal-history] migration 048/051 not applied — falling back to pre-048 INSERT (broadcast + calibration features dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql AND 051_calibration_features.sql THEN RESTART the service — this flag sticks for the process lifetime.');
+      // Order matters: a 051-only gap (048 present) must set ONLY the
+      // calibration flag and retry via Tier 0b. Only treat it as a broadcast
+      // gap when a 048 column is the one missing.
+      if (code === '42703' && BROADCAST_COLUMN_RE.test(msg)) {
+        console.warn('[signal-history] migration 048 not applied — falling back to pre-048 INSERT (broadcast decision dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql THEN RESTART the service — this flag sticks for the process lifetime.');
         broadcastColumnsKnownMissing = true;
+      } else if (code === '42703' && CALIBRATION_COLUMN_RE.test(msg)) {
+        console.warn('[signal-history] migration 051 not applied — falling back to the 048-only INSERT (calibration features dropped, broadcast decision still persisted). Run psql "$DATABASE_URL" -f apps/web/migrations/051_calibration_features.sql THEN RESTART the service — this flag sticks for the process lifetime.');
+        calibrationColumnsKnownMissing = true;
       } else if (code === '42703') {
         // Older migration missing too — let the existing tiers diagnose.
+        broadcastColumnsKnownMissing = true;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // Tier 0b: 048 broadcast-scope cols present, 051 calibration cols missing.
+  // Persists the broadcast decision (the whole point of the split) and drops
+  // only the calibration fields. Reached when Tier 0 hit a 051-column 42703.
+  if (
+    calibrationColumnsKnownMissing && !broadcastColumnsKnownMissing &&
+    !atrColumnsKnownMissing && !gateColumnsKnownMissing &&
+    args.broadcastBlocked !== undefined
+  ) {
+    try {
+      const result = await query<{ id: string }>(
+        `INSERT INTO signal_history (id, pair, timeframe, direction, confidence, entry_price, tp1, sl, created_at, strategy_id, mode, entry_atr, atr_multiplier, gate_blocked, gate_reason, regime, broadcast_blocked, broadcast_block_reason, allocation_pct)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         ON CONFLICT (id) DO UPDATE SET strategy_id = EXCLUDED.strategy_id
+           WHERE signal_history.strategy_id IS NULL AND EXCLUDED.strategy_id IS NOT NULL
+         RETURNING id`,
+        [args.id, args.pair, args.timeframe, args.direction, args.confidence, args.entryPrice, args.tp1 ?? null, args.sl ?? null, args.createdAt, args.strategyId ?? null, args.mode, args.entryAtr ?? null, args.atrMultiplier ?? null, args.gateBlocked ?? false, args.gateReason ?? null, args.regime ?? null, args.broadcastBlocked, args.broadcastBlockReason ?? null, args.allocationPct ?? null],
+      );
+      return result.length > 0;
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | null)?.code;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (code === '42703' && BROADCAST_COLUMN_RE.test(msg)) {
+        console.warn('[signal-history] migration 048 not applied — falling back to pre-048 INSERT (broadcast decision dropped). Run psql "$DATABASE_URL" -f apps/web/migrations/048_broadcast_scope.sql THEN RESTART the service — this flag sticks for the process lifetime.');
+        broadcastColumnsKnownMissing = true;
+      } else if (code === '42703') {
         broadcastColumnsKnownMissing = true;
       } else {
         throw err;

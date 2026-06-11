@@ -164,6 +164,48 @@ describe('recordSignalAsync with calibration features (migration 051, Tier 0)', 
     expect(calibTail).toEqual([null, null, null, 0.4]);
   });
 
+  it('Tier-0b: a 42703 on a 051 column does NOT disable broadcast-decision persistence', async () => {
+    // Setup: Tier-0 INSERT fails because migration 051 is not applied (a 051
+    // column name appears in the error message). The Tier-0b INSERT (048 columns
+    // only, no 051 calibration columns) must then succeed and carry the broadcast
+    // decision values, proving that a 051-only deploy gap does not silently drop
+    // the regime / broadcast_blocked / broadcast_block_reason / allocation_pct.
+    const { mod, query } = freshModule();
+    const calib051Err = Object.assign(
+      new Error('column "cost_estimate_pct" of relation "signal_history" does not exist'),
+      { code: '42703' },
+    );
+    query
+      .mockRejectedValueOnce(calib051Err)       // Tier-0 probe fails on 051 column
+      .mockResolvedValueOnce([{ id: 'sig-1' }]); // Tier-0b succeeds
+
+    await mod.recordSignalAsync(
+      'BTCUSD', 'H1', 'BUY', 80, 50000, 'sig-1', 51000, 49500, Date.now(), 'hmm-top3',
+      undefined, undefined, undefined, undefined, undefined,
+      { regime: 'volatile', blocked: true, blockReason: 'risk_veto: halt', allocationPct: 3 },
+      { preBoostConfidence: 65, mtfAgreement: 3, confluenceBonus: 10, costEstimatePct: 0.3 },
+    );
+
+    // Two query calls: Tier-0 attempt + Tier-0b attempt.
+    expect(query).toHaveBeenCalledTimes(2);
+
+    const tier0bSql = query.mock.calls[1][0] as string;
+    const tier0bParams = query.mock.calls[1][1] as unknown[];
+
+    // (a) Tier-0b INSERT includes the 048 broadcast columns …
+    expect(tier0bSql).toContain('broadcast_blocked');
+    expect(tier0bSql).toContain('broadcast_block_reason');
+    expect(tier0bSql).toContain('allocation_pct');
+    expect(tier0bSql).toContain('regime');
+
+    // … and must NOT include the 051 calibration columns.
+    expect(tier0bSql).not.toContain('pre_boost_confidence');
+    expect(tier0bSql).not.toContain('cost_estimate_pct');
+
+    // (b) Broadcast decision values are bound in the Tier-0b params.
+    expect(tier0bParams).toEqual(expect.arrayContaining(['volatile', true, 'risk_veto: halt', 3]));
+  });
+
   it('maps the 051 columns back through rowToRecord, NULL → undefined', async () => {
     const { mod, query } = freshModule();
     query.mockResolvedValue([

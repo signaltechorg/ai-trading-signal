@@ -92,6 +92,11 @@ function makeRawSignal(overrides: Partial<{
   status: string;
   dataQuality: string;
   timestamp: string;
+  // Calibration MTF triple (D4) — typed here so a TradingSignal rename of these
+  // fields breaks this test at compile time instead of silently passing.
+  preBoostConfidence: number;
+  mtfAgreement: number;
+  confluenceBonus: number;
 }> = {}) {
   return {
     id: 'sig-1',
@@ -219,11 +224,13 @@ describe('collectNewSignals — strategy attribution', () => {
   // flow onto fallback-path candidates, but is absent (undefined) on scanner rows.
   describe('calibration MTF triple (D4)', () => {
     it('carries preBoostConfidence / mtfAgreement / confluenceBonus onto fallback candidates', async () => {
-      mockGetSignals.mockResolvedValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        signals: [makeRawSignal({ preBoostConfidence: 70, mtfAgreement: 4, confluenceBonus: 15 } as any) as any],
-        syntheticSymbols: [],
-      });
+      // No `as any` on the makeRawSignal argument: the three fields are typed in
+      // its overrides, so a TradingSignal rename fails this at compile time. The
+      // outer cast only coerces the fixture into the TradingSignal[] mock shape,
+      // matching the other call sites in this file.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fixture = makeRawSignal({ preBoostConfidence: 70, mtfAgreement: 4, confluenceBonus: 15 }) as any;
+      mockGetSignals.mockResolvedValue({ signals: [fixture], syntheticSymbols: [] });
 
       const { candidates } = await collectNewSignals('classic');
 
