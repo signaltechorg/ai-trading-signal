@@ -282,6 +282,7 @@ export async function broadcastTopSignals(
   opts: { freeOnly?: boolean } = {},
 ): Promise<BroadcastResult> {
   // Use the same Python engine source as the dashboard (DB → signals-live.json)
+  // No try/catch: fetchResolvedRegimeMap documents a never-rejects invariant.
   const resolved = await fetchResolvedRegimeMap();
   const regimeMap = resolved.regimes;
   let mapped: TradingSignal[] = [];

@@ -30,7 +30,7 @@ import 'server-only';
 import { fetchRegimeMap } from './regime-filter';
 import { getCurrentWeeklyRegime } from './weekly-regime/service';
 import { getAllSymbols, getSymbolCategory } from '@tradeclaw/signals';
-import type { MarketRegime } from '@tradeclaw/signals';
+import type { MarketRegime, SymbolCategory } from '@tradeclaw/signals';
 import type { AssetClass, Bias, Conviction } from './weekly-regime/types';
 
 // ---------------------------------------------------------------------------
@@ -68,12 +68,21 @@ export interface ResolvedRegimeMap {
 /**
  * Map getSymbolCategory's return value to the card's AssetClass vocabulary.
  * 'metals' → 'commodities'; 'crypto' and 'forex' pass through.
+ * Exhaustive: tsc errors here if SymbolCategory ever gains a member.
  */
-function symbolCategoryToAssetClass(
-  category: ReturnType<typeof getSymbolCategory>,
-): AssetClass {
-  if (category === 'metals') return 'commodities';
-  return category; // 'crypto' | 'forex' match directly
+function symbolCategoryToAssetClass(category: SymbolCategory): AssetClass {
+  switch (category) {
+    case 'metals':
+      return 'commodities';
+    case 'crypto':
+      return 'crypto';
+    case 'forex':
+      return 'forex';
+    default: {
+      const _exhaustive: never = category;
+      return _exhaustive;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -98,9 +107,10 @@ export async function fetchResolvedRegimeMap(): Promise<ResolvedRegimeMap> {
 
   const classTilts = new Map<AssetClass, Tilt>();
 
-  // No card → pure algo passthrough.
+  // No card → pure algo passthrough. Copy for consistency with the
+  // card-present path so callers never share a reference with the source map.
   if (card === null) {
-    return { regimes: algoMap, classTilts };
+    return { regimes: new Map(algoMap), classTilts };
   }
 
   // Build the resolved map starting from a copy of the algo map.
@@ -113,8 +123,7 @@ export async function fetchResolvedRegimeMap(): Promise<ResolvedRegimeMap> {
       continue;
     }
 
-    const conviction = classRegime.conviction as Conviction;
-    const bias = classRegime.bias as Bias;
+    const { conviction, bias } = classRegime;
     const tilt: Tilt = {
       assetClass: cls,
       bias,
@@ -126,6 +135,9 @@ export async function fetchResolvedRegimeMap(): Promise<ResolvedRegimeMap> {
 
     if (conviction === 3) {
       // Hard override: force every universe symbol of this class to 'trend'.
+      // For classes with no universe symbols (stocks, indices) this loop is a
+      // label no-op — the tilt still records operator intent, so Phase 4
+      // consumers must not assume hardOverride implies labels changed.
       for (const symbol of getAllSymbols()) {
         const category = getSymbolCategory(symbol);
         const assetClass = symbolCategoryToAssetClass(category);

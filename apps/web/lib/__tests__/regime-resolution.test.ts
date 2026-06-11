@@ -254,6 +254,34 @@ describe('fetchResolvedRegimeMap', () => {
     });
   });
 
+  describe('TRENDING conviction 3 on a class with no universe symbols', () => {
+    it('records the tilt with hardOverride=true but leaves regimes untouched (stocks has zero universe symbols)', async () => {
+      const algoMap = new Map<string, MarketRegime>([
+        ['BTCUSD', 'range'],
+        ['EURUSD', 'volatile'],
+      ]);
+      mockedFetchRegimeMap.mockResolvedValue(algoMap);
+      mockedGetCurrentWeeklyRegime.mockResolvedValue(
+        makeCard({ stocks: makeClassRegime('LONG', 3) }),
+      );
+
+      const result = await fetchResolvedRegimeMap();
+
+      // No universe symbol maps to 'stocks' → labels are a no-op.
+      expect(result.regimes.get('BTCUSD')).toBe('range');
+      expect(result.regimes.get('EURUSD')).toBe('volatile');
+      expect(result.regimes.size).toBe(2);
+
+      // The tilt still faithfully records operator intent.
+      const stocksTilt = result.classTilts.get('stocks');
+      expect(stocksTilt).toBeDefined();
+      expect(stocksTilt?.hardOverride).toBe(true);
+      expect(stocksTilt?.bias).toBe('LONG');
+      expect(stocksTilt?.conviction).toBe(3);
+      expect(stocksTilt?.weeklyRegime).toBe('TRENDING');
+    });
+  });
+
   describe('metals → commodities mapping', () => {
     it('applies commodities override to XAUUSD and XAGUSD', async () => {
       mockedFetchRegimeMap.mockResolvedValue(
