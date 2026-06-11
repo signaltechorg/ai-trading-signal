@@ -1,7 +1,7 @@
 # Phase 3 — Regime engine rebuild: structural classifier, live writer, one vocabulary
 
 Date: 2026-06-11
-Status: IN PROGRESS
+Status: CODE COMPLETE 2026-06-11 — all 10 planned commits landed (plus review-fix commits); awaiting final branch review + PR
 Parent: `docs/plans/2026-06-10-engine-makeover.md` Phase 3 (lines 49–53)
 Branch: `worktree-phase3-regime-engine` (base `b0e5ec7` = Phase 2 merge)
 Evidence base: 7-agent code survey (2026-06-11) over the regime machinery, every consumer, all five live vocabularies, cron/alerting infra, and the Phase-2 research toolkit. All file:line refs verified at `b0e5ec7`.
@@ -76,3 +76,12 @@ Gate: prod regime distribution no longer 100% neutral; label stability (flips/we
 1. Approve + apply migration 050 to prod (runs automatically via `scripts/run-migrations.mjs` on next deploy — review before merging).
 2. Confirm `OPS_TELEGRAM_ADMIN_IDS` + `TELEGRAM_BOT_TOKEN` are set in prod so the empty-regime alert can fire.
 3. Optional: re-run the trainer against the prod candle store (`railway run`) to regenerate the model from the canonical store; the committed model is trained on identical public Binance data fetched at build time.
+
+## Deferred observations (logged, not creeping in)
+
+1. `packages/agent/skills/__tests__/regime-detector.test.ts` re-implements `classifyRegime` inline (the skill imports dist at module top) — test and skill can silently diverge; restructure candidate for an agent-package pass.
+2. `packages/agent/skills/regime-detector/index.js` JSDoc says "ADX < 25" but the gate is the upstream `adx.trending` boolean whose threshold lives in the signals engine — pre-existing doc imprecision.
+3. `apps/web/data/strategy_library.json` `generated: 2026-06-03` is stale after the C8 `regime_fit` relabel; `_meta` lacks a `regime_fit` values legend.
+4. `apps/web/lib/full-risk-gates.ts` header claim "importable without server-only" is now transitively false via `regime-resolution` → `weekly-regime/service` (all real importers are server-side; jest stubs it).
+5. Hysteresis barely binds in walk-forward (raw ≈ smoothed flips): label stability comes from the 64-bar decode window; revisit dwell/override params with Phase 4 data.
+6. Phase 4 calibration note: deterministic ADX-first state labeling means the trend state may also be the highest-ATR state on crypto H1 (observed 3/4 folds).
