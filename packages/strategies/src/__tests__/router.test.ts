@@ -3,11 +3,8 @@
  * Written first (TDD), then the implementation is filled in.
  */
 import type { OHLCV } from '@tradeclaw/core';
+import type { MarketRegime } from '@tradeclaw/signals';
 import { selectStrategyForRegime, passesTrendFilter } from '../router';
-
-// Use the locally-defined MarketRegime from router (structurally identical to
-// @tradeclaw/signals MarketRegime — avoiding cross-package resolution in tsc).
-type MarketRegime = 'trend' | 'volatile' | 'range';
 
 // ---------------------------------------------------------------------------
 // Helpers for building deterministic OHLCV fixtures

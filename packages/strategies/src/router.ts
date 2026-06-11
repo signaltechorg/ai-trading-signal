@@ -8,16 +8,9 @@
  */
 
 import type { OHLCV } from '@tradeclaw/core';
+import type { MarketRegime } from '@tradeclaw/signals';
 import { calculateEMA, calculateADX } from '@tradeclaw/signals';
 import type { StrategyId } from './types.js';
-
-/**
- * Structural market regime vocabulary (Phase 3, plan D1).
- * Mirrors MarketRegime from @tradeclaw/signals — defined locally to avoid
- * cross-package moduleResolution issues when tsc resolves the type.
- * The two types are structurally identical and mutually assignable.
- */
-type MarketRegime = 'trend' | 'volatile' | 'range';
 
 // ---------------------------------------------------------------------------
 // D1 — Regime → Strategy router
