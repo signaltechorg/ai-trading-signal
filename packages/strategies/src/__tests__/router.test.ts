@@ -4,6 +4,7 @@
  */
 import type { OHLCV } from '@tradeclaw/core';
 import type { MarketRegime } from '@tradeclaw/signals';
+import { calculateADX } from '@tradeclaw/signals';
 import { selectStrategyForRegime, passesTrendFilter } from '../router';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,30 @@ function choppyCandles(n: number, base = 100): OHLCV[] {
   return Array.from({ length: n }, (_, i) => {
     const close = base + (i % 2 === 0 ? 0.05 : -0.05);
     return { timestamp: BASE_TS + i * HOUR_MS, open: close, high: close + 0.02, low: close - 0.02, close, volume: 100 };
+  });
+}
+
+/**
+ * Build a series whose CLOSE drifts slowly upward (so EMA-50 slope rises) but
+ * whose bar-to-bar highs/lows oscillate symmetrically — keeping directional
+ * movement (+DM vs -DM) near-balanced so ADX stays well below 20.
+ *
+ * Close drifts +drift each bar; high/low add a large alternating wick so the
+ * true-range is dominated by the symmetric wick swing, not the tiny drift.
+ * This isolates the ADX gate: slope agrees with BUY, but ADX < adxMin.
+ */
+function gentleRiseLowAdxCandles(n: number, startPrice = 100, drift = 0.01, wick = 3): OHLCV[] {
+  return Array.from({ length: n }, (_, i) => {
+    const close = startPrice + i * drift;
+    const up = i % 2 === 0;
+    return {
+      timestamp: BASE_TS + i * HOUR_MS,
+      open: close,
+      high: close + (up ? wick : wick * 0.4),
+      low: close - (up ? wick * 0.4 : wick),
+      close,
+      volume: 100,
+    };
   });
 }
 
@@ -126,12 +151,39 @@ describe('passesTrendFilter', () => {
 
   // ── Choppy series (low ADX) ────────────────────────────────────────────
 
+  it('choppy fixture actually has ADX < 20 (guards against vacuous "fails" tests)', () => {
+    const highs = CHOPPY.map((c) => c.high);
+    const lows = CHOPPY.map((c) => c.low);
+    const closes = CHOPPY.map((c) => c.close);
+    const { value } = calculateADX(highs, lows, closes, 14);
+    expect(value).toBeLessThan(20);
+  });
+
   it('choppy low-ADX series fails BUY', () => {
     expect(passesTrendFilter(CHOPPY, 'BUY')).toBe(false);
   });
 
   it('choppy low-ADX series fails SELL', () => {
     expect(passesTrendFilter(CHOPPY, 'SELL')).toBe(false);
+  });
+
+  // ── ADX gate is load-bearing: rising slope alone is not enough ──────────
+
+  it('rising-slope-but-low-ADX series fails BUY (ADX gate rejects despite slope agreement)', () => {
+    const series = gentleRiseLowAdxCandles(100);
+    const highs = series.map((c) => c.high);
+    const lows = series.map((c) => c.low);
+    const closes = series.map((c) => c.close);
+    const { value: adx } = calculateADX(highs, lows, closes, 14);
+
+    // Precondition: ADX is genuinely below the 20 gate...
+    expect(adx).toBeLessThan(20);
+    // ...yet the close drifts up so the EMA-50 slope agrees with BUY. If the
+    // ADX gate were not load-bearing this would pass — it must NOT.
+    expect(passesTrendFilter(series, 'BUY')).toBe(false);
+    // Drop adxMin below the measured value and it passes — proving the slope
+    // condition was satisfied all along and ADX was the sole blocker.
+    expect(passesTrendFilter(series, 'BUY', { adxMin: 0 })).toBe(true);
   });
 
   // ── Insufficient bars ─────────────────────────────────────────────────
