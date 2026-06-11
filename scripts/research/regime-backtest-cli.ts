@@ -61,6 +61,7 @@ import type { OHLCV } from '@tradeclaw/core';
 import {
   entryRegimeMatrix,
   routedDiagonal,
+  THIN_CELL_MIN_TRADES,
   type NamedEntry,
   type EntryRow,
 } from './regime-backtest-assembly';
@@ -213,7 +214,7 @@ function cellStr(c: { trades: number; winRate: number; expectancy: number; profi
     console.log(`  ROUTED DIAGONAL: ${positives}/${diag.length} cells with positive cost-adjusted expectancy.`);
     for (const d of diag) {
       const verdict = d.cell.expectancy > 0 ? 'PASS' : 'FAIL';
-      const thin = d.cell.trades < 30 ? '  ⚠ THIN (<30 trades)' : '';
+      const thin = d.cell.trades < THIN_CELL_MIN_TRADES ? `  ⚠ THIN (<${THIN_CELL_MIN_TRADES} trades)` : '';
       console.log(`    ${d.route.padEnd(8)} (${d.entry}@${d.regime}): E=${(d.cell.expectancy * 100).toFixed(3)}% n=${d.cell.trades} → ${verdict}${thin}`);
     }
   }
@@ -221,7 +222,7 @@ function cellStr(c: { trades: number; winRate: number; expectancy: number; profi
   const caveats = [
     'folds are contiguous sub-periods (stability inspection, not walk-forward optimization); the routed entries have NO fitted parameters, so this is per-regime stability, not in-sample/out-of-sample tuning',
     'per-fold warmup restarts at the fold boundary: the classifier needs ~329 trailing bars (REGIME_CONDITION_WINDOW) and the entry indicators need their own warmup, so early-fold bars are dropped (conservative) — short folds therefore carry fewer trades per regime than the full range',
-    'THIN CELLS: any (symbol, route, regime) cell with few trades (<30 flagged ⚠) makes the gate unreliable for that cell — sample size is reported per cell so this is visible, not hidden',
+    `THIN CELLS: any (symbol, route, regime) cell with fewer than THIN_CELL_MIN_TRADES (${THIN_CELL_MIN_TRADES}) trades is flagged ⚠ — below that count the standard error of the mean dominates, so the cell's expectancy is insufficient evidence for the gate; sample size is reported per cell so this is visible, not hidden`,
     'the regime classifier runs over a BOUNDED trailing window per signal bar (329 bars), conditioning is EXCLUSIVE (a bar whose regime cannot be confirmed === target is DROPPED), so a regime bucket only ever holds bars provably in that regime',
     'cost model = crypto perp (fee 0.05%/side + slippage 0.15%/side + funding 0.01%/8h); funding is a sign-agnostic upper bound, so a directional carry could be cheaper than modeled (costs here are conservative, not optimistic)',
     'expectancy is per-trade FRACTIONAL and position-size-NEUTRAL (mean pnlPct, not notional) — it isolates the entry edge regardless of allocation; it is NOT a compounded return',

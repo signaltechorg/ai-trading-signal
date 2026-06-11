@@ -41,6 +41,23 @@ export const ROUTED_DIAGONAL: ReadonlyArray<{ entry: string; regime: MarketRegim
 ] as const;
 
 /**
+ * Minimum per-regime trade count below which a cell's expectancy is NOT
+ * trustworthy enough to read as a gate signal — the cell is flagged THIN.
+ *
+ * Rationale: per-regime expectancy is a sample mean of pnlPct. The standard
+ * error of the mean is σ/√n, so below ~30 trades that SE dominates the signal —
+ * a +0.3% mean over n=10 is indistinguishable from noise. 30 is also the
+ * conventional CLT floor at which the sampling distribution of the mean is
+ * approximately normal, so confidence statements about the expectancy only
+ * start to hold above it. Below this count, a positive routed cell must be read
+ * as "insufficient evidence", not "edge".
+ *
+ * Exported so downstream gate-reading code (C9 / operator scripts) keys off this
+ * one constant instead of re-hardcoding 30 — change the bar in exactly one place.
+ */
+export const THIN_CELL_MIN_TRADES = 30;
+
+/**
  * Rounded, JSON-stable view of one regime's metrics. Fixed precision so two
  * identical runs serialize byte-identically (the determinism contract). null
  * profitFactor is preserved (zero-trade bucket); Infinity (all-winners) is
@@ -111,24 +128,42 @@ export interface RoutedCell {
   cell: RegimeCell;
 }
 
-const ROUTE_OF_REGIME: Record<MarketRegime, 'trend' | 'volatile' | 'range'> = {
-  trend: 'trend',
-  volatile: 'volatile',
-  range: 'range',
-};
-
 /**
  * Project the routed diagonal (classic@trend, vwap-ema-bb@volatile,
  * vwap-ema-bb@range) out of a computed matrix. This is the gate-relevant slice:
  * the three cells whose cost-adjusted expectancy must be > 0 to pass on paper.
+ *
+ * FAILS LOUD on a missing entry. If the evaluated set omits `classic` or
+ * `vwap-ema-bb` (or a future entry-id rename desyncs ROUTED_DIAGONAL from the
+ * entries actually run), a silent skip would hand back a 1- or 2-cell diagonal
+ * that READS like a smaller, different experiment ("1/2 cells positive") rather
+ * than a misconfiguration. In research evidence a missing gate cell must throw,
+ * not vanish — the caller passed the wrong entries.
+ *
+ * Note: the routed regime IS the route name (trend→trend, volatile→volatile,
+ * range→range), so `route` is the same string as `regime`, narrowed to the
+ * route union. No lookup table — that would be a no-op identity map.
  */
 export function routedDiagonal(matrix: EntryRow[]): RoutedCell[] {
   const byEntry = new Map(matrix.map((row) => [row.entry, row]));
   const out: RoutedCell[] = [];
   for (const { entry, regime } of ROUTED_DIAGONAL) {
     const row = byEntry.get(entry);
-    if (!row) continue; // entry not in the evaluated set — skip rather than throw
-    out.push({ route: ROUTE_OF_REGIME[regime], entry, regime, cell: row.byRegime[regime] });
+    if (!row) {
+      throw new Error(
+        `routedDiagonal: routed entry '${entry}' (for the ${regime} route) is missing from the ` +
+        `evaluated matrix (entries: [${matrix.map((r) => r.entry).join(', ')}]). The evaluated set ` +
+        `must include every entry in ROUTED_DIAGONAL — a missing gate cell is a misconfiguration, ` +
+        `not a smaller experiment.`,
+      );
+    }
+    out.push({ route: regime, entry, regime, cell: row.byRegime[regime] });
+  }
+  // Defensive post-condition: every ROUTED_DIAGONAL cell was projected.
+  if (out.length !== ROUTED_DIAGONAL.length) {
+    throw new Error(
+      `routedDiagonal: projected ${out.length} cells, expected ${ROUTED_DIAGONAL.length}`,
+    );
   }
   return out;
 }

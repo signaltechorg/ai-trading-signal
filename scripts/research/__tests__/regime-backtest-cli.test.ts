@@ -21,6 +21,8 @@ import {
   entryRegimeMatrix,
   routedDiagonal,
   ROUTED_DIAGONAL,
+  THIN_CELL_MIN_TRADES,
+  type EntryRow,
   type NamedEntry,
 } from '../regime-backtest-assembly';
 import { classicEntry } from '../../../packages/strategies/src/entry/classic';
@@ -146,5 +148,70 @@ describe('regime-backtest-assembly — determinism', () => {
     const a = entryRegimeMatrix(syntheticCandles(600), ENTRIES, BT);
     const b = entryRegimeMatrix(syntheticCandles(600), ENTRIES, BT);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+// ===========================================================================
+// Fail-loud routed diagonal + named thin threshold
+//
+// These build a synthetic matrix directly (no classifier, no backtest) so they
+// are fast and isolate the projection/threshold contract — the heavy real-data
+// matrix builds above already cover the happy path with the real classifier.
+// ===========================================================================
+
+/** A minimal EntryRow with a fixed trade count in every regime cell. */
+function fakeRow(entry: string, tradesPerCell: number): EntryRow {
+  const cell = (regime: 'trend' | 'volatile' | 'range') => ({
+    regime,
+    trades: tradesPerCell,
+    winRate: 0.5,
+    expectancy: 0.001,
+    profitFactor: 1.1,
+    withinRegimeDrawdown: 0,
+  });
+  return { entry, byRegime: { trend: cell('trend'), volatile: cell('volatile'), range: cell('range') } };
+}
+
+describe('routedDiagonal — fails loud on a missing routed entry', () => {
+  it('throws when classic is omitted (would otherwise read as a smaller experiment)', () => {
+    // Only vwap-ema-bb present → classic@trend cell is missing.
+    const partial = [fakeRow('vwap-ema-bb', 50)];
+    expect(() => routedDiagonal(partial)).toThrow(/routed entry 'classic'.*trend route.*missing/s);
+  });
+
+  it('throws when vwap-ema-bb is omitted', () => {
+    const partial = [fakeRow('classic', 50)];
+    expect(() => routedDiagonal(partial)).toThrow(/routed entry 'vwap-ema-bb'.*missing/s);
+  });
+
+  it('throws on an empty matrix rather than returning a zero-cell diagonal', () => {
+    expect(() => routedDiagonal([])).toThrow(/missing/);
+  });
+
+  it('projects all three cells when both routed entries are present', () => {
+    const full = [fakeRow('classic', 50), fakeRow('vwap-ema-bb', 50)];
+    const diag = routedDiagonal(full);
+    expect(diag).toHaveLength(ROUTED_DIAGONAL.length);
+    expect(diag.map((d) => `${d.entry}@${d.regime}`)).toEqual([
+      'classic@trend',
+      'vwap-ema-bb@volatile',
+      'vwap-ema-bb@range',
+    ]);
+    // route === regime (no lookup table); assert the narrowing holds.
+    for (const d of diag) expect(d.route).toBe(d.regime);
+  });
+});
+
+describe('THIN_CELL_MIN_TRADES — named threshold', () => {
+  it('is the conventional CLT/SE floor of 30', () => {
+    expect(THIN_CELL_MIN_TRADES).toBe(30);
+  });
+
+  it('classifies cells exactly at the boundary: < threshold is thin, >= threshold is not', () => {
+    const justBelow = fakeRow('classic', THIN_CELL_MIN_TRADES - 1).byRegime.trend;
+    const atThreshold = fakeRow('classic', THIN_CELL_MIN_TRADES).byRegime.trend;
+    // The CLI flags `trades < THIN_CELL_MIN_TRADES`; mirror that predicate here.
+    expect(justBelow.trades < THIN_CELL_MIN_TRADES).toBe(true);
+    expect(atThreshold.trades < THIN_CELL_MIN_TRADES).toBe(false);
   });
 });
