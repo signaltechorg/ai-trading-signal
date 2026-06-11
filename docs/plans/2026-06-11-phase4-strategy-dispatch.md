@@ -1,7 +1,7 @@
 # Phase 4 — Regime-routed strategy dispatch + calibrated confidence
 
 Date: 2026-06-11
-Status: IN PROGRESS
+Status: CODE COMPLETE 2026-06-11 — all 9 planned commits landed (plus review-fix commits, 16 total aa1ca52..e333857); walk-forward gate FAILED on paper (current entries have no per-regime edge after costs); live activation blocked; awaiting final branch review + PR
 Parent: `docs/plans/2026-06-10-engine-makeover.md` Phase 4 (lines 55–61)
 Branch: `worktree-phase4-strategy-dispatch` (base `aa1ca52` = Phase 3 head; PR #115 still open, so this branch is stacked on Phase 3 and its PR retargets `main` once #115 merges)
 Evidence base: 5-agent read-only survey (2026-06-11) over dispatch, confidence, calibration data, pipeline order, and research/backtest infra. File:line refs verified at `aa1ca52`; any line cited from a survey is re-verified before the commit that touches it.
@@ -91,3 +91,13 @@ Operator/data-gated (NOT in this branch's live path):
 2. Confirm `TRADECLAW_STRATEGY_ROUTER_MODE` is unset or `shadow` in prod (default shadow; nothing changes live until an explicit `active` flip after the gate passes).
 3. Let shadow data accrue ≥4wk, then evaluate the pre-registered per-regime cost-adjusted expectancy gate before any `active` flip or confidence-publishing change.
 4. The confluence-bonus shrink remains data-gated until D4 features have ≥4wk of resolved rows — do not act on it before then.
+
+## Deferred observations (logged, not creeping in)
+
+1. `active` mode of `TRADECLAW_STRATEGY_ROUTER_MODE` records but does NOT enforce — enforcement is the operator-gated activation step (post-shadow-evidence), intentionally not built this branch.
+2. Multi-feature calibration + the confluence-bonus shrink are data-gated on migration-051 features (`pre_boost_confidence`, `mtf_agreement`, `confluence_bonus`) accruing ≥4wk of resolved rows — NULL on history; v1 calibrates confidence→P(win) only.
+3. `current.ts`'s `MultiTFResult.agreementCount` is a separate 3-TF survey (range 0–3) and is NOT the persisted `mtf_agreement` (4-TF survey, 0–4) — disambiguated in-code; do not conflate in the calibrator.
+4. The regime-conditioned backtest runs 3 separate conditioned backtests per route (per-regime attribution); a trade entered in regime R runs its exit through other regimes' bars — correct semantics for "expectancy of entering in R", documented.
+5. The per-regime walk-forward run takes ~20 min (real classifier per signal over ~17.5k bars × routes × folds); operators should budget time or reduce symbols/window for iteration. Volatile/range route cells are THIN under live H1 geometry — the routing thesis is neither confirmed nor refuted on those, only the (negative) trend route is.
+6. The calibration `/api/calibration` route reads full history per request (5-min revalidate-gated); the router shadow path uses the cached history layer. `normalizeConfidence` is now single-sourced in `confidence-calibration.ts`.
+7. The shadow recorder refits the calibration map once per tick (cached read); a high-frequency activation path could cache the fitted map — follow-up if/when active enforcement lands.
