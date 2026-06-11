@@ -48,6 +48,8 @@ type NewlyRecordedSignal = {
  * market open, no recent duplicate). Does NOT persist — Phase 1 re-sequenced
  * the cron so the broadcast gate decision is computed BEFORE persistence and
  * recorded on the row (docs/plans/2026-06-10-engine-makeover.md).
+ *
+ * @internal exported for testing — the GET handler is the only caller.
  */
 export async function collectNewSignals(strategyId: string): Promise<{
   candidates: NewlyRecordedSignal[];
@@ -64,6 +66,11 @@ export async function collectNewSignals(strategyId: string): Promise<{
     stopLoss: number;
     timestamp: string;
   }> = [];
+
+  // The strategy actually responsible for the rows below — assigned in each
+  // branch so the returned attribution is honest and its origin is explicit
+  // (no reassignment of the `strategyId` parameter to track).
+  let effectiveStrategyId: string;
 
   // ── PRIMARY: Prefer Python scanner signals when coverage is adequate ──
   // Mirrors the logic in /api/signals/route.ts so the track record reflects
@@ -83,7 +90,7 @@ export async function collectNewSignals(strategyId: string): Promise<{
       stopLoss: s.sl,
       timestamp: s.timestamp,
     }));
-    strategyId = 'scanner'; // tag so track-record breakdown reflects reality
+    effectiveStrategyId = 'scanner'; // tag so track-record breakdown reflects reality
   } else {
     // ── FALLBACK: Next.js TA engine ──
     // Resolve strategyId to the profile that will actually run, so stamp and
@@ -103,7 +110,7 @@ export async function collectNewSignals(strategyId: string): Promise<{
         stopLoss: s.stopLoss,
         timestamp: s.timestamp,
       }));
-    strategyId = profileId; // honest: stamp what actually generated the rows
+    effectiveStrategyId = profileId; // honest: stamp what actually generated the rows
   }
 
   const candidates: NewlyRecordedSignal[] = [];
@@ -148,7 +155,7 @@ export async function collectNewSignals(strategyId: string): Promise<{
     });
   }
 
-  return { candidates, effectiveStrategyId: strategyId };
+  return { candidates, effectiveStrategyId };
 }
 
 // ── Resolve logic ─────────────────────────────────────────────

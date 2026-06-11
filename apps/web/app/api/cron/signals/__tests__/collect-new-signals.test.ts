@@ -120,6 +120,33 @@ function makeRawSignal(overrides: Partial<{
   };
 }
 
+// Live scanner payload (drives the PRIMARY path). One adequate-coverage signal.
+function makeLiveData(): NonNullable<Awaited<ReturnType<typeof readLiveSignals>>> {
+  return {
+    isStale: false,
+    generatedAt: new Date().toISOString(),
+    signals: [
+      {
+        id: 'live-1',
+        symbol: 'XAUUSD',
+        timeframe: 'H1',
+        signal: 'BUY',
+        confidence: 85,
+        entry: 2400,
+        tp1: 2420,
+        tp2: 2440,
+        sl: 2380,
+        reasons: [],
+        source: 'scanner',
+        expires_in_minutes: 60,
+        indicators: { rsi: 60, ema_trend: 'up' },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+    stats: { symbols_checked: 10 },
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('collectNewSignals — strategy attribution', () => {
@@ -172,32 +199,7 @@ describe('collectNewSignals — strategy attribution', () => {
 
   describe('PRIMARY path (live scanner available)', () => {
     it('stamps effectiveStrategyId as "scanner" regardless of passed-in strategyId', async () => {
-      mockReadLiveSignals.mockResolvedValue({
-        isStale: false,
-        generatedAt: new Date().toISOString(),
-        signals: [
-          {
-            id: 'live-1',
-            symbol: 'XAUUSD',
-            timeframe: 'H1',
-            signal: 'BUY' as const,
-            confidence: 85,
-            entry: 2400,
-            tp1: 2420,
-            tp2: 2440,
-            sl: 2380,
-            reasons: [],
-            source: 'scanner',
-            expires_in_minutes: 60,
-            indicators: {
-              rsi: 60,
-              ema_trend: 'up' as const,
-            },
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        stats: { symbols_checked: 10 },
-      });
+      mockReadLiveSignals.mockResolvedValue(makeLiveData());
 
       const { effectiveStrategyId } = await collectNewSignals('hmm-top3');
 
@@ -205,32 +207,7 @@ describe('collectNewSignals — strategy attribution', () => {
     });
 
     it('does NOT call getSignals on the primary path', async () => {
-      mockReadLiveSignals.mockResolvedValue({
-        isStale: false,
-        generatedAt: new Date().toISOString(),
-        signals: [
-          {
-            id: 'live-1',
-            symbol: 'XAUUSD',
-            timeframe: 'H1',
-            signal: 'BUY' as const,
-            confidence: 85,
-            entry: 2400,
-            tp1: 2420,
-            tp2: 2440,
-            sl: 2380,
-            reasons: [],
-            source: 'scanner',
-            expires_in_minutes: 60,
-            indicators: {
-              rsi: 60,
-              ema_trend: 'up' as const,
-            },
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        stats: { symbols_checked: 10 },
-      });
+      mockReadLiveSignals.mockResolvedValue(makeLiveData());
 
       await collectNewSignals('hmm-top3');
 
