@@ -1,7 +1,7 @@
 # Engine Makeover — regime-routed edge, honest track record, broker execution
 
 Date: 2026-06-10
-Status: PROPOSED — no implementation until phases are approved
+Status: Phases 0–2 merged to main; Phase 3 code-complete on branch `worktree-phase3-regime-engine` (2026-06-11) — awaiting PR review + merge; Phases 4–5 not yet started
 Owner goal (verbatim intent): consistent profit across three regimes — trending → catch the move, volatile → mean-revert both directions, neutral/range → range-bound with the smallest weight. The track record is the selling point; the engine is the moat.
 Evidence base: 7-agent subsystem audit (2026-06-10, this session) + the 43-agent why-no-uptrend audit (PR #110, `docs/plans/2026-06-10-track-record-pro-uptrend.md`). All claims below were verified against current code on `main` @ `17309cf`.
 
@@ -51,6 +51,18 @@ The foundation of the secret sauce; without it every tweak is a guess.
 - Build the missing `market_regimes` writer (cron over stored candles, per symbol). Add observability: alert when the regime map is empty — the current dead state was invisible for months.
 - One canonical regime vocabulary; map the manual weekly card (`lib/weekly-regime/`) onto it as the operator-override layer. Retire the two stray vocabularies.
 - Gate: prod regime distribution is no longer 100% neutral; label stability (flips/week) and walk-forward regime-conditional outcome separation reported.
+
+**Phase 3 status — code-complete 2026-06-11.**
+Branch `worktree-phase3-regime-engine`, 17 commits (`b0e5ec7..2f40bb8`). What landed:
+- Structural trend/volatile/range classifier: T=64 Viterbi decode with hysteresis (minDwell 6 bars, confidence bypass at 0.80).
+- Canonical vocabulary across all consumers; unknown-label fallback to `range` everywhere — `getBreakersForRegime` no longer throws.
+- `market_regimes` writer cron + freshness alerting (empty-map Telegram alert, ops-digest regime-health section).
+- Weekly-card operator override (`lib/regime-resolution.ts`): conviction-3 TRENDING → hard trend for that class; conviction 1–2 → tilt only; NEUTRAL/null → algo only.
+- Stray vocabularies retired (agent skill, strategy-library `RegimeFit`).
+- Real-data trainer (numpy Baum-Welch, self-test mode) + walk-forward validation on BTC/ETH/SOL H1 2024-06→2026-06.
+Walk-forward gate evidence (4 folds, test windows only): no degenerate fold (max single-regime share 0.45), mean 8.29 flips/week, mean dwell 20.2 bars; regime-conditional |24h-return| separation present in 3/4 folds (≈0 in fold 2). Full report in `docs/research/experiments/` (REGISTRY.md entry 2026-06-11).
+The gate's prod half — prod distribution no longer 100% neutral — is pending the operator deploy steps in the phase plan.
+Calibration note for Phase 4: the trend state carries the highest ATR-percentile on crypto H1; "volatile" is the middle-magnitude state in 3/4 folds. Labels are structural (ADX-first), not a volatility ladder — Phase 4 must treat them accordingly.
 
 ### Phase 4 — Regime-routed strategies + calibrated confidence (wk 4–8)
 The owner's spec, implemented as dispatch instead of labels:

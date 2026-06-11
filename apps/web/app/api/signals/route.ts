@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SYMBOLS } from '../../lib/signals';
 import { getTrackedSignalsForRequest } from '../../../lib/tracked-signals';
 import { readLiveSignals } from '../../../lib/signals-live';
-import { fetchRegimeMap, filterSignalsByRegime, getDominantRegime } from '../../../lib/regime-filter';
+import { fetchResolvedRegimeMap } from '../../../lib/regime-resolution';
+import { filterSignalsByRegime, getDominantRegime } from '../../../lib/regime-filter';
 import { readSessionFromRequest } from '../../../lib/user-session';
 import {
   getUserTier,
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch regime data for direction filtering
-    const regimeMap = await fetchRegimeMap();
+    const resolved = await fetchResolvedRegimeMap();
+    const regimeMap = resolved.regimes;
     const dominantRegime = getDominantRegime(regimeMap);
 
     // === PRIMARY: Read from live file (Python scanner) with coverage gate ===
