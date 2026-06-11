@@ -19,6 +19,8 @@ import { isWinningCell, getWinningCellsMode } from './winning-cells';
 import { runRiskPipeline } from './risk-pipeline';
 import { fetchResolvedRegimeMap } from './regime-resolution';
 import { getDominantRegime } from './regime-filter';
+import { getStrategyRouterMode } from './strategy-router-shadow';
+import { recordRouterShadow } from './router-decisions-log';
 import type { BroadcastDecisionFields } from './signal-history';
 import type { MarketRegime } from '@tradeclaw/signals';
 
@@ -134,6 +136,33 @@ export async function computeBroadcastDecisions(
         recordable: false,
       });
     }
+  }
+
+  // Phase 4 D8 — shadow recorder. AFTER the live decision is fully built, record
+  // per candidate what the C2 router WOULD select and what confidence the C7
+  // calibrator WOULD publish — over the SAME resolved regime map computed above.
+  // Side-effect-only and fire-and-forget: it does NOT touch `decisions`, the
+  // broadcast set, the recorded signal_history rows, or the published
+  // confidence. The calibrated value lives only in the NDJSON shadow log.
+  //
+  // off  → skip entirely. shadow/active → record. `active` is forward-compat
+  // ONLY: the walk-forward gate failed on paper, so it records identically to
+  // shadow and enforces NOTHING in this branch — live activation is a later
+  // operator decision (plan D8 / C9 runbook). Guarded so a recorder failure can
+  // never break the broadcast (the .catch below + recordRouterShadow's own
+  // try/catch).
+  const routerMode = getStrategyRouterMode();
+  if (routerMode !== 'off') {
+    void recordRouterShadow(
+      routerMode,
+      candidates.map((c) => ({
+        id: c.id,
+        symbol: c.symbol,
+        direction: c.direction,
+        confidence: c.confidence,
+      })),
+      regimeOf,
+    ).catch(() => undefined);
   }
 
   return decisions;
