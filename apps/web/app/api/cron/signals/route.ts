@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOHLCV } from '../../../lib/ohlcv';
 import { isMarketOpen } from '../../../lib/market-hours';
 import { getSignals } from '../../../lib/signals';
+import { safeProfileId } from '../../../lib/signal-generator';
 import { getActivePreset } from './preset-dispatch';
 import {
   recordSignalAsync,
@@ -48,7 +49,7 @@ type NewlyRecordedSignal = {
  * the cron so the broadcast gate decision is computed BEFORE persistence and
  * recorded on the row (docs/plans/2026-06-10-engine-makeover.md).
  */
-async function collectNewSignals(strategyId: string): Promise<{
+export async function collectNewSignals(strategyId: string): Promise<{
   candidates: NewlyRecordedSignal[];
   effectiveStrategyId: string;
 }> {
@@ -84,8 +85,11 @@ async function collectNewSignals(strategyId: string): Promise<{
     }));
     strategyId = 'scanner'; // tag so track-record breakdown reflects reality
   } else {
-    // ── FALLBACK: Next.js TA engine (hmm-top3 etc.) ──
-    const { signals: rawSignals } = await getSignals({ minConfidence: PUBLISHED_SIGNAL_MIN_CONFIDENCE });
+    // ── FALLBACK: Next.js TA engine ──
+    // Resolve strategyId to the profile that will actually run, so stamp and
+    // generation can never diverge (e.g. env preset 'hmm-top3' → 'classic').
+    const profileId = safeProfileId(strategyId);
+    const { signals: rawSignals } = await getSignals({ minConfidence: PUBLISHED_SIGNAL_MIN_CONFIDENCE, profileId });
     signals = rawSignals
       .filter((s) => s.dataQuality === 'real' && s.confidence >= PUBLISHED_SIGNAL_MIN_CONFIDENCE)
       .map((s) => ({
@@ -99,6 +103,7 @@ async function collectNewSignals(strategyId: string): Promise<{
         stopLoss: s.stopLoss,
         timestamp: s.timestamp,
       }));
+    strategyId = profileId; // honest: stamp what actually generated the rows
   }
 
   const candidates: NewlyRecordedSignal[] = [];
