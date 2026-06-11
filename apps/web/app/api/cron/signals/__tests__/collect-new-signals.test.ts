@@ -214,4 +214,34 @@ describe('collectNewSignals — strategy attribution', () => {
       expect(mockGetSignals).not.toHaveBeenCalled();
     });
   });
+
+  // Phase 4 D4: the MTF calibration triple is surfaced by the TA engine and must
+  // flow onto fallback-path candidates, but is absent (undefined) on scanner rows.
+  describe('calibration MTF triple (D4)', () => {
+    it('carries preBoostConfidence / mtfAgreement / confluenceBonus onto fallback candidates', async () => {
+      mockGetSignals.mockResolvedValue({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        signals: [makeRawSignal({ preBoostConfidence: 70, mtfAgreement: 4, confluenceBonus: 15 } as any) as any],
+        syntheticSymbols: [],
+      });
+
+      const { candidates } = await collectNewSignals('classic');
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].preBoostConfidence).toBe(70);
+      expect(candidates[0].mtfAgreement).toBe(4);
+      expect(candidates[0].confluenceBonus).toBe(15);
+    });
+
+    it('leaves the MTF triple undefined on scanner candidates (recorded NULL)', async () => {
+      mockReadLiveSignals.mockResolvedValue(makeLiveData());
+
+      const { candidates } = await collectNewSignals('hmm-top3');
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].preBoostConfidence).toBeUndefined();
+      expect(candidates[0].mtfAgreement).toBeUndefined();
+      expect(candidates[0].confluenceBonus).toBeUndefined();
+    });
+  });
 });

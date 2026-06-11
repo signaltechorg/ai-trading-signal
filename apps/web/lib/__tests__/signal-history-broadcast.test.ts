@@ -119,6 +119,74 @@ describe('recordSignalAsync with a broadcast decision (Tier 0)', () => {
   });
 });
 
+describe('recordSignalAsync with calibration features (migration 051, Tier 0)', () => {
+  it('inserts the four 051 columns and binds their values on the Tier-0 path', async () => {
+    const { mod, query } = freshModule();
+    query.mockResolvedValue([{ id: 'sig-1' }]);
+
+    await mod.recordSignalAsync(
+      'BTCUSD', 'H1', 'BUY', 85, 50000, 'sig-1', 51000, 49500, Date.now(), 'classic',
+      undefined, undefined, undefined, undefined, undefined,
+      { regime: 'trend', blocked: false, allocationPct: 5 },
+      { preBoostConfidence: 70, mtfAgreement: 4, confluenceBonus: 15, costEstimatePct: 0.4 },
+    );
+
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain('pre_boost_confidence');
+    expect(sql).toContain('mtf_agreement');
+    expect(sql).toContain('confluence_bonus');
+    expect(sql).toContain('cost_estimate_pct');
+    // Pre-boost 70, agreement 4, bonus +15, round-trip cost 0.4% all bound.
+    expect(params).toEqual(expect.arrayContaining([70, 4, 15, 0.4]));
+  });
+
+  it('fires Tier 0 for a scanner row (cost only) — MTF triple bound as NULL', async () => {
+    const { mod, query } = freshModule();
+    query.mockResolvedValue([{ id: 'scan-1' }]);
+
+    // Scanner row: no broadcast decision, no MTF triple, but cost_estimate_pct
+    // is universal — it must still take the Tier-0 path and record NULLs for the
+    // triple rather than dropping the cost on a lower tier.
+    await mod.recordSignalAsync(
+      'ETHUSD', 'H1', 'SELL', 80, 3000, 'scan-1', 2950, 3050, Date.now(), 'scanner',
+      undefined, undefined, undefined, undefined, undefined,
+      undefined,
+      { costEstimatePct: 0.4 },
+    );
+
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain('cost_estimate_pct');
+    // Cost present; the MTF triple columns are bound NULL (undefined → null).
+    expect(params).toContain(0.4);
+    const calibTail = (params as unknown[]).slice(-4);
+    expect(calibTail).toEqual([null, null, null, 0.4]);
+  });
+
+  it('maps the 051 columns back through rowToRecord, NULL → undefined', async () => {
+    const { mod, query } = freshModule();
+    query.mockResolvedValue([
+      { ...baseRow, id: 'ta-row', pre_boost_confidence: '70', mtf_agreement: 4, confluence_bonus: '15', cost_estimate_pct: '0.4' },
+      { ...baseRow, id: 'scanner-row', pre_boost_confidence: null, mtf_agreement: null, confluence_bonus: null, cost_estimate_pct: '0.4' },
+    ]);
+
+    const records = await mod.readHistoryAsync();
+    const byId = new Map(records.map((r) => [r.id, r]));
+
+    expect(byId.get('ta-row')!.preBoostConfidence).toBe(70);
+    expect(byId.get('ta-row')!.mtfAgreement).toBe(4);
+    expect(byId.get('ta-row')!.confluenceBonus).toBe(15);
+    expect(byId.get('ta-row')!.costEstimatePct).toBe(0.4);
+
+    // Scanner row: MTF triple NULL → undefined, cost still present.
+    expect(byId.get('scanner-row')!.preBoostConfidence).toBeUndefined();
+    expect(byId.get('scanner-row')!.mtfAgreement).toBeUndefined();
+    expect(byId.get('scanner-row')!.confluenceBonus).toBeUndefined();
+    expect(byId.get('scanner-row')!.costEstimatePct).toBe(0.4);
+  });
+});
+
 describe('rowToRecord tri-state mapping (via readHistoryAsync)', () => {
   it('maps NULL broadcast_blocked to undefined, never to false', async () => {
     const { mod, query } = freshModule();

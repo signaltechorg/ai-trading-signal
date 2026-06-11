@@ -44,6 +44,16 @@ export interface TradingSignal {
   skill?: string;
   /** Which strategy preset generated this signal. Matches SIGNAL_ENGINE_PRESET env var. */
   strategyId?: string;
+  // Calibration features (optional; engine-makeover Phase 4 D4) — surfaced from
+  // the MTF re-boost path so they can be persisted at emission. Only the
+  // TA-fallback path populates these; scanner rows leave them undefined. Mobile
+  // ignores unknown payload fields, so adding them is contract-safe.
+  /** TA-engine confidence BEFORE the MTF confluence bonus was applied (0-100). */
+  preBoostConfidence?: number;
+  /** Multi-timeframe agreement count (0-4) at emission. */
+  mtfAgreement?: number;
+  /** Confluence bonus actually added to preBoostConfidence (e.g. +15 / +10 / +5 / -20 / 0). */
+  confluenceBonus?: number;
 }
 
 export interface IndicatorSummary {

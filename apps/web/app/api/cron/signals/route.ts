@@ -23,6 +23,20 @@ import { recordSignalRun } from '../../../../lib/signal-run-log';
 import { requireCronAuth } from '../../../../lib/cron-auth';
 import { precomputeSignals } from '../../../../lib/signal-worker';
 import { readLiveSignals } from '../../../../lib/signals-live';
+import { costModelFor } from '@tradeclaw/strategies';
+
+/**
+ * Modeled round-trip transaction cost for a signal, as a PERCENT of notional
+ * (Phase 4 D4, migration 051 cost_estimate_pct). Round-trip = entry + exit, so
+ * 2×(feePctPerSide + slippagePctPerSide) from the canonical @tradeclaw/strategies
+ * cost model. Funding is intentionally excluded — hold duration is unknown at
+ * emission, so funding accrual cannot be estimated here (backtests model it
+ * separately). Populated for EVERY recorded cron row.
+ */
+function estimateRoundTripCostPct(symbol: string): number {
+  const c = costModelFor(symbol);
+  return 2 * (c.feePctPerSide + c.slippagePctPerSide);
+}
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
@@ -41,6 +55,11 @@ type NewlyRecordedSignal = {
   takeProfit1: number;
   stopLoss: number;
   timestamp: number;
+  // Calibration features (Phase 4 D4). The MTF triple is only present on the
+  // TA-fallback path; scanner rows leave it undefined and record NULL.
+  preBoostConfidence?: number;
+  mtfAgreement?: number;
+  confluenceBonus?: number;
 };
 
 /**
@@ -65,6 +84,10 @@ export async function collectNewSignals(strategyId: string): Promise<{
     takeProfit1: number;
     stopLoss: number;
     timestamp: string;
+    // Calibration features (Phase 4 D4) — populated only on the TA-fallback path.
+    preBoostConfidence?: number;
+    mtfAgreement?: number;
+    confluenceBonus?: number;
   }> = [];
 
   // The strategy actually responsible for the rows below — assigned in each
@@ -109,6 +132,11 @@ export async function collectNewSignals(strategyId: string): Promise<{
         takeProfit1: s.takeProfit1,
         stopLoss: s.stopLoss,
         timestamp: s.timestamp,
+        // MTF triple surfaced by the TA engine's re-boost path (signals.ts).
+        // Scanner rows do not carry these — only the TA-fallback path does.
+        preBoostConfidence: s.preBoostConfidence,
+        mtfAgreement: s.mtfAgreement,
+        confluenceBonus: s.confluenceBonus,
       }));
     effectiveStrategyId = profileId; // honest: stamp what actually generated the rows
   }
@@ -152,6 +180,9 @@ export async function collectNewSignals(strategyId: string): Promise<{
       takeProfit1: sig.takeProfit1,
       stopLoss: sig.stopLoss,
       timestamp,
+      preBoostConfidence: sig.preBoostConfidence,
+      mtfAgreement: sig.mtfAgreement,
+      confluenceBonus: sig.confluenceBonus,
     });
   }
 
@@ -338,6 +369,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     const newSignals: NewlyRecordedSignal[] = [];
     for (const sig of candidates) {
       const d = decisions.get(sig.id);
+      // Calibration features (Phase 4 D4). cost_estimate_pct is universal — every
+      // recorded cron row gets it. The MTF triple is only present on TA-fallback
+      // rows; scanner rows carry undefined and record NULL (honest, expected).
       await recordSignalAsync(
         sig.symbol,
         sig.timeframe,
@@ -357,6 +391,12 @@ export async function GET(request: NextRequest): Promise<Response> {
         d && d.recordable
           ? { regime: d.regime, blocked: d.blocked, blockReason: d.blockReason, allocationPct: d.allocationPct }
           : undefined,
+        {
+          preBoostConfidence: sig.preBoostConfidence,
+          mtfAgreement: sig.mtfAgreement,
+          confluenceBonus: sig.confluenceBonus,
+          costEstimatePct: estimateRoundTripCostPct(sig.symbol),
+        },
       );
       newSignals.push(sig);
     }
