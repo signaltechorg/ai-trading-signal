@@ -1,7 +1,7 @@
 export * from './types';
 export { PRESETS, getPreset, listPresets } from './presets';
-export { selectStrategyForRegime, passesTrendFilter } from './router.js';
-export type { TrendFilterOptions } from './router.js';
+export { selectStrategyForRegime, passesTrendFilter } from './router';
+export type { TrendFilterOptions } from './router';
 export { runBacktest } from './run-backtest';
 export type { BacktestResult, BacktestTrade } from './run-backtest';
 export {

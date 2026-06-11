@@ -10,7 +10,7 @@
 import type { OHLCV } from '@tradeclaw/core';
 import type { MarketRegime } from '@tradeclaw/signals';
 import { calculateEMA, calculateADX } from '@tradeclaw/signals';
-import type { StrategyId } from './types.js';
+import type { StrategyId } from './types';
 
 // ---------------------------------------------------------------------------
 // D1 — Regime → Strategy router

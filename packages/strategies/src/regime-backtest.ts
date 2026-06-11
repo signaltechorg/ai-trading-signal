@@ -31,10 +31,10 @@
 import type { OHLCV } from '@tradeclaw/core';
 import type { MarketRegime, RegimeClassification } from '@tradeclaw/signals';
 import { classifyRegime } from '@tradeclaw/signals';
-import type { EntryModule, EntrySignal, EntryContext, StrategyId, AllocationConfig, RiskConfig } from './types.js';
-import { passesTrendFilter, type TrendFilterOptions } from './router.js';
-import { runBacktest, type BacktestResult, type BacktestTrade } from './run-backtest.js';
-import { type BacktestOptions } from './backtest-options.js';
+import type { EntryModule, EntrySignal, EntryContext, StrategyId, AllocationConfig, RiskConfig } from './types';
+import { passesTrendFilter, type TrendFilterOptions } from './router';
+import { runBacktest, type BacktestResult, type BacktestTrade } from './run-backtest';
+import { type BacktestOptions } from './backtest-options';
 
 /**
  * Trailing-window size handed to the classifier and trend filter at each signal
