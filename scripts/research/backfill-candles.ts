@@ -17,8 +17,19 @@
  * Usage:
  *   railway run --service Postgres npx tsx scripts/research/backfill-candles.ts \
  *     --symbols BTCUSD,ETHUSD,SOLUSD --timeframes H1,H4,D1 --years 2
+ *
+ * With --out-dir the fetched candles are dumped to per-series JSON files
+ * (`<SYMBOL>-<TF>.json`) instead of the database — no DATABASE_URL needed.
+ * This is the input path for the regime trainer (Phase 3, plan D7): training
+ * runs consume the dump via scripts/research/export-regime-features.ts.
+ * Dump files are raw data and stay out of git (root /data/ is gitignored):
+ *   npx tsx scripts/research/backfill-candles.ts \
+ *     --symbols BTCUSD,ETHUSD,SOLUSD --timeframes H1 --years 2 \
+ *     --out-dir data/research/candles
  */
 
+import fs from 'fs';
+import path from 'path';
 import { connect, upsertCandles, getCoverage, type StoredCandle } from './candle-db';
 
 const BINANCE_BASE = 'https://data-api.binance.vision/api/v3/klines';
@@ -104,11 +115,17 @@ async function fetchStooqDaily(code: string, fromTs: number, toTs: number): Prom
   const symbols = arg('symbols', 'BTCUSD,ETHUSD,SOLUSD').split(',').map((s) => s.trim().toUpperCase());
   const timeframes = arg('timeframes', 'H1,H4,D1').split(',').map((s) => s.trim().toUpperCase());
   const years = Number(arg('years', '2'));
+  const outDir = arg('out-dir', '');
   const toTs = Date.now();
   const fromTs = toTs - years * 365.25 * 86_400_000;
 
-  const client = await connect();
-  console.log(`backfill: ${symbols.join(',')} × ${timeframes.join(',')} over ${years}y`);
+  // --out-dir: file-dump mode for trainer input — no DB connection at all.
+  const client = outDir ? null : await connect();
+  if (outDir) fs.mkdirSync(outDir, { recursive: true });
+  console.log(
+    `backfill: ${symbols.join(',')} × ${timeframes.join(',')} over ${years}y` +
+    (outDir ? ` → ${outDir} (file dump, no DB)` : ''),
+  );
 
   try {
     for (const symbol of symbols) {
@@ -130,12 +147,21 @@ async function fetchStooqDaily(code: string, fromTs: number, toTs: number): Prom
             console.log(`  ${symbol}: no provider mapping — skipped`);
             continue;
           }
-          const inserted = await upsertCandles(client, symbol, timeframe, source, candles);
-          const cov = await getCoverage(client, symbol, timeframe);
-          console.log(
-            `  ${symbol} ${timeframe}: fetched=${candles.length} new=${inserted} stored=${cov.count}` +
-            (cov.minTs ? ` range=${new Date(cov.minTs).toISOString().slice(0, 10)}→${new Date(cov.maxTs!).toISOString().slice(0, 10)}` : ''),
-          );
+          if (client) {
+            const inserted = await upsertCandles(client, symbol, timeframe, source, candles);
+            const cov = await getCoverage(client, symbol, timeframe);
+            console.log(
+              `  ${symbol} ${timeframe}: fetched=${candles.length} new=${inserted} stored=${cov.count}` +
+              (cov.minTs ? ` range=${new Date(cov.minTs).toISOString().slice(0, 10)}→${new Date(cov.maxTs!).toISOString().slice(0, 10)}` : ''),
+            );
+          } else {
+            const outPath = path.join(outDir, `${symbol}-${timeframe}.json`);
+            fs.writeFileSync(outPath, JSON.stringify({ symbol, timeframe, source, candles }));
+            const range = candles.length > 0
+              ? ` range=${new Date(candles[0].timestamp).toISOString().slice(0, 10)}→${new Date(candles[candles.length - 1].timestamp).toISOString().slice(0, 10)}`
+              : '';
+            console.log(`  ${symbol} ${timeframe}: fetched=${candles.length} → ${outPath}${range}`);
+          }
         } catch (err) {
           console.error(`  ${symbol} ${timeframe}: FAILED — ${err instanceof Error ? err.message : String(err)}`);
           process.exitCode = 1;
@@ -143,7 +169,7 @@ async function fetchStooqDaily(code: string, fromTs: number, toTs: number): Prom
       }
     }
   } finally {
-    await client.end();
+    if (client) await client.end();
   }
 })().catch((err) => {
   console.error('backfill-candles failed:', err instanceof Error ? err.message : String(err));
