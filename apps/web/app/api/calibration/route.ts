@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readHistoryAsync, isCountedResolved } from '@/lib/signal-history';
+import { calibrateConfidence, type CalibrationReport } from '@/lib/confidence-calibration';
 
 export const revalidate = 300; // 5-min cache
 
@@ -88,6 +89,22 @@ export async function GET() {
         )
       : null;
 
+    // Phase 4 D7 — REPORTED calibration curves (isotonic + logistic) fit on a
+    // time-ordered holdout over the SAME resolved population used above. This is
+    // read-only reporting: published confidence on signals is NOT changed here.
+    // Returns null when the population is below the calibrator's minimum sample
+    // size — the UI then shows raw buckets only, never a fabricated curve.
+    // v1 calibrates the single feature carried by all history (confidence →
+    // P(win)); multi-feature calibration + the confluence-bonus shrink are
+    // data-gated on the migration-051 columns accruing ≥4wk (see D4/D7).
+    const calibration: CalibrationReport | null = calibrateConfidence(
+      resolved.map((s) => ({
+        ts: s.timestamp,
+        conf: s.confidence,
+        win: s.outcomes['24h']?.hit ? 1 : 0,
+      })),
+    );
+
     return NextResponse.json({
       buckets,
       overallAccuracy,
@@ -95,6 +112,7 @@ export async function GET() {
       isSimulated: totalSignals < 20,
       brier,
       ece,
+      calibration,
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
