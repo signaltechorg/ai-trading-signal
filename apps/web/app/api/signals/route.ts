@@ -31,6 +31,14 @@ export async function GET(request: NextRequest) {
       : 'free' as const;
     const delayMs = TIER_DELAY_MS[tier];
 
+    // Anonymous responses are identical for everyone within the 5-min data
+    // window — let shared caches absorb them. Signed-in responses are
+    // tier-gated and stay private. ('private, s-maxage' was contradictory:
+    // private forbids the shared caches s-maxage addresses.)
+    const cacheControl = session?.userId
+      ? 'private, no-store'
+      : 'public, max-age=60, stale-while-revalidate=240';
+
     const { searchParams } = new URL(request.url);
     const symbolFilter = searchParams.get('symbol')?.toUpperCase();
     const timeframeFilter = searchParams.get('timeframe')?.toUpperCase() || searchParams.get('tf')?.toUpperCase();
@@ -123,7 +131,7 @@ export async function GET(request: NextRequest) {
         lockedSignals: lockedMapped,
         syntheticSymbols: [],  // no synthetic — real data from Python engine
       }, {
-        headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' },
+        headers: { 'Cache-Control': cacheControl },
       });
     }
 
@@ -172,7 +180,7 @@ export async function GET(request: NextRequest) {
       lockedSignals,
       syntheticSymbols,
     }, {
-      headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' },
+      headers: { 'Cache-Control': cacheControl },
     });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -27,7 +27,6 @@ bbLen       = input.int(20, "BB Length", group="Indicators")
 bbMult      = input.float(2.0, "BB Multiplier", group="Indicators")
 stochKLen   = input.int(14, "Stoch %K", group="Indicators")
 stochDLen   = input.int(3, "Stoch %D", group="Indicators")
-stochSmooth = input.int(3, "Stoch Smooth", group="Indicators")
 confThresh  = input.int(55, "Confidence Threshold", minval=0, maxval=100, group="TradeClaw")
 
 // === Indicators ===
@@ -35,8 +34,8 @@ rsi       = ta.rsi(close, rsiLen)
 [macdLine, signalLine, hist] = ta.macd(close, macdFast, macdSlow, macdSig)
 emaFast   = ta.ema(close, emaFastLen)
 emaSlow   = ta.ema(close, emaSlowLen)
-[bbUpper, bbMid, bbLower] = ta.bb(close, bbLen, bbMult)
-stochKVal = ta.stoch(close, high, low, stochKLen, stochDLen, stochSmooth)
+[bbMid, bbUpper, bbLower] = ta.bb(close, bbLen, bbMult)
+stochKVal = ta.stoch(close, high, low, stochKLen)
 stochDVal = ta.sma(stochKVal, stochDLen)
 
 // === Scoring (matches TradeClaw engine weights) ===
