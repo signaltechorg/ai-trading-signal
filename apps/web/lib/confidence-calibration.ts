@@ -83,6 +83,9 @@ export interface HoldoutReliability {
   validationSize: number;
   /** Rows in the training slice the maps were fit on. */
   trainSize: number;
+  // Metric fields are null when validationSize < MIN_VALIDATION_ROWS — the slice
+  // is too thin for a meaningful Brier/ECE estimate. The size fields above stay
+  // populated so the consumer can see the slice is thin rather than missing.
   rawBrier: number | null;
   isotonicBrier: number | null;
   logisticBrier: number | null;
@@ -113,6 +116,20 @@ export interface CalibrationReport {
  * strategy-decay-metrics.json) — below it the calibration curve is noise.
  */
 export const MIN_CALIBRATION_SAMPLES = 20;
+
+/**
+ * Minimum rows in the time-ordered validation slice before its Brier/ECE
+ * metrics are reported. A Brier score is a mean of per-row squared errors in
+ * [0,1]; with n rows its standard error is ≈ sd/√n, and at the worst case
+ * (sd ≈ 0.5) that is ≈ 0.5/√n. Below ~8 rows the per-row Brier SE exceeds
+ * ~0.17 — wider than the entire difference a calibration step can plausibly
+ * move it — so an isotonicBrier < rawBrier on such a slice is noise, not
+ * evidence. At MIN_CALIBRATION_SAMPLES (20) × the default 0.3 validation
+ * fraction the slice is ~6 rows, which trips this floor. When the slice is
+ * below this, calibrateConfidence nulls the holdout metric fields (keeping the
+ * size fields) so the route does not surface a falsely-rigorous number.
+ */
+export const MIN_VALIDATION_ROWS = 8;
 
 /** Newton-Raphson iterations for the logistic fit. Fixed → deterministic. */
 const LOGISTIC_ITERATIONS = 50;
@@ -395,7 +412,9 @@ export interface CalibrateOptions {
  *
  * The returned maps are fit on the TRAIN slice; the Brier/ECE numbers compare
  * raw confidence vs each calibrated map ON THE VALIDATION SLICE. No row appears
- * in both train and validation.
+ * in both train and validation. When the validation slice has fewer than
+ * MIN_VALIDATION_ROWS rows the holdout metric fields are nulled (the size
+ * fields are kept) — too few rows for a meaningful Brier/ECE estimate.
  */
 export function calibrateConfidence(
   rows: TimedPair[],
@@ -424,7 +443,7 @@ export function calibrateConfidence(
     ? validation.map((r) => ({ prob: applyLogistic(logistic, r.conf), win: r.win }))
     : [];
 
-  const holdout: HoldoutReliability = {
+  const rawHoldout: HoldoutReliability = {
     validationSize: validation.length,
     trainSize: train.length,
     rawBrier: brierScore(rawPoints),
@@ -435,10 +454,26 @@ export function calibrateConfidence(
     logisticEce: logistic ? expectedCalibrationError(logPoints, eceBins) : null,
   };
 
+  // Null the metric fields when the validation slice is too thin to support a
+  // meaningful estimate (see MIN_VALIDATION_ROWS). Keep validationSize/trainSize
+  // so the consumer still sees the slice exists but is below the reporting floor.
+  const clampHoldout = (h: HoldoutReliability): HoldoutReliability =>
+    h.validationSize >= MIN_VALIDATION_ROWS
+      ? h
+      : {
+          ...h,
+          rawBrier: null,
+          isotonicBrier: null,
+          logisticBrier: null,
+          rawEce: null,
+          isotonicEce: null,
+          logisticEce: null,
+        };
+
   return {
     sampleSize: clean.length,
     validationFraction,
     method: { isotonic, logistic },
-    holdout,
+    holdout: clampHoldout(rawHoldout),
   };
 }

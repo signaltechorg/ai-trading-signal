@@ -22,6 +22,7 @@ import {
   timeOrderedHoldout,
   calibrateConfidence,
   MIN_CALIBRATION_SAMPLES,
+  MIN_VALIDATION_ROWS,
   type CalibrationPair,
 } from '../confidence-calibration';
 
@@ -308,5 +309,47 @@ describe('calibrateConfidence (orchestrator)', () => {
     const a = calibrateConfidence(rows, { validationFraction: 0.3 });
     const b = calibrateConfidence(rows, { validationFraction: 0.3 });
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it('nulls holdout metrics when the validation slice is below MIN_VALIDATION_ROWS', () => {
+    // 20 rows (just clears MIN_CALIBRATION_SAMPLES) × 0.3 → round(6) = 6 validation
+    // rows, below the 8-row floor. Report is non-null but the metric fields null.
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      ts: i,
+      conf: 0.5 + (i % 5) * 0.1,
+      win: i % 2,
+    }));
+    const report = calibrateConfidence(rows, { validationFraction: 0.3 });
+    expect(report).not.toBeNull();
+    // Size fields stay populated so the consumer sees the slice is thin.
+    expect(report!.holdout.validationSize).toBeGreaterThan(0);
+    expect(report!.holdout.validationSize).toBeLessThan(MIN_VALIDATION_ROWS);
+    expect(report!.holdout.trainSize).toBeGreaterThan(0);
+    // Every per-metric Brier/ECE field is nulled (noise floor, not evidence).
+    expect(report!.holdout.rawBrier).toBeNull();
+    expect(report!.holdout.isotonicBrier).toBeNull();
+    expect(report!.holdout.logisticBrier).toBeNull();
+    expect(report!.holdout.rawEce).toBeNull();
+    expect(report!.holdout.isotonicEce).toBeNull();
+    expect(report!.holdout.logisticEce).toBeNull();
+    // The fitted maps are still returned (they train on the larger older slice).
+    expect(report!.method.isotonic).not.toBeNull();
+    expect(report!.method.logistic).not.toBeNull();
+  });
+
+  it('reports holdout metrics when the validation slice meets MIN_VALIDATION_ROWS', () => {
+    // 40 rows × 0.3 → round(12) = 12 validation rows, above the 8-row floor.
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      ts: i,
+      conf: 0.5 + (i % 5) * 0.1,
+      win: i % 2,
+    }));
+    const report = calibrateConfidence(rows, { validationFraction: 0.3 });
+    expect(report).not.toBeNull();
+    expect(report!.holdout.validationSize).toBeGreaterThanOrEqual(MIN_VALIDATION_ROWS);
+    expect(report!.holdout.rawBrier).not.toBeNull();
+    expect(report!.holdout.isotonicBrier).not.toBeNull();
+    expect(report!.holdout.logisticBrier).not.toBeNull();
+    expect(report!.holdout.rawEce).not.toBeNull();
   });
 });
