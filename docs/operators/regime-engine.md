@@ -40,10 +40,11 @@ Within roughly one day of the deploy (one hourly cron slot is enough):
 
 - `GET /api/v1/regime` should return a regime map with non-range diversity across
   the tracked crypto symbols. If every symbol resolves to `range`, either the cron
-  has not fired yet, or the market is genuinely range-bound — check `latestAt` in
-  the ops-digest to distinguish.
-- The daily ops-digest (ops Telegram, 14:00 UTC) includes a regime-health section:
-  `rows`, `latestAt`, `distinctSymbols`, `stale>2h`, `allOneLabel`. All-one-label
+  has not fired yet, or the market is genuinely range-bound — check
+  `latestDetectedAt` in the ops-digest to distinguish.
+- The daily ops-digest (ops Telegram, 23:00 UTC / 07:00 MYT next day) includes a
+  regime-health section: `rows`, `latestDetectedAt` (rendered as `latest:`),
+  `distinctSymbols`, `stale>2h`, `allOneLabel`. All-one-label
   with `allOneLabel: true` or `stale>2h > 0` signals a problem.
 - If 0 rows were written on the first cron run, an immediate alert fires to
   `OPS_TELEGRAM_ADMIN_IDS`. That alert fires once per cron run that produced
@@ -64,33 +65,25 @@ Mapping rules:
   unchanged. This is the fail-safe: a missing or expired card never defaults to
   an aggressive regime.
 
-Symbol-to-class assignment: crypto symbols map to `crypto`; XAU/XAG map to
-`commodities`; everything else maps to `forex`. See `getSymbolCategory` in
-`regime-resolution.ts` for the exact logic.
+Symbol-to-class assignment: `getSymbolCategory` from `@tradeclaw/signals`
+(`packages/signals/src/symbols.ts`) returns `crypto`, `metals`, or `forex`;
+`regime-resolution.ts` only adds the `metals` → `commodities` AssetClass mapping.
 
 For the full Monday ritual, Telegram commands, and admin-panel override procedure,
 see [weekly-regime.md](./weekly-regime.md). For the weekly-regime module types and
-"never conflate" guidance, see `apps/web/lib/weekly-regime/README.md`.
+the "distinct systems, one sanctioned bridge" guidance on how `weekly_regime` and
+`market_regimes` relate, see `apps/web/lib/weekly-regime/README.md`.
 
 ## Retrain
 
-Install the Python dependencies (numpy only):
+Prerequisites: `pip install -r scripts/hmm-regime/requirements.txt` (numpy only)
+and `npm run build:signals` (the feature exporter resolves `@tradeclaw/signals`
+by name).
 
-```
-pip install -r scripts/hmm-regime/requirements.txt
-```
-
-Then export features from the candle store and run the trainer:
-
-```
-npx ts-node scripts/research/export-regime-features.ts --out-dir <dir>
-python scripts/hmm-regime/train_hmm.py --features-dir <dir> --out-dir docs/research/experiments/
-```
+See `scripts/hmm-regime/README.md` for the exact backfill → export → train
+commands.
 
 The trainer is deterministic: the same input data and seed (42) produce a
 byte-identical model JSON and validation report. Use `--self-test` to verify the
 fitter recovers known parameters from a synthetic 3-state HMM before running on
 real data.
-
-For exact command options, flags, and the full backfill workflow, see
-`scripts/hmm-regime/README.md`. Do not duplicate the command reference here.

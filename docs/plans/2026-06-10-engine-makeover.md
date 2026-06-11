@@ -53,7 +53,7 @@ The foundation of the secret sauce; without it every tweak is a guess.
 - Gate: prod regime distribution is no longer 100% neutral; label stability (flips/week) and walk-forward regime-conditional outcome separation reported.
 
 **Phase 3 status — code-complete 2026-06-11.**
-Branch `worktree-phase3-regime-engine`, 15 commits (`b0e5ec7..2f40bb8`). What landed:
+Branch `worktree-phase3-regime-engine`, 17 commits (`b0e5ec7..2f40bb8`). What landed:
 - Structural trend/volatile/range classifier: T=64 Viterbi decode with hysteresis (minDwell 6 bars, confidence bypass at 0.80).
 - Canonical vocabulary across all consumers; unknown-label fallback to `range` everywhere — `getBreakersForRegime` no longer throws.
 - `market_regimes` writer cron + freshness alerting (empty-map Telegram alert, ops-digest regime-health section).
