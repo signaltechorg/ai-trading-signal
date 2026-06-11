@@ -40,24 +40,36 @@ import { type BacktestOptions } from './backtest-options.js';
  * Trailing-window size handed to the classifier and trend filter at each signal
  * bar — NOT the full growing history (that would make a C6 run O(n²)).
  *
- * Why this value is sufficient for BOTH consumers:
- *   classifyRegime needs the structural feature warmup (ATR percentile floor =
- *   atrPeriod 14 + MIN_ATR_PERCENTILE_SAMPLES 30 − 1 = 43 bars before the first
- *   non-null feature vector) PLUS up to DEFAULT_SEQUENCE_LENGTH = 64 feature
- *   vectors for the Viterbi smoothing window → 43 + 64 = 107 bars to fill a full
- *   sequence (it tolerates fewer down to MIN_SEQUENCE_VECTORS = 8, i.e. ~51 bars,
- *   but a full window matches the live classifier's behavior).
- *   passesTrendFilter needs max(emaPeriod 50 + slopeLookback 3, adxPeriod 14 + 1)
- *   = 53 bars.
- *   160 = 107 + 53 of headroom: it always fills the classifier's full 64-vector
- *   Viterbi window AND comfortably exceeds the trend filter's need, while keeping
- *   each per-signal classify/filter call O(160) instead of O(history).
+ * Why 329, derived from the BINDING constraint (atrPercentile saturation):
+ *   The classifier decodes over the LAST DEFAULT_SEQUENCE_LENGTH = 64 feature
+ *   vectors. The FIRST of those vectors sits at bar W−64 of a W-bar window. Its
+ *   atrPercentile feature ranks ATR(14)/close samples accumulated up to that
+ *   bar: there are (W−64) − atrPeriod + 1 = W − 64 − 14 + 1 = W − 77 such
+ *   samples. atrPercentile ranks over atrPercentileWindow = 252 samples, so for
+ *   that earliest Viterbi bar to see a FULLY SATURATED percentile (matching the
+ *   live writer, RECENT_BARS = 400, which is saturated) we need:
  *
- * The window is the trailing 160 bars ENDING AT the signal bar (inclusive), so
+ *       W − 77 ≥ 252   →   W ≥ 329.
+ *
+ *   At W = 160 the earliest Viterbi bar ranks over only 160 − 77 = 83 samples,
+ *   so its atrPercentile diverges from the live writer at percentile boundaries
+ *   — which would corrupt C6's per-regime bucketing. 329 closes that gap.
+ *
+ * The other two needs are already satisfied (329 ≫ both):
+ *   - Feature warmup floor: atrPeriod 14 + MIN_ATR_PERCENTILE_SAMPLES 30 − 1 = 43
+ *     bars before the first non-null vector, plus 64 vectors = 107-bar floor to
+ *     fill the Viterbi window at all. 329 > 107.
+ *   - passesTrendFilter needs max(emaPeriod 50 + slopeLookback 3, adxPeriod 14 + 1)
+ *     = 53 bars. 329 > 53.
+ *
+ * Perf is irrelevant: each per-signal classify/filter call is O(329), a bounded
+ * slice — never O(history), so a C6 run stays far below O(bars²).
+ *
+ * The window is the trailing 329 bars ENDING AT the signal bar (inclusive), so
  * classification/filtering see exactly the data available up to entry — no
  * lookahead.
  */
-export const REGIME_CONDITION_WINDOW = 160;
+export const REGIME_CONDITION_WINDOW = 329;
 
 /** The three canonical regimes, in a stable order for reporting. */
 export const REGIMES: readonly MarketRegime[] = ['trend', 'volatile', 'range'] as const;
@@ -160,19 +172,27 @@ export interface RegimeMetrics {
    * Expectancy = mean realized pnlPct per trade, AFTER modeled costs. Because
    * `runBacktest` already subtracts `costPct/100` from each trade's `pnlPct`
    * when a cost model is supplied, this mean is net-of-cost by construction.
-   * Expressed as a fraction (e.g. 0.004 = +0.4%). 0 when no trades.
+   * Per-trade FRACTIONAL and position-size-NEUTRAL (uses pnlPct, not notional
+   * pnl) — so it isolates the entry edge regardless of allocation. Expressed as
+   * a fraction (e.g. 0.004 = +0.4%). 0 when no trades.
    */
   expectancy: number;
-  /** Sum of winning pnl / abs sum of losing pnl. Infinity when only winners; 0 when no trades. */
-  profitFactor: number;
   /**
-   * Max drawdown computed over the running equity of THIS regime's trades in
-   * entry order (a per-regime sub-curve seeded at the backtest start balance).
-   * A within-regime drawdown is well-defined this way because the trades are
-   * ordered by entry bar; it is NOT the cross-regime portfolio drawdown. 0 when
+   * Sum of winning pnlPct / abs sum of losing pnlPct. Per-trade FRACTIONAL and
+   * position-size-NEUTRAL — the SAME basis as `expectancy`, so the two cannot
+   * diverge under non-flat allocation (a notional-pnl basis would). Infinity
+   * when only winners; null when no trades (distinct from "all losers" → 0).
+   */
+  profitFactor: number | null;
+  /**
+   * Within-regime drawdown: max drawdown over the running equity of THIS
+   * regime's trades in entry order (a per-regime sub-curve seeded at the
+   * backtest start balance). Well-defined because the trades are entry-ordered,
+   * but it IGNORES interleaved other-regime trades — it is NOT the portfolio
+   * drawdown. For portfolio DD use `resultByRegime[r].maxDrawdown`. 0 when
    * fewer than 1 trade. Fraction of peak (e.g. 0.12 = 12%).
    */
-  maxDrawdown: number;
+  withinRegimeDrawdown: number;
 }
 
 export interface PerRegimeMetricsResult {
@@ -215,10 +235,17 @@ function maxDrawdownOf(curve: number[]): number {
   return maxDd;
 }
 
-/** Profit factor of a trade set (gains / abs losses). */
-function profitFactorOf(trades: BacktestTrade[]): number {
-  const gains = trades.filter((t) => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
-  const losses = trades.filter((t) => t.pnl < 0).reduce((s, t) => s - t.pnl, 0);
+/**
+ * Profit factor on the SIZE-NEUTRAL fractional basis: sum of positive pnlPct
+ * over abs sum of negative pnlPct (NOT notional pnl, which is position-size
+ * weighted and would diverge from the pnlPct-based expectancy under non-flat
+ * allocation). null for an empty set; Infinity when there are gains but no
+ * losses; 0 when there are losses but no gains.
+ */
+function profitFactorOf(trades: BacktestTrade[]): number | null {
+  if (trades.length === 0) return null;
+  const gains = trades.filter((t) => t.pnlPct > 0).reduce((s, t) => s + t.pnlPct, 0);
+  const losses = trades.filter((t) => t.pnlPct < 0).reduce((s, t) => s - t.pnlPct, 0);
   if (losses === 0) return gains > 0 ? Infinity : 0;
   return gains / losses;
 }
@@ -286,8 +313,8 @@ export function perRegimeMetrics(
         trades: 0,
         winRate: 0,
         expectancy: 0,
-        profitFactor: 0,
-        maxDrawdown: 0,
+        profitFactor: null,
+        withinRegimeDrawdown: 0,
       };
       continue;
     }
@@ -311,7 +338,7 @@ export function perRegimeMetrics(
       winRate: wins / trades.length,
       expectancy,
       profitFactor: profitFactorOf(trades),
-      maxDrawdown: maxDrawdownOf(subCurve),
+      withinRegimeDrawdown: maxDrawdownOf(subCurve),
     };
   }
 

@@ -198,7 +198,7 @@ describe('conditionEntryOnRegime — bounded trailing window (no O(n^2))', () =>
     };
     const sig: EntrySignal = { barIndex: 400, direction: 'BUY', price: candles[400].close, confidence: 0.7 };
     conditionEntryOnRegime(fixedEntry([sig]), 'trend', { classify: spyClassify }).generateSignals(candles, CTX);
-    expect(seen).toEqual([REGIME_CONDITION_WINDOW]); // exactly 160 bars, NOT 401
+    expect(seen).toEqual([REGIME_CONDITION_WINDOW]); // exactly 329 bars, NOT 401
   });
 });
 
@@ -267,8 +267,12 @@ describe('perRegimeMetrics — bucketing + metric math', () => {
     for (const r of ['trend', 'volatile', 'range'] as MarketRegime[]) {
       expect(byRegime[r].winRate).toBeGreaterThanOrEqual(0);
       expect(byRegime[r].winRate).toBeLessThanOrEqual(1);
-      expect(byRegime[r].profitFactor).toBeGreaterThanOrEqual(0);
-      expect(byRegime[r].maxDrawdown).toBeGreaterThanOrEqual(0);
+      // All three buckets have ≥1 trade in this fixture, so profitFactor is a
+      // number (null is reserved for zero-trade buckets — asserted separately).
+      expect(byRegime[r].trades).toBeGreaterThan(0);
+      expect(byRegime[r].profitFactor).not.toBeNull();
+      expect(byRegime[r].profitFactor as number).toBeGreaterThanOrEqual(0);
+      expect(byRegime[r].withinRegimeDrawdown).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -294,10 +298,12 @@ describe('perRegimeMetrics — bucketing + metric math', () => {
     expect(a.byRegime).toEqual(b.byRegime);
   });
 
-  it('a regime with no signals yields a zeroed bucket, not an error', () => {
+  it('a regime with no signals yields a zeroed bucket (profitFactor null), not an error', () => {
     const onlyTrend = byBarClassify(candles, () => 'trend');
     const { byRegime } = perRegimeMetrics(candles, base, { classify: onlyTrend });
-    expect(byRegime.volatile).toEqual({ regime: 'volatile', trades: 0, winRate: 0, expectancy: 0, profitFactor: 0, maxDrawdown: 0 });
-    expect(byRegime.range).toEqual({ regime: 'range', trades: 0, winRate: 0, expectancy: 0, profitFactor: 0, maxDrawdown: 0 });
+    // profitFactor is null (not 0) so a zero-trade bucket is distinguishable
+    // from an all-losers bucket; trades: 0 also disambiguates.
+    expect(byRegime.volatile).toEqual({ regime: 'volatile', trades: 0, winRate: 0, expectancy: 0, profitFactor: null, withinRegimeDrawdown: 0 });
+    expect(byRegime.range).toEqual({ regime: 'range', trades: 0, winRate: 0, expectancy: 0, profitFactor: null, withinRegimeDrawdown: 0 });
   });
 });
