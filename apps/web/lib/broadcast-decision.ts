@@ -145,6 +145,12 @@ export async function computeBroadcastDecisions(
   // broadcast set, the recorded signal_history rows, or the published
   // confidence. The calibrated value lives only in the NDJSON shadow log.
   //
+  // Population = `curated` (post winning-cells), NOT the full `candidates`:
+  // winning-cells-blocked rows never reach the router/risk pipeline and can
+  // never be broadcast, so recording them would pollute the forward gate
+  // analysis with signals the live system never acts on. `curated` is exactly
+  // the set the router would act on (the risk pipeline only narrows it further).
+  //
   // off  → skip entirely. shadow/active → record. `active` is forward-compat
   // ONLY: the walk-forward gate failed on paper, so it records identically to
   // shadow and enforces NOTHING in this branch — live activation is a later
@@ -155,7 +161,7 @@ export async function computeBroadcastDecisions(
   if (routerMode !== 'off') {
     void recordRouterShadow(
       routerMode,
-      candidates.map((c) => ({
+      curated.map((c) => ({
         id: c.id,
         symbol: c.symbol,
         direction: c.direction,

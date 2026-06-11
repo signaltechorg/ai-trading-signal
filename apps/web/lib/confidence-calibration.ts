@@ -140,7 +140,26 @@ const LOGISTIC_RIDGE = 1e-6;
 /** Default ECE bin count. 10 equal-width bins over [0,1], same spirit as the route. */
 const DEFAULT_ECE_BINS = 10;
 
+/**
+ * Confidence floor for the calibration population. signal_history confidences
+ * below 0.5 are not published-grade and would skew the fit; /api/calibration and
+ * the router shadow recorder both restrict to conf >= this value. One source of
+ * truth so the populations stay identical.
+ */
+export const MIN_CALIBRATION_CONFIDENCE = 0.5;
+
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/**
+ * signal_history stores confidence on the 0-100 scale (e.g. 72, 85). Normalize
+ * to [0,1] for bucketing, Brier, and the isotonic map. Defensive: values already
+ * ≤ 1 pass through unchanged. The ONE source of truth — /api/calibration, the
+ * router shadow recorder, and any other calibration-population consumer import
+ * this rather than re-deriving it (no silent drift between sites).
+ */
+export function normalizeConfidence(raw: number): number {
+  return raw > 1 ? raw / 100 : raw;
+}
 
 // ── Isotonic regression (Pool-Adjacent-Violators) ────────────────
 

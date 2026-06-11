@@ -22,7 +22,7 @@
 import { selectStrategyForRegime } from '@tradeclaw/strategies';
 import type { StrategyId } from '@tradeclaw/strategies';
 import type { MarketRegime } from '@tradeclaw/signals';
-import { applyIsotonic, type IsotonicMap } from './confidence-calibration';
+import { applyIsotonic, normalizeConfidence, type IsotonicMap } from './confidence-calibration';
 
 export type StrategyRouterMode = 'off' | 'shadow' | 'active';
 
@@ -78,15 +78,6 @@ export interface RouterShadowBatch {
   calibrated: boolean;
   candidateCount: number;
   candidates: RouterDecisionRecord[];
-}
-
-/**
- * signal_history stores confidence on the 0-100 scale. Normalize to [0,1] so
- * the calibrated probability is comparable to /api/calibration's curve.
- * Defensive: values already ≤ 1 pass through unchanged.
- */
-function normalizeConfidence(raw: number): number {
-  return raw > 1 ? raw / 100 : raw;
 }
 
 /**

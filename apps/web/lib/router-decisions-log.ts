@@ -13,8 +13,15 @@ import 'server-only';
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { readHistoryAsync, isCountedResolved } from './signal-history';
-import { fitIsotonic, MIN_CALIBRATION_SAMPLES, type IsotonicMap } from './confidence-calibration';
+import { isCountedResolved } from './signal-history';
+import { getCachedHistory } from './signal-history-cache';
+import {
+  fitIsotonic,
+  normalizeConfidence,
+  MIN_CALIBRATION_SAMPLES,
+  MIN_CALIBRATION_CONFIDENCE,
+  type IsotonicMap,
+} from './confidence-calibration';
 import {
   buildRouterShadowBatch,
   type RouterShadowBatch,
@@ -27,11 +34,6 @@ function getLogPath(): string {
   return process.env.TRADECLAW_ROUTER_LOG_PATH ?? DEFAULT_PATH;
 }
 
-/** Confidence normalized to [0,1] (signal_history stores 0-100). */
-function normalizeConfidence(raw: number): number {
-  return raw > 1 ? raw / 100 : raw;
-}
-
 /**
  * Fit the C7 isotonic calibration map ONCE per tick over the resolved history
  * (the same population /api/calibration uses: isCountedResolved, confidence
@@ -39,17 +41,20 @@ function normalizeConfidence(raw: number): number {
  * is below MIN_CALIBRATION_SAMPLES — the shadow record then carries
  * calibratedConfidence: null (honest "no map yet"), never a fabricated number.
  *
- * Bounded: one history read + one fit per tick, NOT per candidate.
+ * Reads through the layered cache (getCachedHistory: 10-min TTL, Redis+memory,
+ * deduplicated in-flight) — this fire-and-forget path must not issue an uncached
+ * full SELECT every tick. Bounded: one cached read + one fit per tick, NOT per
+ * candidate.
  */
 export async function fitTickCalibrationMap(): Promise<IsotonicMap | null> {
-  const history = await readHistoryAsync();
+  const history = await getCachedHistory();
   const pairs = history
     .filter(isCountedResolved)
     .map((s) => ({
       conf: normalizeConfidence(s.confidence),
       win: s.outcomes['24h']?.hit ? 1 : 0,
     }))
-    .filter((p) => p.conf >= 0.5);
+    .filter((p) => p.conf >= MIN_CALIBRATION_CONFIDENCE);
   if (pairs.length < MIN_CALIBRATION_SAMPLES) return null;
   return fitIsotonic(pairs);
 }

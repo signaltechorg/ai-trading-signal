@@ -2,25 +2,23 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Mock signal-history so fitTickCalibrationMap reads a controlled population.
-jest.mock('../signal-history', () => {
-  const actual = jest.requireActual('../signal-history');
-  return {
-    ...actual,
-    readHistoryAsync: jest.fn(),
-  };
-});
+// Mock the CACHED history reader so fitTickCalibrationMap reads a controlled
+// population. fitTickCalibrationMap now goes through getCachedHistory (layered
+// cache) rather than readHistoryAsync directly — mock the cache accessor.
+jest.mock('../signal-history-cache', () => ({
+  getCachedHistory: jest.fn(),
+}));
 
 import {
   fitTickCalibrationMap,
   recordRouterShadow,
   logRouterShadowBatch,
 } from '../router-decisions-log';
-import { readHistoryAsync } from '../signal-history';
+import { getCachedHistory } from '../signal-history-cache';
 import { MIN_CALIBRATION_SAMPLES } from '../confidence-calibration';
 import { buildRouterShadowBatch } from '../strategy-router-shadow';
 
-const mockedReadHistory = readHistoryAsync as jest.MockedFunction<typeof readHistoryAsync>;
+const mockedReadHistory = getCachedHistory as jest.MockedFunction<typeof getCachedHistory>;
 
 // Build a resolved history row at the shape isCountedResolved accepts.
 function resolvedRow(id: string, confidence: number, hit: boolean) {
