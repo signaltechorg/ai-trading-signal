@@ -63,7 +63,21 @@ function loadDump(candlesDir: string, symbol: string, timeframe: string): Regime
   return dump.candles;
 }
 
+/**
+ * The trainer (scripts/hmm-regime/train_hmm.py) is pinned to exactly these
+ * four features. A fifth feature must fail HERE at export time — not only
+ * when the trainer rejects the file.
+ */
+const EXPECTED_FEATURE_COUNT = 4;
+
 (async () => {
+  if (REGIME_FEATURE_NAMES.length !== EXPECTED_FEATURE_COUNT) {
+    console.error(
+      `REGIME_FEATURE_NAMES has ${REGIME_FEATURE_NAMES.length} entries, expected ${EXPECTED_FEATURE_COUNT} — ` +
+      'update scripts/hmm-regime/train_hmm.py (FEATURE_NAMES + N_FEATURES) and this exporter together',
+    );
+    process.exit(2);
+  }
   const symbols = arg('symbols', 'BTCUSD,ETHUSD,SOLUSD').split(',').map((s) => s.trim().toUpperCase());
   const timeframe = arg('timeframe', 'H1').toUpperCase();
   const candlesDir = arg('candles-dir', '');

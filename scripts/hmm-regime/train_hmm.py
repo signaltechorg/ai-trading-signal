@@ -70,8 +70,12 @@ FORWARD_BARS = 24           # forward-outcome horizon (next-24-bar return)
 TRAIN_MONTHS = 12
 TEST_MONTHS = 3
 STEP_MONTHS = 3
-MONTH_MS = int(365.25 / 12 * 86_400_000)  # fixed-length month: 30.4375 days
-MIN_TEST_BARS = 168  # one H1 week pooled — folds with less are dropped
+# Fixed-length month (30.4375 days = 365.25/12). Internal to this trainer's
+# fold arithmetic ONLY — intentionally NOT tied to any TS constant; the
+# runtime never sees fold boundaries.
+MONTH_MS = int(365.25 / 12 * 86_400_000)
+H1_BARS_PER_WEEK = 168
+MIN_TEST_BARS = H1_BARS_PER_WEEK  # one pooled H1 week — folds with less are dropped
 H1_MS = 3_600_000
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -87,7 +91,13 @@ REPORT_DIR = REPO_ROOT / "docs" / "research" / "experiments"
 def log_gaussian(X: np.ndarray, mean: np.ndarray, cov: np.ndarray) -> np.ndarray:
     """log N(x | mean, cov) for each row of X via Cholesky. Returns (T,)."""
     d = X.shape[1]
-    chol = np.linalg.cholesky(cov)
+    try:
+        chol = np.linalg.cholesky(cov)
+    except np.linalg.LinAlgError:
+        # Defensive: ridge regularization keeps EM covariances PD on every
+        # known path; if a caller ever hands a non-PD matrix, retry with a
+        # stronger diagonal boost instead of crashing mid-fit.
+        chol = np.linalg.cholesky(cov + 1e-3 * np.eye(d))
     diff = X - mean
     # Solve L y = diff^T  ->  quadratic form = sum(y^2)
     y = np.linalg.solve(chol, diff.T)
@@ -167,8 +177,14 @@ def init_params(sequences: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray, np
     order = np.argsort(pooled[:, ADX_IDX], kind="stable")
     chunks = np.array_split(order, N_STATES)
     means = np.vstack([pooled[c].mean(axis=0) for c in chunks])
+    # Rank-deficiency guard: a tercile with fewer than N_FEATURES + 1 samples
+    # cannot yield a positive-definite covariance — fall back to the pooled
+    # covariance for that state (never fires on real training windows).
+    pooled_cov = np.cov(pooled.T, bias=True) + RIDGE * np.eye(N_FEATURES)
     covs = np.stack([
-        np.cov(pooled[c].T, bias=True) + RIDGE * np.eye(N_FEATURES) for c in chunks
+        pooled_cov if len(c) < N_FEATURES + 1
+        else np.cov(pooled[c].T, bias=True) + RIDGE * np.eye(N_FEATURES)
+        for c in chunks
     ])
     A = np.full((N_STATES, N_STATES), 0.025)
     np.fill_diagonal(A, 0.95)
@@ -269,6 +285,13 @@ def stationary_distribution(A: np.ndarray) -> np.ndarray:
             v = nxt
             break
         v = nxt
+    else:
+        print(
+            "WARNING: stationary_distribution hit the 10,000-iteration cap "
+            "without reaching the 1e-14 tolerance — initial_probs may be "
+            "slightly off the true stationary law",
+            file=sys.stderr,
+        )
     v = np.maximum(v, 0.0)
     return v / v.sum()
 
@@ -614,6 +637,16 @@ def main() -> int:
             mask = (ser["timestamps"] >= train_start) & (ser["timestamps"] < train_end)
             if int(mask.sum()) > 0:
                 train_seqs_raw.append(ser["X"][mask])
+        n_train = sum(int(X.shape[0]) for X in train_seqs_raw)
+        if n_train < MIN_TEST_BARS:
+            print(
+                f"WARNING fold {f_idx}: only {n_train} pooled train bars in "
+                f"{iso_ms(train_start)[:10]}..{iso_ms(train_end)[:10]} "
+                f"(need >= {MIN_TEST_BARS}) — skipping fold; check that the "
+                "feature export covers the requested window",
+                file=sys.stderr,
+            )
+            continue
         pooled_train = np.vstack(train_seqs_raw)
         feat_means = pooled_train.mean(axis=0)
         feat_stds = pooled_train.std(axis=0)
@@ -622,6 +655,13 @@ def main() -> int:
         train_seqs = [(X - feat_means) / feat_stds for X in train_seqs_raw]
 
         fit = fit_hmm(train_seqs)
+        if not fit["converged"]:
+            print(
+                f"WARNING fold {f_idx}: EM did not converge within {N_ITER} "
+                f"iterations (ll/obs={fit['ll_per_obs']:.6f}) — raise N_ITER "
+                "if this recurs",
+                file=sys.stderr,
+            )
         labels_by_state = label_states(fit["means"])
         model = {"A": fit["A"], "pi": stationary_distribution(fit["A"]),
                  "means": fit["means"], "covs": fit["covs"]}
@@ -639,7 +679,7 @@ def main() -> int:
                 series_by_symbol[sym], model, feat_means, feat_stds,
                 labels_by_state, train_end, test_end,
             )
-            weeks = sim["n_bars"] / 168.0 if sim["n_bars"] > 0 else 0.0
+            weeks = sim["n_bars"] / H1_BARS_PER_WEEK if sim["n_bars"] > 0 else 0.0
             runs = run_lengths(sim["smoothed"])
             per_symbol[sym] = {
                 "test_bars": sim["n_bars"],
@@ -687,8 +727,17 @@ def main() -> int:
     pooled_full = np.vstack(full_seqs_raw)
     feat_means = pooled_full.mean(axis=0)
     feat_stds = pooled_full.std(axis=0)
+    if np.any(feat_stds <= 0):
+        raise ValueError(f"final fit: degenerate full-window feature std {feat_stds.tolist()}")
     full_seqs = [(X - feat_means) / feat_stds for X in full_seqs_raw]
     final_fit = fit_hmm(full_seqs)
+    if not final_fit["converged"]:
+        print(
+            f"WARNING: final EM fit did not converge within {N_ITER} iterations "
+            f"(ll/obs={final_fit['ll_per_obs']:.6f}) — consider raising N_ITER "
+            "before shipping this model",
+            file=sys.stderr,
+        )
     final_labels = label_states(final_fit["means"])
 
     trained_at = iso_ms(pooled_end)  # deterministic: data window end, not wall clock
@@ -716,7 +765,7 @@ def main() -> int:
             "walk_forward": {
                 "train_months": TRAIN_MONTHS, "test_months": TEST_MONTHS,
                 "step_months": STEP_MONTHS, "month_ms": MONTH_MS,
-                "boundary_rule": "fixed boundaries derived from the pooled data start; folds dropped when pooled test bars < 168",
+                "boundary_rule": f"fixed boundaries derived from the pooled data start; folds dropped when pooled test bars < {MIN_TEST_BARS}",
             },
             "em": {"n_states": N_STATES, "covariance": f"full + ridge {RIDGE}",
                    "seed": SEED, "max_iter": N_ITER, "tol": TOL,

@@ -47,6 +47,8 @@ export function applyHysteresis(
   if (prev === null) return candidate;
   if (candidate === prev.regime) return prev.regime;
 
+  // Defaults are mirrored in scripts/hmm-regime/train_hmm.py
+  // (MIN_DWELL_BARS / OVERRIDE_CONFIDENCE) — keep both sides in sync.
   const minDwellBars = opts.minDwellBars ?? 6;
   const overrideConfidence = opts.overrideConfidence ?? 0.8;
 
