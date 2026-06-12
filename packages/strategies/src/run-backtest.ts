@@ -201,6 +201,10 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
   // O(1) per bar instead of O(n) — the whole scan stays O(total bars), never
   // O(signals × bars). Empty Map on the geometry path; the inner scan never
   // reads it there. If two signals share a barIndex (degenerate), last wins.
+  // Built from the POST-minConfidence-filter `signals` list ON PURPOSE: a
+  // signal dropped by selectivity is not a tradable setup, so it must not be
+  // able to close (flip) an open position either — only signals that could
+  // themselves open a trade are allowed to act as flip triggers.
   const signalDirByBar = new Map<number, EntrySignal['direction']>();
   if (exitMode === 'signal-flip') {
     for (const s of signals) signalDirByBar.set(s.barIndex, s.direction);
@@ -213,6 +217,12 @@ export function runBacktest(candles: OHLCV[], strategy: Strategy, options?: Back
   let openUntil = -1;
 
   for (const sig of signals) {
+    // `<=` (not `<`) is intentional and load-bearing for signal-flip mode: a
+    // flip exits at bar j and sets openUntil = j, so the opposite signal SITTING
+    // ON bar j (the flip trigger) is gated out and the reversed position opens on
+    // the NEXT signal bar, not the flip bar itself. Do not "tighten" this to `<`
+    // — it would also change the default-path overlap semantics (byte-identical
+    // contract) and let a trade re-enter on its own exit bar.
     if (sig.barIndex <= openUntil) continue;
     const currentDd = computeMaxDrawdown(equityCurve.slice(0, sig.barIndex + 1));
     if (!riskAllows(strategy.risk, trades, currentDd)) continue;

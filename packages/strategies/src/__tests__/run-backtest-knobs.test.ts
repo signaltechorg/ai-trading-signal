@@ -109,6 +109,39 @@ describe('exitMode: signal-flip', () => {
     expect(result.trades[0]).toMatchObject({ direction: 'BUY', entryBar: 10, exitReason: 'EOD', exitBar: 49 });
     expect(result.totalTrades).toBe(1);
   });
+
+  it('rides PAST the TP: a winning ramp with no opposite signal exits at EOD above the target', () => {
+    // THE load-bearing regression vector for the feature (C4's whole reason to
+    // exist): with NO opposite signal and NO SL hit, geometry mode truncates the
+    // move at the fixed TP, while signal-flip rides the entire ramp to EOD.
+    //
+    // 50 bars: flat at 100 through bar 19, then a monotonic up-ramp. Fixed
+    // default geometry → BUY TP=102 (100×1.02), SL=99. From bar 20 the price
+    // climbs past 102 and keeps going, so geometry exits at the 102 target on
+    // the first bar that touches it, but signal-flip ignores the TP and holds.
+    const candles = flatCandles(50, 100);
+    for (let i = 20; i < 50; i++) {
+      const close = 100 + (i - 19); // 101, 102, 103 … 130 — crosses TP=102 at bar 21
+      candles[i] = { ...candles[i], open: close - 1, high: close, low: close - 1, close };
+    }
+    // One BUY at bar 10, NO opposite signal anywhere — nothing can flip it out.
+    const signals: EntrySignal[] = [{ barIndex: 10, direction: 'BUY', price: 100, confidence: 0.8 }];
+
+    const geometry = runBacktest(candles, signalsStrategy(signals)); // default = geometry exit
+    const flip = runBacktest(candles, signalsStrategy(signals), { exitMode: 'signal-flip' });
+
+    // Geometry truncates at the 2% TP (102).
+    expect(geometry.trades[0].exitReason).toBe('TP');
+    expect(geometry.trades[0].exit).toBeCloseTo(102, 8);
+
+    // Signal-flip ignores the TP entirely and rides to the last bar, exiting
+    // FAR above the target. If a future regression re-adds a TP check to the
+    // flip branch, exitReason flips to 'TP' / exit drops to 102 and this fails.
+    expect(flip.trades[0].exitReason).toBe('EOD');
+    expect(flip.trades[0].exitBar).toBe(49);
+    expect(flip.trades[0].exit).toBe(130); // last bar close, well past TP=102
+    expect(flip.trades[0].exit).toBeGreaterThan(geometry.trades[0].exit);
+  });
 });
 
 describe('minConfidence selectivity filter', () => {
@@ -137,9 +170,10 @@ describe('minConfidence selectivity filter', () => {
     const withFilterOff = runBacktest(candles, signalsStrategy(signals));
     const withZeroThreshold = runBacktest(candles, signalsStrategy(signals), { minConfidence: 0 });
 
-    // Both BUYs trade; bar 10 closes at EOD (last bar) before bar 30 can open,
-    // so the overlap guard leaves exactly one trade — but the point is the
-    // filter did NOT drop the low-confidence signal: behavior matches unset.
+    // Only the bar-10 BUY trades: it rides to EOD (the last bar), so the
+    // overlap guard blocks the bar-30 signal — exactly one trade. The point is
+    // the filter did NOT drop the low-confidence (0.2) signal: with the filter
+    // off, the surviving trade is the bar-10 one, identical to the unset path.
     expect(withZeroThreshold.trades.map((t) => t.entryBar)).toEqual(
       withFilterOff.trades.map((t) => t.entryBar),
     );
@@ -156,9 +190,13 @@ describe('minConfidence selectivity filter', () => {
 });
 
 describe('tpRMultiple override (the CLI --tp-r geometry)', () => {
-  // Constant true range of 2 → ATR(14)=2; risk = 2.5 * 2 = 5. 2R TP = 110,
-  // 4R TP = 120. One bar wicks to 120.5: under 2R it exits at 110, under 4R at
-  // 120 — the same bar, so the R-multiple is the only difference.
+  // ASSUMED LEVELS (must match LIVE_GEOMETRY): constant true range of 2 (high
+  // 101 / low 99 every bar) → ATR(14) = 2. With slMult = 2.5 → risk = 2.5 × 2 =
+  // 5, so entry 100 gives 2R TP = 100 + 2×5 = 110 and 4R TP = 100 + 4×5 = 120.
+  // One bar wicks to 120.5: under 2R it exits at 110, under 4R at 120 — the SAME
+  // bar, so the R-multiple is the only difference. If LIVE_GEOMETRY.slMult or
+  // .period ever changes, these prices move and the assertions below fail
+  // loudly (diagnosable) instead of silently testing the wrong target.
   function atrCandles(): OHLCV[] {
     const candles: OHLCV[] = Array.from({ length: 120 }, (_, i) => ({
       timestamp: 1_700_000_000_000 + i * 3_600_000,
