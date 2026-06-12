@@ -66,6 +66,7 @@ async function fetchFunding(pair: string, fromTs: number, toTs: number): Promise
     }
     const last = rows[rows.length - 1].fundingTime;
     if (rows.length < PAGE || last >= toTs) break;
+    if (last < cursor) break; // no forward progress guard
     cursor = last + 1;
     await sleep(250); // polite pacing, same spirit as backfill-candles
   }
@@ -79,22 +80,26 @@ async function fetchFunding(pair: string, fromTs: number, toTs: number): Promise
   const outDir = arg('out-dir', '');
 
   if (!Number.isFinite(fromTs)) { console.error('--from must be an ISO date'); process.exit(2); }
+  if (arg('to', '') && !Number.isFinite(toTs)) { console.error('--to must be an ISO date'); process.exit(2); }
 
   const client = outDir ? null : await connect();
-  for (const symbol of symbols) {
-    const pair = PERP_MAP[symbol];
-    if (!pair) { console.error(`no perp mapping for ${symbol} — skipped`); continue; }
-    const events = await fetchFunding(pair, fromTs, toTs);
-    if (outDir) {
-      fs.mkdirSync(outDir, { recursive: true });
-      const file = path.join(outDir, `${symbol}-funding.json`);
-      fs.writeFileSync(file, JSON.stringify({ symbol, source: 'binance-fapi', events }, null, 2));
-      console.log(`${symbol}: ${events.length} events → ${file} (${events.length ? new Date(events[0].ts).toISOString().slice(0, 10) + '→' + new Date(events[events.length - 1].ts).toISOString().slice(0, 10) : 'EMPTY'})`);
-    } else if (client) {
-      const inserted = await upsertFundingEvents(client, symbol, 'binance-fapi', events);
-      const cov = await getFundingCoverage(client, symbol);
-      console.log(`${symbol}: fetched ${events.length}, new ${inserted}, coverage ${cov.count} rows ${cov.minTs ? new Date(cov.minTs).toISOString().slice(0, 10) : '-'}→${cov.maxTs ? new Date(cov.maxTs).toISOString().slice(0, 10) : '-'}`);
+  try {
+    for (const symbol of symbols) {
+      const pair = PERP_MAP[symbol];
+      if (!pair) { console.error(`no perp mapping for ${symbol} — skipped`); continue; }
+      const events = await fetchFunding(pair, fromTs, toTs);
+      if (outDir) {
+        fs.mkdirSync(outDir, { recursive: true });
+        const file = path.join(outDir, `${symbol}-funding.json`);
+        fs.writeFileSync(file, JSON.stringify({ symbol, source: 'binance-fapi', events }, null, 2));
+        console.log(`${symbol}: ${events.length} events → ${file} (${events.length ? new Date(events[0].ts).toISOString().slice(0, 10) + '→' + new Date(events[events.length - 1].ts).toISOString().slice(0, 10) : 'EMPTY'})`);
+      } else if (client) {
+        const inserted = await upsertFundingEvents(client, symbol, 'binance-fapi', events);
+        const cov = await getFundingCoverage(client, symbol);
+        console.log(`${symbol}: fetched ${events.length}, new ${inserted}, coverage ${cov.count} rows ${cov.minTs ? new Date(cov.minTs).toISOString().slice(0, 10) : '-'}→${cov.maxTs ? new Date(cov.maxTs).toISOString().slice(0, 10) : '-'}`);
+      }
     }
+  } finally {
+    if (client) await client.end();
   }
-  if (client) await client.end();
-})();
+})().catch((err) => { console.error('backfill-funding failed:', err instanceof Error ? err.message : String(err)); process.exit(1); });
