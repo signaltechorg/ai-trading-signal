@@ -62,7 +62,7 @@ function pct(x: number): string { return `${(x * 100).toFixed(2)}%`; }
 
 function summarize(label: string, r: CarryRunResult): string {
   return `${label.padEnd(26)} ann=${pct(r.annualizedReturn).padStart(8)} ret=${pct(r.returnOnCapital).padStart(8)} ` +
-    `dd=${pct(r.maxDrawdown).padStart(7)} gross=${pct(r.grossIncome / 2).padStart(8)} costs=${pct(r.totalCosts / 2).padStart(7)} ` +
+    `dd=${pct(r.maxDrawdown).padStart(7)} gross/cap=${pct(r.grossIncome / 2).padStart(8)} costs/cap=${pct(r.totalCosts / 2).padStart(7)} ` +
     `days=${r.windowDays.toFixed(0)} events=${r.eventCount}`;
 }
 
@@ -127,12 +127,26 @@ function summarize(label: string, r: CarryRunResult): string {
   const a2PassCount = symbols.filter((s) => a2[s].gates.pass).length;
 
   // ── A3: top-3 rotation across the universe ────────────────────────────────
-  const a3Full = runCarryRotation(perSymbol, ROTATION);
-  const recentPerSymbol = Object.fromEntries(symbols.map((s) => [s, recentSlice(perSymbol[s], RECENT_DAYS)]));
+  // A3 evaluates the universe only where the WHOLE universe exists: clip every
+  // symbol to the latest first-event ts (commonStart). This prevents phantom
+  // holds of not-yet-listed symbols (empty trailing window ranks as 0) and makes
+  // fold windows comparable across symbols.
+  const commonStart = Math.max(...symbols.map((s) => perSymbol[s][0].ts));
+  const a3PerSymbol = Object.fromEntries(
+    symbols.map((s) => [s, perSymbol[s].filter((e) => e.ts >= commonStart)]),
+  );
+  const a3Full = runCarryRotation(a3PerSymbol, ROTATION);
+  const recentPerSymbol = Object.fromEntries(symbols.map((s) => [s, recentSlice(a3PerSymbol[s], RECENT_DAYS)]));
   const a3Recent = runCarryRotation(recentPerSymbol, ROTATION);
-  // folds: split EACH symbol's events into the same n contiguous slices by its own length
+  // A3 folds are TIME-aligned: equal calendar slices of [commonStart, a3End],
+  // not per-symbol event-count slices (symbols have different cadences/lengths).
+  const a3End = Math.max(...symbols.map((s) => { const ev = a3PerSymbol[s]; return ev.length ? ev[ev.length - 1].ts : commonStart; }));
   const a3Folds = Array.from({ length: folds }, (_, i) => {
-    const sliced = Object.fromEntries(symbols.map((s) => [s, splitFolds(perSymbol[s], folds)[i]]));
+    const from = commonStart + ((a3End - commonStart) * i) / folds;
+    const to = i === folds - 1 ? a3End : commonStart + ((a3End - commonStart) * (i + 1)) / folds;
+    const sliced = Object.fromEntries(
+      symbols.map((s) => [s, a3PerSymbol[s].filter((e) => e.ts >= from && (i === folds - 1 ? e.ts <= to : e.ts < to))]),
+    );
     return { fold: `fold${i + 1}`, ...runCarryRotation(sliced, ROTATION) };
   });
   const a3Gates = carryGates({
@@ -156,6 +170,7 @@ function summarize(label: string, r: CarryRunResult): string {
     'funding events are summed as they occurred — no fixed 8h-interval assumption (some symbols moved to 4h intervals)',
     'annualization is simple (return × 365/days), not compounded — transparent and conservative at these magnitudes',
     'folds are contiguous sub-periods; each fold is a standalone deployment (its own entry/exit costs), so short folds carry proportionally more cost drag',
+    'A3 (rotation) is evaluated only from the date ALL universe symbols have funding history (a3CommonStart) — prevents phantom holds of unlisted symbols and makes folds time-aligned calendar slices, unlike A1/A2 whose folds are per-symbol event-count slices',
     'gates are FROZEN in docs/plans/2026-06-13-phase5-carry-xsection-research.md — any deviation is a protocol break and must be called out in the memo',
   ];
 
@@ -169,6 +184,7 @@ function summarize(label: string, r: CarryRunResult): string {
     costs: { ...CARRY_COSTS },
     capitalModel: { notional: 1, capital: 2, leverage: 'none' },
     recentWindowDays: RECENT_DAYS,
+    a3CommonStart: new Date(commonStart).toISOString().slice(0, 10),
     folds,
     gates: {
       fullAnnualized: '> 8%', recentAnnualized: '> 5%', maxDrawdown: '< 10%', foldsPositive: '≥ 3/4',
