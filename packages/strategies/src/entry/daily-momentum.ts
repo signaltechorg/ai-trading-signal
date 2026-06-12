@@ -37,8 +37,10 @@ import type { OHLCV } from '@tradeclaw/core';
  *   - positive → negative  ⇒  fresh SHORT (trend onset)
  * One entry per trend onset captures the start of a sustained daily trend with
  * very low turnover. Expected frequency: roughly the number of trend reversals
- * a daily series makes — on real majors this is on the order of ~15–25 entries
- * per symbol per year (tens, not hundreds), matching the research target.
+ * a daily series makes. Measured over ~6 years of live daily majors this is on
+ * the order of ~28–40 entries per symbol per year (tens, not hundreds — far
+ * below per-bar over-trading); the exact rate varies with symbol volatility and
+ * the lookback N.
  *
  * ── No lookahead ──────────────────────────────────────────────────────────
  * At bar i the signal uses only close[0..i]: the trailing N-bar mean ends at i,
@@ -93,10 +95,14 @@ export const dailyMomentumEntry: EntryModule = {
       const momentum = closes[i] - ma;
       const sign = Math.sign(momentum);
 
-      // Fresh cross: sign changed from the previous bar's momentum sign.
-      // A flat bar (sign 0) is not a cross and does not flip the tracked sign.
-      const crossedUp = sign > 0 && prevSign <= 0;
-      const crossedDown = sign < 0 && prevSign >= 0;
+      // Fresh cross: sign FLIPPED from a genuine opposite prior sign. We require
+      // an explicit opposite sign (< 0 / > 0), NOT just "non-positive/non-negative".
+      // prevSign starts at 0 (unknown) and only updates on non-flat bars, so a
+      // first-computable bar with non-zero momentum after a flat/on-MA seed must
+      // NOT fire a phantom cross from the unknown initial state — a real cross
+      // needs a real prior sign to flip from.
+      const crossedUp = sign > 0 && prevSign < 0;
+      const crossedDown = sign < 0 && prevSign > 0;
 
       if (crossedUp || crossedDown) {
         const price = closes[i];

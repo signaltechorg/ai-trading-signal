@@ -45,20 +45,24 @@ function flatCloses(n: number, value = 100): number[] {
 }
 
 /**
- * A trend ONSET: `flat` bars at `value`, then `rise` bars climbing by `step`.
- * The cross detector needs an onset — a price that starts at/below its trailing
- * MA and then rises through it — to fire. A strictly monotonic-from-bar-0 series
- * is above its own trailing MA from the first computable bar and so never
- * crosses; that degenerate case is intentionally a no-signal case. Real trends
- * have an onset, which is exactly what this module is built to catch.
+ * A genuine LONG onset: `down` bars falling (price drops below its trailing MA,
+ * establishing a real NEGATIVE momentum sign), then `up` bars rising back
+ * through the MA. The cross detector fires on the genuine negative→positive
+ * flip. This is what a real trend onset looks like — and, unlike a flat→up
+ * series, it establishes a real prior sign so the warmup-boundary phantom guard
+ * does not suppress it. A strictly monotonic-from-bar-0 series, by contrast, is
+ * above its own trailing MA from the first computable bar and never crosses;
+ * that degenerate case is intentionally a no-signal case.
  */
-function flatThenRising(flat: number, rise: number, value = 100, step = 1): number[] {
-  return [...flatCloses(flat, value), ...risingCloses(rise, value, step)];
+function dipThenRising(down: number, up: number, start = 200, downStep = 1, upStep = 1): number[] {
+  const trough = start - down * downStep;
+  return [...fallingCloses(down, start, downStep), ...risingCloses(up, trough, upStep)];
 }
 
-/** A trend onset in the other direction: flat, then falling through the MA. */
-function flatThenFalling(flat: number, fall: number, value = 300, step = 1): number[] {
-  return [...flatCloses(flat, value), ...fallingCloses(fall, value, step)];
+/** A genuine SHORT onset: rise (establishes positive sign), then fall through the MA. */
+function peakThenFalling(up: number, down: number, start = 100, upStep = 1, downStep = 1): number[] {
+  const peak = start + up * upStep;
+  return [...risingCloses(up, start, upStep), ...fallingCloses(down, peak, downStep)];
 }
 
 describe('dailyMomentumEntry', () => {
@@ -68,16 +72,17 @@ describe('dailyMomentumEntry', () => {
 
   describe('momentum signal correctness', () => {
     it('emits LONG on a clearly rising series (after an onset)', () => {
-      // Flat, then a clear sustained rise. The rise crosses up through the MA
-      // exactly once → one LONG entry, and no SHORT ever appears in an uptrend.
-      const candles = candlesFromCloses(flatThenRising(40, 100));
+      // A real onset: a dip that establishes a negative sign, then a sustained
+      // rise that crosses up through the MA → one LONG entry, no SHORT in the
+      // up-leg.
+      const candles = candlesFromCloses(dipThenRising(40, 100));
       const signals = dailyMomentumEntry.generateSignals(candles, CTX);
       expect(signals.length).toBeGreaterThan(0);
       expect(signals.every((s) => s.direction === 'BUY')).toBe(true);
     });
 
     it('emits SHORT on a clearly falling series (after an onset)', () => {
-      const candles = candlesFromCloses(flatThenFalling(40, 100));
+      const candles = candlesFromCloses(peakThenFalling(40, 100));
       const signals = dailyMomentumEntry.generateSignals(candles, CTX);
       expect(signals.length).toBeGreaterThan(0);
       expect(signals.every((s) => s.direction === 'SELL')).toBe(true);
@@ -103,12 +108,14 @@ describe('dailyMomentumEntry', () => {
 
   describe('entry-timing — low-frequency property', () => {
     it('does NOT emit a signal on every bar of a sustained uptrend', () => {
-      // 40 flat (onset), then 200 rising bars. ~200 bars sit above the MA, but
-      // only the single onset cross fires — proving the low-frequency property.
-      const candles = candlesFromCloses(flatThenRising(40, 200));
+      // A dip onset, then 200 rising bars. ~200 bars sit above the MA, but only
+      // the single up-cross fires — proving the low-frequency property. (The
+      // pre-dip down-leg is monotonic from bar 0, so it never flips → no SHORT.)
+      const candles = candlesFromCloses(dipThenRising(40, 200));
       const aboveMaBars = 200; // bars where momentum is positive
       const signals = dailyMomentumEntry.generateSignals(candles, CTX);
       expect(signals.length).toBe(1);
+      expect(signals[0].direction).toBe('BUY');
       expect(signals.length).toBeLessThan(aboveMaBars / 10);
     });
 
@@ -155,6 +162,44 @@ describe('dailyMomentumEntry', () => {
     });
   });
 
+  describe('no phantom cross at the warmup boundary', () => {
+    it('does not emit at the first computable bar when the seed bar is exactly on its MA', () => {
+      // 28 flat bars → at the seed bar (i = N-1 = 27) close == its trailing mean,
+      // so momentum === 0 and prevSign stays 0 (unknown). The next bar drops
+      // hard: its momentum is negative. A naive `prevSign >= 0` guard would fire
+      // a phantom SELL there, manufacturing an entry from the unknown initial
+      // state. The fixed `prevSign > 0` guard must stay silent at that boundary.
+      const closes = [
+        ...flatCloses(28, 100), // seed bar (i=27) sits exactly on its MA
+        ...fallingCloses(40, 96, 2), // first computable momentum is negative
+      ];
+      const candles = candlesFromCloses(closes);
+      const signals = dailyMomentumEntry.generateSignals(candles, CTX);
+      // No signal at the warmup-edge bar (the first computable bar, i = 28).
+      expect(signals.some((s) => s.barIndex === 28)).toBe(false);
+      // A pure down-leg after the seed never flips sign → no phantom entry at all.
+      expect(signals.length).toBe(0);
+    });
+
+    it('still fires at the first GENUINE sign flip after an on-MA seed', () => {
+      // Same on-MA seed, but now the series falls (establishes a real negative
+      // sign) and then rises back through the MA — that genuine negative→positive
+      // flip is a real cross and MUST emit a LONG.
+      const closes = [
+        ...flatCloses(28, 100), // on-MA seed (prevSign 0)
+        ...fallingCloses(20, 96, 2), // real negative sign established
+        ...risingCloses(60, 58, 3), // climbs back through the MA → genuine flip
+      ];
+      const candles = candlesFromCloses(closes);
+      const signals = dailyMomentumEntry.generateSignals(candles, CTX);
+      // Nothing at the warmup edge; the first entry is a real LONG cross later.
+      expect(signals.some((s) => s.barIndex === 28)).toBe(false);
+      expect(signals.length).toBeGreaterThan(0);
+      expect(signals[0].direction).toBe('BUY');
+      expect(signals[0].barIndex).toBeGreaterThan(28);
+    });
+  });
+
   describe('warmup', () => {
     it('emits nothing when there are fewer than N bars', () => {
       // Default N = 28; fewer than that → no signals at all.
@@ -196,21 +241,26 @@ describe('dailyMomentumEntry', () => {
     });
 
     it('increases with momentum strength (bigger gap to MA → higher confidence)', () => {
-      // Two crosses with different post-cross slope. A steeper rise puts price
-      // further above its MA at the cross bar → higher confidence.
-      const gentle = candlesFromCloses([
-        ...fallingCloses(40, 200, 1),
-        ...risingCloses(60, 160, 0.5),
-      ]);
-      const steep = candlesFromCloses([
-        ...fallingCloses(40, 200, 1),
-        ...risingCloses(60, 160, 4),
-      ]);
+      // Isolate slope cleanly: identical down-leg and identical flat run, so both
+      // fixtures cross up at the SAME bar (the gap-to-MA timing artifact is held
+      // constant). Only the magnitude of the crossing step differs — a bigger
+      // step puts price further above its trailing MA at that bar, so confidence
+      // must be strictly higher by a meaningful margin (not a bare `>` that goes
+      // vacuous if CONFIDENCE_FULL_SCALE drifts up and both clamp to 0).
+      const downLeg = fallingCloses(40, 200, 1); // establishes a negative sign
+      const trough = 200 - 40; // last close of the down-leg = 160
+      // A flat run just below where the MA will sit, then ONE decisive up-step
+      // at the same index in both fixtures.
+      const flatRun = flatCloses(30, trough); // 160, 160, ... keeps both identical
+      const gentle = candlesFromCloses([...downLeg, ...flatRun, trough + 3]);
+      const steep = candlesFromCloses([...downLeg, ...flatRun, trough + 30]);
       const gentleSig = dailyMomentumEntry.generateSignals(gentle, CTX).find((s) => s.direction === 'BUY');
       const steepSig = dailyMomentumEntry.generateSignals(steep, CTX).find((s) => s.direction === 'BUY');
       expect(gentleSig).toBeDefined();
       expect(steepSig).toBeDefined();
-      expect(steepSig!.confidence).toBeGreaterThan(gentleSig!.confidence);
+      // Same cross bar in both → strength difference is purely the step size.
+      expect(steepSig!.barIndex).toBe(gentleSig!.barIndex);
+      expect(steepSig!.confidence).toBeGreaterThan(gentleSig!.confidence + 0.05);
     });
   });
 });
