@@ -42,7 +42,10 @@ export function buildGrid(series: DailySeries[]): DailyGrid {
   const closes: Record<string, Array<number | null>> = {};
   for (const s of series) {
     const arr: Array<number | null> = new Array(ts.length).fill(null);
-    for (const b of s.bars) arr[index.get(b.ts)!] = b.close;
+    for (const b of s.bars) {
+      if (arr[index.get(b.ts)!] !== null) throw new Error(`buildGrid: duplicate bar ts ${b.ts} for ${s.symbol}`);
+      arr[index.get(b.ts)!] = b.close;
+    }
     closes[s.symbol] = arr;
   }
   return { ts, closes };
@@ -87,7 +90,8 @@ export interface XsectionResult {
   dailyReturns: number[];
   rebalances: RebalanceRecord[];
   totalTurnoverCost: number;
-  missingBarDays: number;
+  /** Held-position slot-days with a missing/zero bar (one increment per held symbol per affected day, NOT distinct calendar days). */
+  missingPositionDays: number;
   firstTs: number;
   lastTs: number;
 }
@@ -104,7 +108,7 @@ function decideWeights(grid: DailyGrid, i: number, opts: XsectionOptions): { wei
   const weights: Record<string, number> = {};
   if (opts.mode === 'long-only') {
     const held = ranked.slice(0, opts.topK);
-    for (const h of held) weights[h.s] = held.length > 0 ? 1 / held.length : 0;
+    for (const h of held) weights[h.s] = 1 / held.length;
   } else {
     // long-short needs at least 2K eligible to be meaningfully dollar-neutral;
     // with fewer, hold cash (weights empty) — disclosed via eligibleCount.
@@ -126,7 +130,7 @@ function runPortfolio(
   let maxDrawdown = 0;
   let weights: Record<string, number> = {};
   let totalTurnoverCost = 0;
-  let missingBarDays = 0;
+  let missingPositionDays = 0;
   const dailyReturns: number[] = [];
   const rebalances: RebalanceRecord[] = [];
 
@@ -138,12 +142,13 @@ function runPortfolio(
       const prev = arr[i - 1];
       const cur = arr[i];
       if (prev === null || cur === null || prev === 0) {
-        missingBarDays++;
+        missingPositionDays++;
         continue; // missing bar contributes 0 (counted)
       }
       r += w * (cur / prev - 1);
     }
     equity *= 1 + r;
+    // Rounded for JSON-stable determinism; feeds dailySharpe (sd===0 guard makes the degenerate all-zero case safe).
     dailyReturns.push(+r.toFixed(12));
 
     // 2) rebalance AT this bar's close → new weights effective from i+1
@@ -172,7 +177,7 @@ function runPortfolio(
     dailyReturns,
     rebalances,
     totalTurnoverCost: +totalTurnoverCost.toFixed(10),
-    missingBarDays,
+    missingPositionDays,
     firstTs: grid.ts[0],
     lastTs: grid.ts[grid.ts.length - 1],
   };
@@ -216,6 +221,7 @@ export interface GridFold { label: string; from: number; to: number }
 
 /** n contiguous index ranges over the grid (last takes the remainder). */
 export function splitGridFolds(grid: DailyGrid, n: number): GridFold[] {
+  if (n <= 0) throw new Error('splitGridFolds: n must be >= 1');
   const size = Math.floor(grid.ts.length / n);
   const out: GridFold[] = [];
   for (let f = 0; f < n; f++) {

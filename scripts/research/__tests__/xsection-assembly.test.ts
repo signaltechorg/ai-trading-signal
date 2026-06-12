@@ -141,6 +141,10 @@ describe('xsectionGates (the FROZEN spec gates)', () => {
   ])('fails on %s', (_l, input) => {
     expect(xsectionGates(input).pass).toBe(false);
   });
+  it('folds threshold adapts below 3 total folds', () => {
+    expect(xsectionGates({ ...pass, foldsTotal: 2, foldsExcessPositive: 2 }).pass).toBe(true);
+    expect(xsectionGates({ ...pass, foldsTotal: 2, foldsExcessPositive: 1 }).pass).toBe(false);
+  });
 });
 
 describe('determinism', () => {
