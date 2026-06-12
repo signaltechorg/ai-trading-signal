@@ -100,13 +100,16 @@ function cellStr(c: CostedCell): string {
   const symbols = (symbolsArg ? symbolsArg.split(',').map((s) => s.trim().toUpperCase()) : DEFAULT_SYMBOLS);
   const timeframe = arg('timeframe', 'D1').toUpperCase();
   const candlesDir = arg('candles-dir', 'data/research/candles');
-  const folds = Math.max(1, Number(arg('folds', '4')));
-  const outDir = arg('out', 'docs/research/experiments');
-
-  if (!Number.isFinite(folds)) {
-    console.error('--folds must be a number');
+  // Validate BEFORE clamping: a non-finite or non-positive --folds is an operator
+  // error, not something to silently clamp to 1. Math.max/floor only run on a
+  // value already known to be a positive finite number.
+  const foldsRaw = Number(arg('folds', '4'));
+  if (!Number.isFinite(foldsRaw) || foldsRaw <= 0) {
+    console.error(`--folds must be a positive number, got '${arg('folds', '4')}'`);
     process.exit(2);
   }
+  const folds = Math.max(1, Math.floor(foldsRaw));
+  const outDir = arg('out', 'docs/research/experiments');
 
   const costs = CRYPTO_PERP_COSTS;
   const barHours = TF_HOURS[timeframe] ?? 24;
@@ -140,13 +143,18 @@ function cellStr(c: CostedCell): string {
 
   console.log(`\n========== CROSS-SYMBOL AGGREGATE (${symbolResults.length} symbols, costs=crypto perp) ==========`);
   for (const a of aggregates) {
+    const flukeStr = a.flukeSymbols.length > 0
+      ? a.flukeSymbols.map((f) => `${f.symbol} ${(f.costedReturn * 100).toFixed(0)}%`).join(', ')
+      : 'none';
     console.log(
       `\n  ${a.config}  [${a.label}]\n` +
       `    symbols positive+adequate: ${a.symbolsPositiveAndAdequate}/${a.symbolsTotal}  ` +
       `(positive-raw ${a.symbolsPositiveRaw}/${a.symbolsTotal}, thin ${a.symbolsThin}/${a.symbolsTotal})\n` +
-      `    mean costed return ${(a.meanCostedReturn * 100).toFixed(2)}%  mean zero-cost ${(a.meanZeroCostReturn * 100).toFixed(2)}%  ` +
-      `mean drag ${(a.meanFrictionDrag * 100).toFixed(2)}%\n` +
-      `    mean expectancy ${(a.meanExpectancy * 100).toFixed(3)}%/trade  mean trades ${a.meanTrades}  fold-stability ${(a.foldStability * 100).toFixed(0)}%\n` +
+      `    mean costed return ${(a.meanCostedReturn * 100).toFixed(2)}% (ex-flukes ${(a.meanCostedReturnExFlukes * 100).toFixed(2)}%)  ` +
+      `mean zero-cost ${(a.meanZeroCostReturn * 100).toFixed(2)}%  mean drag ${(a.meanFrictionDrag * 100).toFixed(2)}%\n` +
+      `    mean expectancy ${(a.meanExpectancy * 100).toFixed(3)}%/trade  mean trades ${a.meanTrades}  ` +
+      `fold-stability ${(a.foldStability * 100).toFixed(0)}% (${a.foldCellsThin}/${a.foldCellsTotal} fold cells THIN)\n` +
+      `    inflating flukes: ${flukeStr}\n` +
       `    VERDICT: ${a.verdict} — ${a.verdictReasons.join('; ')}`,
     );
   }
@@ -156,6 +164,8 @@ function cellStr(c: CostedCell): string {
     'per-fold indicator warmup restarts at the fold boundary (the 28-bar momentum lookback + the 14-bar ATR), and a position open at fold end force-closes at the last bar — short folds therefore carry fewer trades than the full range',
     'cost model = crypto perp (fee 0.05%/side + slippage 0.15%/side + funding 0.01%/8h); funding is a sign-agnostic upper bound, so a directional carry could be cheaper than modeled (costs are conservative, not optimistic)',
     `THIN CELLS: any config×symbol cell with fewer than ${THIN_CELL_MIN_TRADES} trades is flagged ⚠THIN — below that count the standard error of the mean dominates, so the cell's return/expectancy is insufficient evidence`,
+    `FOLD-STABILITY THIN WEAKNESS: foldStability is the fraction of (symbol × fold) cells with positive costed return, and it counts THIN fold cells (< ${THIN_CELL_MIN_TRADES} trades) as if adequate — a positive-but-underpowered fold inflates it. aggregate.<config>.foldCellsThin / foldCellsTotal exposes how many of the cells behind the number were thin, so the stability read can be discounted accordingly (the gate threshold is unchanged — this is a transparency field, not a new gate)`,
+    'INFLATING FLUKES: aggregate.<config>.flukeSymbols lists symbols whose extreme positive costed return (≥ +100% absolute, or ≥ 5× the cross-symbol median) inflate meanCostedReturn; meanCostedReturnExFlukes is the mean with them removed. A positive mean driven by one or two flukes is why a config can be MARGINAL (not positive) — read the ex-flukes mean alongside the headline mean',
     'signal-flip exit rides the trend to the opposite-direction momentum cross with the ATR SL as a floor and NO take-profit (tpRMultiple is ignored in this mode); geometry-2R/4R use the ATR TP/SL ladder',
     'totalReturn is the compounded fractional return at flat 10%-of-balance allocation; expectancy is the per-trade mean pnlPct (position-size-neutral) — the deployable bar reads BOTH',
     'lookback is the specced 28-day default — NO tuning; a one-off lookback sensitivity, if reported, is labeled as such and is not the headline',

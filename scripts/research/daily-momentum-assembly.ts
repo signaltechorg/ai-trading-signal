@@ -85,11 +85,26 @@ interface ConfigShape {
  */
 /**
  * The wide-4R geometry: LIVE_GEOMETRY (ATR14 2.5×SL) with the TP pushed to 4R.
- * LIVE_GEOMETRY is the ATR branch of the Geometry union; assert that branch so
- * the spread keeps the ATR shape (the fixed branch has no tpRMultiple field).
+ * LIVE_GEOMETRY is the ATR branch of the Geometry union; narrow to that branch
+ * so the spread keeps the ATR shape (the fixed branch has no tpRMultiple field).
+ *
+ * If LIVE_GEOMETRY is ever changed to a fixed-mode geometry, FAIL LOUD: silently
+ * falling back to LIVE_GEOMETRY here would make the 4R config identical to the 2R
+ * config (4R == 2R) with no visible signal — the wide-target comparison would
+ * vanish into a duplicate cell. A throw at module load surfaces that immediately.
  */
-const GEOMETRY_4R: Geometry =
-  LIVE_GEOMETRY.mode === 'atr' ? { ...LIVE_GEOMETRY, tpRMultiple: 4 } : LIVE_GEOMETRY;
+function build4RGeometry(): Geometry {
+  if (LIVE_GEOMETRY.mode !== 'atr') {
+    throw new Error(
+      `GEOMETRY_4R: expected LIVE_GEOMETRY to be ATR-mode to push a 4R take-profit, got ` +
+      `mode='${LIVE_GEOMETRY.mode}'. A fixed-mode LIVE_GEOMETRY has no tpRMultiple, so the 4R ` +
+      `config would silently collapse to the 2R config — fix the geometry rather than hide it.`,
+    );
+  }
+  return { ...LIVE_GEOMETRY, tpRMultiple: 4 };
+}
+
+const GEOMETRY_4R: Geometry = build4RGeometry();
 
 export const CONFIGS: ReadonlyArray<ConfigShape> = [
   { id: 'signal-flip', label: 'signal-flip (ride to opposite cross, SL floor)', exitMode: 'signal-flip', geometry: LIVE_GEOMETRY },
@@ -257,6 +272,19 @@ export function computeSymbol(
 }
 
 /**
+ * A symbol whose full-range costed return is an extreme positive outlier that
+ * inflates the cross-symbol mean — a single-symbol fluke, not a robust edge. A
+ * C6 reader of the JSON alone sees WHY a positive mean is still MARGINAL.
+ */
+export interface FlukeSymbol {
+  symbol: string;
+  /** The symbol's full-range costed return (fraction; 1.89 = +189%). */
+  costedReturn: number;
+  /** Why it was flagged: a multiple of the cross-symbol median, or an absolute extreme. */
+  reason: string;
+}
+
+/**
  * Cross-symbol aggregate for one config — the robustness gate. A symbol COUNTS
  * as a deployable positive only when its full-range costed return > 0 AND it has
  * an adequate sample (≥ THIN_CELL_MIN_TRADES trades). The mean cost-adjusted
@@ -280,12 +308,49 @@ export interface ConfigAggregate {
   meanTrades: number;
   /** Fraction of all (symbol × fold) sub-period cells with positive costed return. */
   foldStability: number;
+  /**
+   * How many of the (symbol × fold) sub-period cells behind foldStability had a
+   * THIN sample (< THIN_CELL_MIN_TRADES trades). foldStability does NOT discount
+   * these — a positive-but-underpowered fold cell counts toward stability — so a
+   * high thin count means the stability number is weaker than it looks. Exposed,
+   * not gated, per the review: read foldStability alongside this.
+   */
+  foldCellsThin: number;
+  /** Total (symbol × fold) sub-period cells behind foldStability (the denominator). */
+  foldCellsTotal: number;
+  /**
+   * Symbols whose extreme positive costed return inflates meanCostedReturn — the
+   * reason a positive mean can still be MARGINAL (e.g. signal-flip's +24.92% mean
+   * driven by SOL/AVAX). Empty when no symbol is an outlier. Deterministic.
+   */
+  flukeSymbols: FlukeSymbol[];
+  /** meanCostedReturn recomputed with flukeSymbols excluded — the mean the typical symbol sees. */
+  meanCostedReturnExFlukes: number;
 }
 
 function mean(xs: number[]): number {
   if (xs.length === 0) return 0;
   return xs.reduce((s, x) => s + x, 0) / xs.length;
 }
+
+/** Median of a numeric list (sorted copy; mean of the two middles on even length). */
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * A symbol's costed return is an inflating fluke if it is positive AND either:
+ *  - an absolute extreme (≥ FLUKE_ABS_THRESHOLD, i.e. ≥ +100%), OR
+ *  - ≥ FLUKE_MEDIAN_MULTIPLE × the cross-symbol median (when the median is
+ *    positive — a symbol returning many times the typical symbol dominates the
+ *    mean). The median guard avoids flagging everything when the median is ~0.
+ * Both thresholds are fixed constants — deterministic, no tuning per run.
+ */
+const FLUKE_ABS_THRESHOLD = 1.0; // +100% costed return
+const FLUKE_MEDIAN_MULTIPLE = 5;
 
 export function aggregateConfig(config: ConfigId, symbols: SymbolResult[]): ConfigAggregate {
   const fullCells = symbols.map((s) => s.full[config]);
@@ -297,12 +362,35 @@ export function aggregateConfig(config: ConfigId, symbols: SymbolResult[]): Conf
 
   let foldCellsTotal = 0;
   let foldCellsPositive = 0;
+  let foldCellsThin = 0;
   for (const s of symbols) {
     for (const f of s.folds) {
       foldCellsTotal++;
-      if (f.byConfig[config].costed.totalReturn > 0) foldCellsPositive++;
+      const cell = f.byConfig[config];
+      if (cell.costed.totalReturn > 0) foldCellsPositive++;
+      if (cell.costed.totalTrades < THIN_CELL_MIN_TRADES) foldCellsThin++;
     }
   }
+
+  // ── Fluke detection: extreme positive single-symbol returns that inflate the
+  // mean. Deterministic — same inputs → same flukes (no Date, no RNG).
+  const returns = symbols.map((s) => s.full[config].costed.totalReturn);
+  const med = median(returns);
+  const flukeSymbols: FlukeSymbol[] = [];
+  for (const s of symbols) {
+    const ret = s.full[config].costed.totalReturn;
+    if (ret <= 0) continue; // only positive returns inflate a (positive) mean
+    const isAbsExtreme = ret >= FLUKE_ABS_THRESHOLD;
+    const isMedianExtreme = med > 0 && ret >= FLUKE_MEDIAN_MULTIPLE * med;
+    if (isAbsExtreme || isMedianExtreme) {
+      const why: string[] = [];
+      if (isAbsExtreme) why.push(`≥ +${(FLUKE_ABS_THRESHOLD * 100).toFixed(0)}% absolute`);
+      if (isMedianExtreme) why.push(`≥ ${FLUKE_MEDIAN_MULTIPLE}× the cross-symbol median (${(med * 100).toFixed(1)}%)`);
+      flukeSymbols.push({ symbol: s.symbol, costedReturn: +ret.toFixed(6), reason: why.join(' and ') });
+    }
+  }
+  const flukeSet = new Set(flukeSymbols.map((f) => f.symbol));
+  const exFluke = symbols.filter((s) => !flukeSet.has(s.symbol)).map((s) => s.full[config].costed.totalReturn);
 
   return {
     config,
@@ -316,6 +404,10 @@ export function aggregateConfig(config: ConfigId, symbols: SymbolResult[]): Conf
     meanFrictionDrag: +mean(fullCells.map((c) => c.frictionDrag)).toFixed(6),
     meanTrades: +mean(fullCells.map((c) => c.costed.totalTrades)).toFixed(1),
     foldStability: foldCellsTotal > 0 ? +(foldCellsPositive / foldCellsTotal).toFixed(4) : 0,
+    foldCellsThin,
+    foldCellsTotal,
+    flukeSymbols,
+    meanCostedReturnExFlukes: +mean(exFluke).toFixed(6),
   };
 }
 
@@ -330,7 +422,6 @@ export function aggregateConfig(config: ConfigId, symbols: SymbolResult[]): Conf
 export type Verdict = 'DEPLOYABLE' | 'MARGINAL' | 'NEGATIVE';
 
 export function verdictFor(agg: ConfigAggregate): { verdict: Verdict; reasons: string[] } {
-  const reasons: string[] = [];
   const majority = Math.floor(agg.symbolsTotal / 2) + 1;
 
   const meanPositive = agg.meanCostedReturn > 0 && agg.meanExpectancy > 0;
@@ -338,13 +429,20 @@ export function verdictFor(agg: ConfigAggregate): { verdict: Verdict; reasons: s
   const adequateSample = agg.meanTrades >= THIN_CELL_MIN_TRADES;
   const foldRobust = agg.foldStability > 0.5;
 
-  if (!meanPositive) {
-    reasons.push(`mean cost-adjusted return ${(agg.meanCostedReturn * 100).toFixed(2)}% / expectancy ${(agg.meanExpectancy * 100).toFixed(3)}% not both > 0`);
-    return { verdict: 'NEGATIVE', reasons };
-  }
+  // Collect EVERY failed gate, not just the first. The reasons array flows to
+  // REGISTRY + console, so a NEGATIVE config that ALSO fails majority/sample/fold
+  // must report all of them — a NEGATIVE that happens to fail every gate should
+  // read as such, not be truncated to "mean not positive".
+  const reasons: string[] = [];
+  if (!meanPositive) reasons.push(`mean cost-adjusted return ${(agg.meanCostedReturn * 100).toFixed(2)}% / expectancy ${(agg.meanExpectancy * 100).toFixed(3)}% not both > 0`);
   if (!majorityPositive) reasons.push(`only ${agg.symbolsPositiveAndAdequate}/${agg.symbolsTotal} symbols positive-and-adequate (need ≥${majority})`);
   if (!adequateSample) reasons.push(`mean ${agg.meanTrades} trades/symbol below the ${THIN_CELL_MIN_TRADES}-trade floor`);
   if (!foldRobust) reasons.push(`fold stability ${(agg.foldStability * 100).toFixed(0)}% ≤ 50% (not robust across time)`);
+
+  // NEGATIVE: the mean cost-adjusted return/expectancy is not positive — the
+  // config loses money on average, so it cannot be deployable regardless of the
+  // other gates. The reasons array now still carries the co-occurring failures.
+  if (!meanPositive) return { verdict: 'NEGATIVE', reasons };
 
   if (majorityPositive && adequateSample && foldRobust) {
     return { verdict: 'DEPLOYABLE', reasons: ['mean positive, majority of symbols positive-and-adequate, adequate sample, robust across folds'] };

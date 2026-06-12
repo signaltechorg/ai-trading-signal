@@ -1,6 +1,6 @@
 {
   "meta": {
-    "runAt": "2026-06-12T10:30:48.379Z"
+    "runAt": "2026-06-12T11:02:09.767Z"
   },
   "spec": {
     "strategy": "daily-momentum",
@@ -124,6 +124,8 @@
       "per-fold indicator warmup restarts at the fold boundary (the 28-bar momentum lookback + the 14-bar ATR), and a position open at fold end force-closes at the last bar — short folds therefore carry fewer trades than the full range",
       "cost model = crypto perp (fee 0.05%/side + slippage 0.15%/side + funding 0.01%/8h); funding is a sign-agnostic upper bound, so a directional carry could be cheaper than modeled (costs are conservative, not optimistic)",
       "THIN CELLS: any config×symbol cell with fewer than 30 trades is flagged ⚠THIN — below that count the standard error of the mean dominates, so the cell's return/expectancy is insufficient evidence",
+      "FOLD-STABILITY THIN WEAKNESS: foldStability is the fraction of (symbol × fold) cells with positive costed return, and it counts THIN fold cells (< 30 trades) as if adequate — a positive-but-underpowered fold inflates it. aggregate.<config>.foldCellsThin / foldCellsTotal exposes how many of the cells behind the number were thin, so the stability read can be discounted accordingly (the gate threshold is unchanged — this is a transparency field, not a new gate)",
+      "INFLATING FLUKES: aggregate.<config>.flukeSymbols lists symbols whose extreme positive costed return (≥ +100% absolute, or ≥ 5× the cross-symbol median) inflate meanCostedReturn; meanCostedReturnExFlukes is the mean with them removed. A positive mean driven by one or two flukes is why a config can be MARGINAL (not positive) — read the ex-flukes mean alongside the headline mean",
       "signal-flip exit rides the trend to the opposite-direction momentum cross with the ATR SL as a floor and NO take-profit (tpRMultiple is ignored in this mode); geometry-2R/4R use the ATR TP/SL ladder",
       "totalReturn is the compounded fractional return at flat 10%-of-balance allocation; expectancy is the per-trade mean pnlPct (position-size-neutral) — the deployable bar reads BOTH",
       "lookback is the specced 28-day default — NO tuning; a one-off lookback sensitivity, if reported, is labeled as such and is not the headline"
@@ -142,6 +144,21 @@
       "meanFrictionDrag": 0.094222,
       "meanTrades": 103.2,
       "foldStability": 0.375,
+      "foldCellsThin": 32,
+      "foldCellsTotal": 40,
+      "flukeSymbols": [
+        {
+          "symbol": "SOLUSD",
+          "costedReturn": 1.892334,
+          "reason": "≥ +100% absolute"
+        },
+        {
+          "symbol": "AVAXUSD",
+          "costedReturn": 1.019038,
+          "reason": "≥ +100% absolute"
+        }
+      ],
+      "meanCostedReturnExFlukes": -0.052474,
       "verdict": "MARGINAL",
       "verdictReasons": [
         "only 4/10 symbols positive-and-adequate (need ≥6)",
@@ -161,9 +178,16 @@
       "meanFrictionDrag": 0.051008,
       "meanTrades": 26.6,
       "foldStability": 0.3,
+      "foldCellsThin": 40,
+      "foldCellsTotal": 40,
+      "flukeSymbols": [],
+      "meanCostedReturnExFlukes": -0.125435,
       "verdict": "NEGATIVE",
       "verdictReasons": [
-        "mean cost-adjusted return -12.54% / expectancy -5.747% not both > 0"
+        "mean cost-adjusted return -12.54% / expectancy -5.747% not both > 0",
+        "only 0/10 symbols positive-and-adequate (need ≥6)",
+        "mean 26.6 trades/symbol below the 30-trade floor",
+        "fold stability 30% ≤ 50% (not robust across time)"
       ],
       "label": "geometry exit @ 2R (LIVE_GEOMETRY)"
     },
@@ -179,9 +203,16 @@
       "meanFrictionDrag": 0.052515,
       "meanTrades": 12.5,
       "foldStability": 0.3,
+      "foldCellsThin": 40,
+      "foldCellsTotal": 40,
+      "flukeSymbols": [],
+      "meanCostedReturnExFlukes": -0.140094,
       "verdict": "NEGATIVE",
       "verdictReasons": [
-        "mean cost-adjusted return -14.01% / expectancy -16.138% not both > 0"
+        "mean cost-adjusted return -14.01% / expectancy -16.138% not both > 0",
+        "only 0/10 symbols positive-and-adequate (need ≥6)",
+        "mean 12.5 trades/symbol below the 30-trade floor",
+        "fold stability 30% ≤ 50% (not robust across time)"
       ],
       "label": "geometry exit @ 4R (wide target)"
     }

@@ -216,6 +216,64 @@ describe('aggregateConfig — counts positives, thin, and fold stability', () =>
     const agg = aggregateConfig('signal-flip', symbols);
     // 6 positive fold cells out of 8 total.
     expect(agg.foldStability).toBe(+(6 / 8).toFixed(4));
+    expect(agg.foldCellsTotal).toBe(8);
+  });
+
+  it('foldCellsThin counts the fold cells whose sample is below the trade floor (Fix 2)', () => {
+    // fakeSymbol sets EVERY fold cell to the symbol's trade count, so a thin
+    // symbol makes all its fold cells thin. A: 50 trades (adequate), B: 10 (thin).
+    const symbols = [
+      fakeSymbol('A', 0.1, 50, [0.1, 0.1, 0.1, 0.1]),
+      fakeSymbol('B', 0.1, 10, [0.1, 0.1, 0.1, 0.1]),
+    ];
+    const agg = aggregateConfig('signal-flip', symbols);
+    expect(agg.foldCellsTotal).toBe(8);
+    expect(agg.foldCellsThin).toBe(4); // B's 4 fold cells
+    // foldStability is NOT discounted for thin cells — all 8 are positive.
+    expect(agg.foldStability).toBe(1);
+  });
+
+  it('flukeSymbols flags extreme positive outliers and ex-fluke mean removes them (Fix 4)', () => {
+    // One huge outlier (+200%) among small returns → flagged absolute extreme AND
+    // ≥5× the median; the typical symbols are not flagged.
+    const symbols = [
+      fakeSymbol('BIG', 2.0, 50, [2.0]),
+      fakeSymbol('A', 0.05, 50, [0.05]),
+      fakeSymbol('B', 0.03, 50, [0.03]),
+      fakeSymbol('C', 0.04, 50, [0.04]),
+      fakeSymbol('D', -0.02, 50, [-0.02]),
+    ];
+    const agg = aggregateConfig('signal-flip', symbols);
+    expect(agg.flukeSymbols.map((f) => f.symbol)).toEqual(['BIG']);
+    expect(agg.flukeSymbols[0].costedReturn).toBe(2.0);
+    // Headline mean includes BIG; ex-fluke mean is the mean of the other four.
+    const expectedFull = (2.0 + 0.05 + 0.03 + 0.04 - 0.02) / 5;
+    const expectedEx = (0.05 + 0.03 + 0.04 - 0.02) / 4;
+    expect(agg.meanCostedReturn).toBe(+expectedFull.toFixed(6));
+    expect(agg.meanCostedReturnExFlukes).toBe(+expectedEx.toFixed(6));
+    expect(agg.meanCostedReturnExFlukes).toBeLessThan(agg.meanCostedReturn);
+  });
+
+  it('no flukeSymbols when all returns are modest (no extreme outlier)', () => {
+    const symbols = [
+      fakeSymbol('A', 0.05, 50, [0.05]),
+      fakeSymbol('B', 0.03, 50, [0.03]),
+      fakeSymbol('C', -0.02, 50, [-0.02]),
+    ];
+    const agg = aggregateConfig('signal-flip', symbols);
+    expect(agg.flukeSymbols).toEqual([]);
+    // With no flukes the ex-fluke mean equals the headline mean.
+    expect(agg.meanCostedReturnExFlukes).toBe(agg.meanCostedReturn);
+  });
+
+  it('a negative extreme is NOT a fluke (only positive returns inflate a positive mean)', () => {
+    const symbols = [
+      fakeSymbol('CRASH', -2.0, 50, [-2.0]),
+      fakeSymbol('A', 0.05, 50, [0.05]),
+      fakeSymbol('B', 0.03, 50, [0.03]),
+    ];
+    const agg = aggregateConfig('signal-flip', symbols);
+    expect(agg.flukeSymbols).toEqual([]);
   });
 });
 
@@ -232,8 +290,16 @@ describe('verdictFor — the deployable bar', () => {
     meanFrictionDrag: 0.05,
     meanTrades: 80,
     foldStability: 0.6,
+    foldCellsThin: 0,
+    foldCellsTotal: 40,
+    flukeSymbols: [],
+    meanCostedReturnExFlukes: 0.1,
     ...over,
   });
+
+  /** True iff any reason element contains the given substring (Fix 6: not brittle to wording). */
+  const reasonsContain = (reasons: string[], substr: string): boolean =>
+    reasons.some((r) => r.includes(substr));
 
   it('DEPLOYABLE when mean > 0, majority positive+adequate, adequate sample, robust folds', () => {
     expect(verdictFor(baseAgg({})).verdict).toBe('DEPLOYABLE');
@@ -247,22 +313,41 @@ describe('verdictFor — the deployable bar', () => {
     expect(verdictFor(baseAgg({ meanExpectancy: -0.001 })).verdict).toBe('NEGATIVE');
   });
 
+  it('a NEGATIVE that ALSO fails majority + fold reports ALL co-occurring failures, not just the mean', () => {
+    // Mean negative AND only 2/10 symbols clear AND folds unstable: the reasons
+    // array must carry every failed gate, not truncate to the mean reason.
+    const v = verdictFor(baseAgg({
+      meanCostedReturn: -0.1,
+      meanExpectancy: -0.02,
+      symbolsPositiveAndAdequate: 2,
+      foldStability: 0.3,
+      meanTrades: THIN_CELL_MIN_TRADES - 5,
+    }));
+    expect(v.verdict).toBe('NEGATIVE');
+    expect(reasonsContain(v.reasons, 'not both > 0')).toBe(true);
+    expect(reasonsContain(v.reasons, '2/10 symbols positive-and-adequate')).toBe(true);
+    expect(reasonsContain(v.reasons, 'fold stability')).toBe(true);
+    expect(reasonsContain(v.reasons, 'trades/symbol below the 30-trade floor')).toBe(true);
+    // All four gates failed → four reasons.
+    expect(v.reasons).toHaveLength(4);
+  });
+
   it('MARGINAL when positive overall but fewer than a majority of symbols clear', () => {
     const v = verdictFor(baseAgg({ symbolsPositiveAndAdequate: 4 }));
     expect(v.verdict).toBe('MARGINAL');
-    expect(v.reasons.join(' ')).toMatch(/4\/10 symbols positive-and-adequate/);
+    expect(reasonsContain(v.reasons, '4/10 symbols positive-and-adequate')).toBe(true);
   });
 
   it('MARGINAL when positive overall but folds are not robust across time', () => {
     const v = verdictFor(baseAgg({ foldStability: 0.4 }));
     expect(v.verdict).toBe('MARGINAL');
-    expect(v.reasons.join(' ')).toMatch(/fold stability/);
+    expect(reasonsContain(v.reasons, 'fold stability')).toBe(true);
   });
 
   it('MARGINAL when the overall sample is thin (mean trades below the floor)', () => {
     const v = verdictFor(baseAgg({ meanTrades: THIN_CELL_MIN_TRADES - 1 }));
     expect(v.verdict).toBe('MARGINAL');
-    expect(v.reasons.join(' ')).toMatch(/below the 30-trade floor/);
+    expect(reasonsContain(v.reasons, 'below the 30-trade floor')).toBe(true);
   });
 
   it('majority is strictly more than half (6 of 10 passes, 5 does not)', () => {
