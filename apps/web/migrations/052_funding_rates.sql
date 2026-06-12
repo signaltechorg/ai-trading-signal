@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS funding_rates (
   ts          BIGINT           NOT NULL,
   rate        DOUBLE PRECISION NOT NULL,
   mark_price  DOUBLE PRECISION,
-  source      VARCHAR(24)      NOT NULL,
+  source      VARCHAR(32)      NOT NULL,
   inserted_at TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
   PRIMARY KEY (symbol, ts)
 );
