@@ -37,11 +37,19 @@ const BINANCE_PAGE = 1000;
 const BINANCE_INTERVAL: Record<string, string> = { H1: '1h', H4: '4h', D1: '1d' };
 
 // Canonical TradeClaw symbol -> Binance spot pair (market-data only; matches
-// the USDT-perp universe the executor trades).
+// the USDT-perp universe the executor trades). Phase 5 extends the original
+// 10 majors with 20 more liquid USDT pairs — the FROZEN cross-sectional
+// universe (spec D3): fixed BEFORE any validation run, never edited after.
+// EOS/MATIC/FTM excluded (renamed/delisted on Binance spot).
 const BINANCE_MAP: Record<string, string> = {
   BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT', SOLUSD: 'SOLUSDT', BNBUSD: 'BNBUSDT',
   XRPUSD: 'XRPUSDT', ADAUSD: 'ADAUSDT', DOGEUSD: 'DOGEUSDT', DOTUSD: 'DOTUSDT',
   LINKUSD: 'LINKUSDT', AVAXUSD: 'AVAXUSDT',
+  LTCUSD: 'LTCUSDT', BCHUSD: 'BCHUSDT', ETCUSD: 'ETCUSDT', XLMUSD: 'XLMUSDT',
+  TRXUSD: 'TRXUSDT', ATOMUSD: 'ATOMUSDT', NEARUSD: 'NEARUSDT', FILUSD: 'FILUSDT',
+  UNIUSD: 'UNIUSDT', AAVEUSD: 'AAVEUSDT', SANDUSD: 'SANDUSDT', MANAUSD: 'MANAUSDT',
+  ICPUSD: 'ICPUSDT', ALGOUSD: 'ALGOUSDT', VETUSD: 'VETUSDT', AXSUSD: 'AXSUSDT',
+  THETAUSD: 'THETAUSDT', GRTUSD: 'GRTUSDT', HBARUSD: 'HBARUSDT', INJUSD: 'INJUSDT',
 };
 
 // Canonical -> Stooq code (daily CSV).
