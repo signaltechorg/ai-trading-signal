@@ -51,7 +51,9 @@ describe('runAlwaysOn (A1)', () => {
     expect(r.finalEquity).toBeCloseTo(2 + 0.0029 - 0.007, 12);
     expect(r.returnOnCapital).toBeCloseTo((0.0029 - 0.007) / 2, 12);
     expect(r.windowDays).toBeCloseTo((29 * 8) / 24, 10);
-    expect(r.annualizedReturn).toBeCloseTo(r.returnOnCapital * (365 / r.windowDays), 12);
+    expect(r.annualizedReturn).toBeCloseTo(r.returnOnCapital * (365 / r.windowDays), 10);
+    const expectedAnn = ((0.0029 - 0.007) / 2) * (365 / ((29 * 8) / 24));
+    expect(r.annualizedReturn).toBeCloseTo(expectedAnn, 8);
   });
 
   it('negative funding produces negative income (the short perp PAYS)', () => {

@@ -78,7 +78,7 @@ function finish(track: EquityTrack, grossIncome: number, totalCosts: number, eve
     totalCosts: +totalCosts.toFixed(10),
     finalEquity: +track.equity.toFixed(10),
     returnOnCapital: rocRounded,
-    annualizedReturn: windowDays > 0 ? rocRounded * (365 / windowDays) : 0,
+    annualizedReturn: windowDays > 0 ? +(rocRounded * (365 / windowDays)).toFixed(10) : 0,
     maxDrawdown: +track.maxDrawdown.toFixed(10),
     windowDays,
     eventCount: events.length,
@@ -185,7 +185,8 @@ export interface RotationResult extends CarryRunResult {
  * first ts where ≥ topK symbols have ≥ trailingDays of history), rank symbols
  * by trailing annualized funding using events ≤ grid ts, hold the top K at
  * 1/K notional each. Income accrues from each held symbol's events in
- * (gridTs, nextGridTs]. Opening/closing one symbol's position costs
+ * (gridTs, min(gridTs + rebalanceDays, maxTs)] — the last grid point caps at
+ * maxTs, not the next grid ts. Opening/closing one symbol's position costs
  * legPair × (1/K). Everything force-closes at the final grid point.
  * Ties in ranking break by symbol name (deterministic).
  */
@@ -260,7 +261,11 @@ export function splitFolds(events: FundingEvent[], n: number): FundingEvent[][] 
   return out;
 }
 
-/** Events within the trailing `days` of the series end (the recent-window read). */
+/**
+ * Events within the trailing `days` of the series end (the recent-window read).
+ * The INCLUSIVE `>= from` left boundary is deliberate (a window of data, not a
+ * signal window) and differs from annualizedTrailing's half-open (from, t].
+ */
 export function recentSlice(events: FundingEvent[], days: number): FundingEvent[] {
   if (events.length === 0) return [];
   const from = events[events.length - 1].ts - days * DAY;
@@ -280,6 +285,6 @@ export function carryGates(g: CarryGateInput): { pass: boolean; reasons: string[
   if (!(g.fullAnnualized > 0.08)) reasons.push(`full-window annualized ${(g.fullAnnualized * 100).toFixed(2)}% ≤ 8%`);
   if (!(g.recentAnnualized > 0.05)) reasons.push(`recent-24mo annualized ${(g.recentAnnualized * 100).toFixed(2)}% ≤ 5% (decay test)`);
   if (!(g.maxDrawdown < 0.10)) reasons.push(`max drawdown ${(g.maxDrawdown * 100).toFixed(2)}% ≥ 10%`);
-  if (!(g.foldsPositive >= Math.min(3, g.foldsTotal))) reasons.push(`only ${g.foldsPositive}/${g.foldsTotal} folds positive (need ≥3)`);
+  if (!(g.foldsPositive >= Math.min(3, g.foldsTotal))) reasons.push(`only ${g.foldsPositive}/${g.foldsTotal} folds positive (need ≥${Math.min(3, g.foldsTotal)})`);
   return { pass: reasons.length === 0, reasons };
 }
