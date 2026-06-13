@@ -110,10 +110,54 @@ describe('GET /api/calibration', () => {
     expect(body.totalSignals).toBe(0);
     expect(body.brier).toBeNull();
     expect(body.ece).toBeNull();
-    expect(body.isSimulated).toBe(true);
+    // The route filters out simulated rows, so it NEVER serves a simulated
+    // population — isSimulated is always false here. An empty/thin real
+    // population is flagged insufficientData, not mislabeled as simulated.
+    expect(body.isSimulated).toBe(false);
+    expect(body.insufficientData).toBe(true);
     for (const b of body.buckets) {
       expect(b.winRate).toBeNull();
     }
+  });
+
+  it('flags real-but-thin data as insufficient (not simulated) and surfaces the window', async () => {
+    // 2 real counted rows — below the 20-signal stability floor.
+    const t0 = 1_700_000_000_000;
+    mockedHistory.mockResolvedValue([
+      mkRecord({ id: 'a', confidence: 72, timestamp: t0 }),
+      mkRecord({
+        id: 'b',
+        confidence: 85,
+        timestamp: t0 + 3_600_000,
+        outcomes: { '4h': null, '24h': { price: 49500, pnlPct: -1.0, hit: false, target: 'SL' } },
+      }),
+    ]);
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.totalSignals).toBe(2);
+    expect(body.isSimulated).toBe(false);
+    expect(body.insufficientData).toBe(true);
+    expect(body.minStableSignals).toBe(20);
+    // Date range covering the resolved population.
+    expect(body.windowStart).toBe(t0);
+    expect(body.windowEnd).toBe(t0 + 3_600_000);
+  });
+
+  it('does not flag insufficientData once the population reaches the stability floor', async () => {
+    const base = 1_700_000_000_000;
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      mkRecord({ id: `row-${i}`, confidence: 72, timestamp: base + i * 60_000 }),
+    );
+    mockedHistory.mockResolvedValue(rows);
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.totalSignals).toBe(20);
+    expect(body.isSimulated).toBe(false);
+    expect(body.insufficientData).toBe(false);
   });
 
   // ── Phase 4 D7 — additive reported calibration curves ──────────────

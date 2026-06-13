@@ -136,15 +136,27 @@ function EquityCurveChart({ data }: { data: number[] }) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // X-axis labels
+    // X-axis labels — relative window markers, NOT calendar months
+    // (the curve is a seeded-PRNG illustration, so a Mar/Jun/Sep calendar
+    //  axis would falsely imply real dated data — see honesty contract §3)
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    const xLabels = ['Mar', 'Jun', 'Sep', 'Dec', 'Feb'];
+    const xLabels = ['Start', '25%', '50%', '75%', 'End'];
     xLabels.forEach((label, i) => {
       const x = pad.left + (i / (xLabels.length - 1)) * cw;
       ctx.fillText(label, x, h - 6);
     });
+
+    // Watermark — make it unmistakable on the chart body that this is
+    // not measured data, for a skim reader who lands mid-page.
+    ctx.save();
+    ctx.fillStyle = 'rgba(251,191,36,0.16)'; // amber-400, low alpha
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ILLUSTRATIVE — NOT REAL DATA', pad.left + cw / 2, pad.top + ch / 2);
+    ctx.restore();
   }, [data]);
 
   useEffect(() => {
@@ -155,8 +167,14 @@ function EquityCurveChart({ data }: { data: number[] }) {
   }, [draw]);
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} className="relative w-full">
+      <span className="absolute right-2 top-2 z-10 text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5">
+        Illustrative — not real data
+      </span>
       <canvas ref={canvasRef} className="w-full" />
+      <p className="mt-1 text-center text-[10px] text-zinc-500">
+        Seeded-PRNG example path · x-axis is window progress, not calendar dates
+      </p>
     </div>
   );
 }
@@ -172,9 +190,12 @@ function MetricCard({ label, value, suffix, icon: Icon, positive }: {
 }) {
   return (
     <div className="bg-white/[0.02] rounded-lg py-3 px-4 border border-white/5">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</span>
+      <div className="flex items-center justify-between gap-1.5 mb-1">
+        <div className="flex items-center gap-1.5">
+          <Icon className="w-3.5 h-3.5 text-zinc-500" />
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</span>
+        </div>
+        <span className="text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-0.5" title="Hand-authored example — not a real or backtested figure">illus.</span>
       </div>
       <span className={`font-mono tabular-nums text-lg font-semibold ${positive === undefined ? 'text-white' : positive ? 'text-emerald-400' : 'text-red-400'}`}>
         {value}{suffix && <span className="text-xs text-zinc-500 ml-0.5">{suffix}</span>}
@@ -246,7 +267,10 @@ export function ResultsClient() {
               <div className="mt-1 text-[11px] text-zinc-500">Across {VALIDATION_SUMMARY.assetCount} assets · hand-authored examples</div>
             </div>
             <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-left">
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">Example snapshot</div>
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500">Example snapshot</div>
+                <span className="text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-0.5">illus.</span>
+              </div>
               <div className="mt-1 font-mono text-sm font-semibold text-white">
                 {VALIDATION_SUMMARY.weightedWinRate.toFixed(1)}% win rate · Sharpe {VALIDATION_SUMMARY.averageSharpe.toFixed(2)}
               </div>
@@ -365,7 +389,12 @@ export function ResultsClient() {
 
             {/* ─── Monthly Returns Heatmap ─────────────────── */}
             <div className="glass-card rounded-2xl p-5 mb-6">
-              <span className="text-sm font-semibold mb-3 block">Monthly Returns <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold">Monthly Returns <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
+                <span className="text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5">
+                  Hand-authored — each cell is an example, not a measured month
+                </span>
+              </div>
               <div className="grid grid-cols-12 gap-1.5">
                 {result.monthlyReturns.map((m) => (
                   <div
@@ -384,9 +413,12 @@ export function ResultsClient() {
             {/* ─── Avg Holding + Period ────────────────────── */}
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="bg-white/[0.02] rounded-lg py-3 px-4 border border-white/5">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Avg Hold Time</span>
+                <div className="flex items-center justify-between gap-1.5 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-[10px] uppercase tracking-wider text-zinc-500">Avg Hold Time</span>
+                  </div>
+                  <span className="text-[9px] uppercase tracking-wider text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-0.5" title="Hand-authored example — not a real or backtested figure">illus.</span>
                 </div>
                 <span className="font-mono tabular-nums text-lg font-semibold text-white">
                   {result.metrics.avgHoldingHours}<span className="text-xs text-zinc-500 ml-0.5">hrs</span>
@@ -407,8 +439,8 @@ export function ResultsClient() {
 
         {/* ─── Comparison Table ────────────────────────── */}
         <div className="glass-card rounded-2xl p-5 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-semibold">Strategy Comparison &mdash; {ASSETS.find(a => a.id === activeAsset)?.name}</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold">Strategy Comparison &mdash; {ASSETS.find(a => a.id === activeAsset)?.name} <span className="text-[10px] font-normal text-amber-400/80">(illustrative)</span></span>
             <div className="flex gap-1">
               {([['sharpe', 'Sharpe'], ['return', 'Return'], ['winRate', 'Win %']] as const).map(([key, label]) => (
                 <button
@@ -425,16 +457,19 @@ export function ResultsClient() {
               ))}
             </div>
           </div>
+          <p className="mb-3 text-[10px] text-amber-400/80">
+            All figures below are hand-authored examples — not real, backtested, or live results.
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-zinc-500 text-[10px] uppercase tracking-wider border-b border-white/5">
                   <th className="text-left py-2 pr-4">Strategy</th>
-                  <th className="text-right py-2 px-3">Return</th>
-                  <th className="text-right py-2 px-3">Win Rate</th>
-                  <th className="text-right py-2 px-3">Sharpe</th>
-                  <th className="text-right py-2 px-3">Max DD</th>
-                  <th className="text-right py-2 pl-3">Trades</th>
+                  <th className="text-right py-2 px-3">Return <span className="text-amber-400/70">(illus.)</span></th>
+                  <th className="text-right py-2 px-3">Win Rate <span className="text-amber-400/70">(illus.)</span></th>
+                  <th className="text-right py-2 px-3">Sharpe <span className="text-amber-400/70">(illus.)</span></th>
+                  <th className="text-right py-2 px-3">Max DD <span className="text-amber-400/70">(illus.)</span></th>
+                  <th className="text-right py-2 pl-3">Trades <span className="text-amber-400/70">(illus.)</span></th>
                 </tr>
               </thead>
               <tbody>

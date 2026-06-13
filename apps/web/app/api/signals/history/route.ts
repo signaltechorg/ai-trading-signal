@@ -153,9 +153,28 @@ export async function GET(request: NextRequest) {
       : slice.resolved;
     const wins = resolved.filter(r => r.outcomes['24h']!.hit);
     const totalPnl = resolved.reduce((sum, r) => sum + (r.outcomes['24h']?.pnlPct ?? 0), 0);
+    // avgConfidence is over ALL filtered records; avgConfidenceResolved is over
+    // the same resolved population the win-rate uses, so the UI can state which
+    // denominator a confidence figure is on instead of silently mixing them.
     const avgConfidence = records.length > 0
       ? records.reduce((sum, r) => sum + r.confidence, 0) / records.length
       : 0;
+    const avgConfidenceResolved = resolved.length > 0
+      ? resolved.reduce((sum, r) => sum + r.confidence, 0) / resolved.length
+      : 0;
+
+    // Full-history provenance split (live vs simulated seed rows) over the
+    // entire filtered set — NOT the paginated page — so the data-provenance
+    // badge reflects the whole track record, not whichever 25 rows are visible.
+    const simulatedCount = records.filter(r => r.isSimulated).length;
+    const liveCount = records.length - simulatedCount;
+
+    // Window the stat cards cover: earliest comes from the scope-level slice
+    // (pre-period) so it matches the disabled-period UI; latest is the newest
+    // row in the filtered view.
+    const latestTimestamp = records.length > 0
+      ? records.reduce((max, r) => (r.timestamp > max ? r.timestamp : max), records[0].timestamp)
+      : null;
 
     // Excluded buckets — surfaced for transparency, not folded into win-rate.
     // Pending is intentionally age-aware: once a trade has crossed the 24h
@@ -216,9 +235,12 @@ export async function GET(request: NextRequest) {
       scope,
       category,
       earliestTimestamp: slice.earliestTimestamp,
+      latestTimestamp,
       stats: {
         totalSignals: records.length,
         resolved: resolved.length,
+        simulated: simulatedCount,
+        live: liveCount,
         expired,
         gateBlocked,
         pending,
@@ -228,6 +250,7 @@ export async function GET(request: NextRequest) {
         totalPnlPct: +totalPnl.toFixed(2),
         avgPnlPct: resolved.length > 0 ? +(totalPnl / resolved.length).toFixed(2) : 0,
         avgConfidence: +avgConfidence.toFixed(1),
+        avgConfidenceResolved: +avgConfidenceResolved.toFixed(1),
         bestSignal,
         streak,
       },

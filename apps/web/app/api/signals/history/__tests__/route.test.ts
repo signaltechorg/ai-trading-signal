@@ -129,6 +129,26 @@ describe('GET /api/signals/history category filtering', () => {
     expect(body.stats.resolved).toBe(0);
   });
 
+  it('splits live vs simulated over full history, not the page slice', async () => {
+    primeSlice([
+      record({ id: 'live-1', pair: 'BTCUSD', isSimulated: false }),
+      record({ id: 'live-2', pair: 'ETHUSD', isSimulated: false }),
+      record({ id: 'seed-1', pair: 'SOLUSD', isSimulated: true }),
+    ]);
+
+    // limit=1 paginates so only one row is on the page; provenance counts must
+    // still reflect all three rows (the bug this fixes mislabeled a clean page).
+    const res = await GET(makeReq('/api/signals/history?limit=1'));
+    const body = await res.json();
+
+    expect(body.records).toHaveLength(1);
+    expect(body.stats.totalSignals).toBe(3);
+    expect(body.stats.live).toBe(2);
+    expect(body.stats.simulated).toBe(1);
+    expect(typeof body.latestTimestamp).toBe('number');
+    expect(typeof body.stats.avgConfidenceResolved).toBe('number');
+  });
+
   it('returns only thematic records for category=thematic', async () => {
     primeSlice([
       record({ id: 'btc-1', pair: 'BTCUSD' }),

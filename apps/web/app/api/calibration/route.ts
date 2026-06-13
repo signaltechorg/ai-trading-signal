@@ -21,6 +21,11 @@ interface CalibrationBucket {
   calibrationError: number | null;
 }
 
+// Below this many counted-resolved signals the per-bucket win-rates are too
+// noisy to read as a stable calibration. Real data under this floor is
+// "insufficient", not "simulated" — the distinction the UI surfaces.
+const MIN_STABLE_CALIBRATION_SIGNALS = 20;
+
 const BUCKETS = [
   { label: '50-59%', confMin: 0.50, confMax: 0.60, midpoint: 0.545 },
   { label: '60-69%', confMin: 0.60, confMax: 0.70, midpoint: 0.645 },
@@ -73,6 +78,12 @@ export async function GET() {
     const totalWins = resolved.filter((s) => s.outcomes['24h']?.hit).length;
     const overallAccuracy = totalSignals > 0 ? totalWins / totalSignals : 0;
 
+    // Date range of the resolved population the metrics cover. Null when empty
+    // so the UI can omit the window rather than render an invalid range.
+    const timestamps = resolved.map((s) => s.timestamp);
+    const windowStart = timestamps.length ? Math.min(...timestamps) : null;
+    const windowEnd = timestamps.length ? Math.max(...timestamps) : null;
+
     // Brier score: mean((conf - outcome)^2) on the 0-1 scale.
     const brier = totalSignals > 0
       ? resolved.reduce((sum, s) => {
@@ -105,11 +116,21 @@ export async function GET() {
       })),
     );
 
+    // This route NEVER serves simulated rows — isCountedResolved already
+    // excludes `isSimulated` history. So server-side isSimulated is always
+    // false; the genuine simulated/demo case lives only in the client
+    // catch-block fallback. A real-but-thin population (1–19 counted, or 0)
+    // is flagged `insufficientData`, NOT mislabeled as simulated, so the UI
+    // can say "insufficient live data (N=n)" instead of "demo data".
     return NextResponse.json({
       buckets,
       overallAccuracy,
       totalSignals,
-      isSimulated: totalSignals < 20,
+      isSimulated: false,
+      insufficientData: totalSignals < MIN_STABLE_CALIBRATION_SIGNALS,
+      minStableSignals: MIN_STABLE_CALIBRATION_SIGNALS,
+      windowStart,
+      windowEnd,
       brier,
       ece,
       calibration,
