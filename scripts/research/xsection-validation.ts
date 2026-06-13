@@ -122,9 +122,10 @@ function evaluate(grid: DailyGrid, folds: number) {
 
 (() => {
   const candlesDir = arg('candles-dir', 'data/research/candles');
-  const foldsRaw = Number(arg('folds', '4'));
+  const foldsArg = arg('folds', '4');
+  const foldsRaw = Number(foldsArg);
   if (!Number.isFinite(foldsRaw) || foldsRaw <= 0) {
-    console.error(`--folds must be a positive number, got '${arg('folds', '4')}'`);
+    console.error(`--folds must be a positive number, got '${foldsArg}'`);
     process.exit(2);
   }
   const folds = Math.max(1, Math.floor(foldsRaw));
@@ -132,12 +133,21 @@ function evaluate(grid: DailyGrid, folds: number) {
 
   const series = UNIVERSE.map((s) => loadSeries(candlesDir, s));
   const grid = buildGrid(series);
+  if (grid.ts.length < LOOKBACK + REBALANCE + 1) {
+    console.error('grid too short for lookback+rebalance warmup');
+    process.exit(4);
+  }
   const full = evaluate(grid, folds);
 
   // subwindow: all-30-listed window (survivorship mitigation read)
   const subFrom = grid.ts.findIndex((t) => t >= SUBWINDOW_FROM);
   if (subFrom < 0) { console.error('subwindow start beyond grid end — check dumps'); process.exit(3); }
-  const sub = evaluate(sliceGrid(grid, subFrom, grid.ts.length - 1), folds);
+  const subGrid = sliceGrid(grid, subFrom, grid.ts.length - 1);
+  if (subGrid.ts.length < LOOKBACK + REBALANCE + 1) {
+    console.error('grid too short for lookback+rebalance warmup');
+    process.exit(4);
+  }
+  const sub = evaluate(subGrid, folds);
 
   console.log(`\n=== Track B cross-sectional momentum (${UNIVERSE.length} majors, lb${LOOKBACK}, rb${REBALANCE}, top${TOPK}) ===`);
   console.log('  FULL WINDOW');
@@ -191,8 +201,9 @@ function evaluate(grid: DailyGrid, folds: number) {
     `- ${payload.meta.runAt.slice(0, 10)} \`${fileName}\` — Phase 5 Track B cross-sectional momentum, ${UNIVERSE.length} majors D1 lb${LOOKBACK} rb${REBALANCE} top${TOPK}, ` +
     `costs=${XS_SIDE_COST * 100}%/side, ${folds} folds: ` +
     `B1(long-only) ret=${pct(full.b1.totalReturn)} vs basket ${pct(full.basket.totalReturn)} gates=${full.gates.B1.pass ? 'PASS' : 'FAIL'} · ` +
-    `B2(long-short) ret=${pct(full.b2.totalReturn)} gates=${full.gates.B2.pass ? 'PASS' : 'FAIL'} · ` +
-    `subwindow(2024-06→) B1 ${sub.gates.B1.pass ? 'PASS' : 'FAIL'} B2 ${sub.gates.B2.pass ? 'PASS' : 'FAIL'}\n`,
+    `B2(long-short) ret=${pct(full.b2.totalReturn)} vs basket ${pct(full.basket.totalReturn)} gates=${full.gates.B2.pass ? 'PASS' : 'FAIL'} · ` +
+    `subwindow(2024-06→) B1 ret=${pct(sub.b1.totalReturn)} vs basket ${pct(sub.basket.totalReturn)} ${sub.gates.B1.pass ? 'PASS' : 'FAIL'} ` +
+    `B2 ret=${pct(sub.b2.totalReturn)} vs basket ${pct(sub.basket.totalReturn)} ${sub.gates.B2.pass ? 'PASS' : 'FAIL'}\n`,
   );
 
   console.log(`\nwritten: ${outPath}`);
