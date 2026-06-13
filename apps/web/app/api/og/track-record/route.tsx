@@ -66,7 +66,7 @@ export async function GET() {
         </div>
 
         <div style={{ fontSize: '22px', color: '#10b981', letterSpacing: '0.12em', marginBottom: '40px' }}>
-          VERIFIED TRACK RECORD — 30 DAYS
+          RECORDED TRACK RECORD — 30 DAYS
         </div>
 
         {/* Stats row */}
@@ -89,7 +89,7 @@ export async function GET() {
 
         {/* Footer */}
         <div style={{ color: '#3f3f46', fontSize: '14px', letterSpacing: '0.05em' }}>
-          tradeclaw.win/track-record — open-source, transparent, verifiable
+          tradeclaw.win/track-record — open-source, transparent, resolved against Binance/Yahoo OHLCV
         </div>
       </div>
     ),

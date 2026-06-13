@@ -549,7 +549,7 @@ export function TrackRecordClient() {
            70% WR with giant losers. We show both so the reader can judge. */}
         <div className="mb-6">
           <div className="text-[11px] uppercase tracking-wider text-[var(--text-secondary)] font-mono font-semibold mb-2">
-            Verified Track Record
+            Recorded Track Record
           </div>
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-2">
             <div className="flex items-baseline gap-2">
@@ -1252,8 +1252,8 @@ export function TrackRecordClient() {
         <div className="glass-card rounded-2xl p-5 border-l-2 border-emerald-500/50 mb-8">
           <h3 className="text-sm font-semibold mb-1">Full Transparency</h3>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-            Every signal is recorded the moment it&apos;s generated. Outcomes are verified against real OHLCV market
-            data from Binance and Yahoo Finance.
+            Every signal is recorded the moment it&apos;s generated. Outcomes are resolved against Binance and
+            Yahoo Finance OHLCV candles.
             Win rate, total P&amp;L, and the equity curve count only resolved trades — signals refused by the
             full-risk gate or that expired without hitting TP/SL within 48h are surfaced as separate counters,
             not folded into the headline numbers. No cherry-picking, no hidden losses.

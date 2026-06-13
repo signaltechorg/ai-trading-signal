@@ -101,7 +101,7 @@ function drawChart(
     ctx.font = '12px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Performance tracking will begin once signals are recorded and verified',
+      'Performance tracking will begin once signals are recorded and resolved',
       w / 2,
       midY + 24,
     );
@@ -397,8 +397,8 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
           <p className="text-[11px] text-zinc-600 mt-0.5">
             {isPro
               ? summary
-                ? `Full Pro track record. ${summary.riskPerTradePct}% risk per trade, fixed-fractional${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R per trade` : ''}, after ${summary.roundTripCostPct}% round-trip costs. Verified against real market data.`
-                : 'Full Pro track record. Verified against real market data.'
+                ? `Full Pro track record. ${summary.riskPerTradePct}% risk per trade, fixed-fractional${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R per trade` : ''}, after ${summary.roundTripCostPct}% round-trip costs. Resolved against Binance/Yahoo OHLCV.`
+                : 'Full Pro track record. Resolved against Binance/Yahoo OHLCV.'
               : isBroadcast
                 ? summary
                   ? `Gate-approved broadcast subset — decisions recorded since 2026-06-10. ${summary.riskPerTradePct}% risk per trade${summary.hardRCap !== undefined ? `, capped at ${summary.hardRCap}R` : ''} after ${summary.roundTripCostPct}% round-trip costs.`
