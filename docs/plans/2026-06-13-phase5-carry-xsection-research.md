@@ -1,7 +1,7 @@
 # Phase 5 — Carry + cross-sectional research: where does edge survive costs?
 
 Date: 2026-06-13
-Status: APPROVED (design approved by owner 2026-06-13; implementation not started)
+Status: CODE COMPLETE 2026-06-13 — verdict: neither carry nor cross-sectional momentum clears its frozen gates after costs; carry is real but compressed below deployability (recent-24mo 2.35%/yr on 2× capital). Recommendation: Phase 4.5 option 3 (regime-context repositioning). Decision memo: `docs/research/2026-06-13-phase5-verdict-carry-xsection.md`. Awaiting final branch review + PR.
 Parent: `docs/plans/2026-06-10-engine-makeover.md` (umbrella). Direct predecessor: `docs/research/2026-06-12-phase4.5-verdict-single-asset-timing.md` — single-asset OHLCV timing has no deployable edge after costs; ranked options 1 (carry) and 2 (cross-sectional) are this phase's two tracks.
 Branch: `worktree-phase5-carry-xsection` (base `56ea01c` = Phase 4.5 head; stacked on PR #117 → retargets main as the stack lands).
 

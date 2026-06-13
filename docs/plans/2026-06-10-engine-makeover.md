@@ -1,7 +1,7 @@
 # Engine Makeover — regime-routed edge, honest track record, broker execution
 
 Date: 2026-06-10
-Status: Phases 0–2 merged to main; Phase 3 code-complete on branch worktree-phase3-regime-engine (awaiting PR review + merge); Phase 4 code-complete on branch worktree-phase4-strategy-dispatch (2026-06-11) — walk-forward gate FAILED on paper, live activation correctly blocked; Phase 4.5 code-complete on branch worktree-phase4.5-daily-momentum (2026-06-12) — verdict: single-asset OHLCV timing has no deployable edge after costs; strategic pivot to carry/cross-sectional recommended; Phase 5 stays gated; Phase 5 not yet started
+Status: Phases 0–2 merged to main; Phase 3 code-complete on branch worktree-phase3-regime-engine (awaiting PR review + merge); Phase 4 code-complete on branch worktree-phase4-strategy-dispatch (2026-06-11) — walk-forward gate FAILED on paper, live activation correctly blocked; Phase 4.5 code-complete on branch worktree-phase4.5-daily-momentum (2026-06-12) — verdict: single-asset OHLCV timing has no deployable edge after costs; Phase 5 (carry + cross-sectional research) code-complete on branch worktree-phase5-carry-xsection (2026-06-13) — verdict: neither funding carry nor cross-sectional momentum clears its frozen gates after costs (carry is real but compressed to +2.35%/yr recent, below passive); recommendation = reposition to regime-context product; execution/webhook go-live stays gated on edge that does not exist
 Owner goal (verbatim intent): consistent profit across three regimes — trending → catch the move, volatile → mean-revert both directions, neutral/range → range-bound with the smallest weight. The track record is the selling point; the engine is the moat.
 Evidence base: 7-agent subsystem audit (2026-06-10, this session) + the 43-agent why-no-uptrend audit (PR #110, `docs/plans/2026-06-10-track-record-pro-uptrend.md`). All claims below were verified against current code on `main` @ `17309cf`.
 
@@ -99,7 +99,19 @@ Recommendation: carry/funding-rate harvesting as the primary edge-bearing pivot 
 
 **Phase 4.5 status — code-complete 2026-06-12 on branch `worktree-phase4.5-daily-momentum`.**
 
-### Phase 5 — Execution hardening + webhook go-live (wk 6–10, gated on Phase 4 evidence)
+### Phase 5 (research) — Carry + cross-sectional (verdict: 2026-06-13)
+
+Sub-plan: `docs/plans/2026-06-13-phase5-carry-xsection-research.md`. Decision memo: `docs/research/2026-06-13-phase5-verdict-carry-xsection.md`. Evidence: `docs/research/experiments/carry-validation-10majors-f4.json` + `xsection-validation-30majors-D1-lb14-rb7-top5-f4.json` (determinism-verified, registered).
+
+The question: does funding-rate carry (Track A) or cross-sectional momentum (Track B) clear pre-registered gates after costs? Ran both in parallel; gates frozen in the design doc before any data was seen.
+
+Verdict: **neither clears.** Track A — carry's raw structural yield is REAL (A1 always-on BTC: +39.50% on unlevered 2× capital over 6.75y, all 4 folds positive, 0.73% max DD) but compressed below deployability: full-window +5.84%/yr < 8% gate, and the recent-24-month harvest is +2.35%/yr, below the 5% decay gate AND below passive stablecoin yield. The threshold overlay (A2, 0/10 pass) and top-3 rotation (A3, −0.07%/yr, costs 45.27% vs gross 44.85% of capital) are cost-killed/churn. Track B — B1 long-only's +1325% full-window is a survivorship mirage (excess all in fold 1; bias-mitigated 2024-06→ subwindow is −46.99% vs basket −50.29%, fails); B2 long-short's subwindow gate "PASS" is a benchmark artifact (−12.15% beat a −50.29% crashing basket — a dollar-neutral book losing 12% is not deployable; the basket is the wrong benchmark for a market-neutral book, reported frozen as a registered gate-design lesson).
+
+The load-bearing finding for the business: with Phases 4.5 + 5, every retail-cost-structure edge candidate is now a registered dead end (timing, carry, cross-sectional). The common killer is the cost denominator against 2024–26-compressed edges. Carry's specific blocker is decay, not cost. Recommendation (ranked): (1) reposition to a regime-context + honest-measurement product (Phase 4.5 option 3, now triply-evidenced — the bench's credibility is that it killed three candidates before any customer saw them); (2) re-test carry only if institutional/maker execution becomes available (Phase 5.5 would first model basis + squeeze risk); (3) keep the bench as a kill-test and ship nothing. The durable asset is the validated edge-vs-noise bench.
+
+**Phase 5 (research) status — code-complete 2026-06-13 on branch `worktree-phase5-carry-xsection` (stacked on PR #117). 9 tasks, two new pure-math assembly modules (carry + xsection, 33 unit tests), two frozen-gate validation CLIs, registered evidence. Awaiting final branch review + PR.**
+
+### Phase 5 (execution) — Execution hardening + webhook go-live (wk 6–10, gated on Phase 4 evidence)
 - Order state machine (re-poll fills, persist transitions, `needs_attention` state); bidirectional reconciliation sweep + startup reconciliation; price-drift gate (reject if mark deviates > X bps/ATR-fraction from `sig.entryPrice`); live slippage measurement (signal price vs `avgPrice`, alert on degradation); runtime (DB/Redis) kill switch with per-symbol/per-strategy granularity.
 - Wire `dispatchToAll` into the pipeline; HMAC-sign the alert-rules channel (currently plaintext secret, zero retries); unify the two webhook payload schemas; add sizing fields (risk%, stop distance) so a subscriber executor can size.
 - Rollout: testnet ≥2wk → house-account small live ≥4wk. Pre-registered go/no-go: net expectancy after MEASURED costs > 0 over ≥100 trades, max drawdown within bound. Only then offer auto-execution to users.
