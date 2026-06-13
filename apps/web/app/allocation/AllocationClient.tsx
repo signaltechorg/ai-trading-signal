@@ -123,6 +123,21 @@ export function AllocationClient() {
   const currentExposure = portfolioSnapshot?.grossExposurePct ?? null;
   const headroom = currentExposure !== null ? +(maxExposureNum - currentExposure).toFixed(1) : null;
 
+  // Regime freshness — most recent classification timestamp across symbols and
+  // how many symbols were classified, so the "Active Regime" figure shows when
+  // and over how many symbols it was detected rather than reading as live.
+  const classifiedCount = regimeData.length;
+  const latestDetectedAt = regimeData.reduce<string | null>((latest, e) => {
+    if (!e.detectedAt) return latest;
+    if (!latest || e.detectedAt > latest) return e.detectedAt;
+    return latest;
+  }, null);
+  const detectedAtLabel = latestDetectedAt
+    ? new Date(latestDetectedAt).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+      })
+    : null;
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-20 md:pb-8">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-6">
@@ -157,11 +172,21 @@ export function AllocationClient() {
               <p className="text-2xl font-bold" style={{ color: REGIME_COLORS[dominant].color }}>
                 {dominant.charAt(0).toUpperCase() + dominant.slice(1)}
               </p>
+              <p className="text-[10px] text-[var(--text-secondary)] mt-1 font-mono">
+                {classifiedCount} symbol{classifiedCount === 1 ? '' : 's'} classified
+                {detectedAtLabel ? ` · detected ${detectedAtLabel}` : ''}
+              </p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <ShieldCheck className="w-4 h-4 text-[var(--text-secondary)]" />
                 <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Current Exposure</span>
+                <span
+                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/25"
+                  title="These exposure figures come from a paper-trading demo account, not real capital."
+                >
+                  Paper / demo account
+                </span>
               </div>
               <p className="text-2xl font-bold text-[var(--foreground)]">
                 {currentExposure === null ? 'N/A' : `${currentExposure.toFixed(1)}%`}
@@ -180,9 +205,15 @@ export function AllocationClient() {
               </p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <TrendingUp className="w-4 h-4 text-[var(--text-secondary)]" />
                 <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Headroom</span>
+                <span
+                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/25"
+                  title="Headroom is derived from the paper-trading demo account exposure, not real capital."
+                >
+                  Paper / demo account
+                </span>
               </div>
               <p className={`text-2xl font-bold ${headroom === null ? 'text-[var(--foreground)]' : headroom > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {headroom === null ? 'N/A' : `${headroom.toFixed(1)}%`}
@@ -199,7 +230,15 @@ export function AllocationClient() {
         {/* Allocation rules table */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden mb-8">
           <div className="px-5 py-4 border-b border-[var(--border)]">
-            <h2 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wider">Allocation Rules by Regime</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wider">Allocation Rules by Regime</h2>
+              <span
+                className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/25"
+                title="Static display mirror of the engine's REGIME_ALLOCATION_RULES (packages/signals/src/allocation/regime-rules.ts). Not fetched live — kept in sync manually."
+              >
+                Policy rules — not fetched live from the engine
+              </span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -261,7 +300,14 @@ export function AllocationClient() {
         {/* Per-symbol allocation */}
         {!loading && regimeData.length > 0 && (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <h2 className="text-sm font-semibold text-[var(--foreground)] mb-4 uppercase tracking-wider">Per-Symbol Regime Allocation</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wider">Per-Symbol Regime Allocation</h2>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)]">
+                {classifiedCount} symbol{classifiedCount === 1 ? '' : 's'} classified
+                {detectedAtLabel ? ` · detected ${detectedAtLabel}` : ''}
+                {' · Max pos / Dir are policy rules, not live engine values'}
+              </span>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {regimeData.map((entry) => {
                 const regime = normalizeRegime(entry.regime);
