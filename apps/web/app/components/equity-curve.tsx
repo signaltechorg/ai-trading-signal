@@ -367,6 +367,19 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
     ? +(HYPOTHETICAL_START * (1 + summary.totalReturn / 100)).toFixed(0)
     : HYPOTHETICAL_START;
 
+  // Distinct UTC calendar days the Sharpe is computed over. Each point is one
+  // sized trade; Sharpe buckets these by day, so the honest N for a daily-
+  // bucketed annualized Sharpe is the day count, not the trade count. A 5-day
+  // Sharpe must not read like a 500-day one.
+  const sharpeDays = points.length
+    ? new Set(points.map(p => new Date(p.timestamp).toISOString().slice(0, 10))).size
+    : 0;
+
+  // Date range the window actually covers — first→last sized trade.
+  const rangeLabel = points.length
+    ? `${formatDate(points[0].timestamp)} – ${formatDate(points[points.length - 1].timestamp)}`
+    : null;
+
   const isPro = scope === 'pro';
   const isBroadcast = scope === 'broadcast';
 
@@ -462,6 +475,23 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
         </div>
       </div>
 
+      {/* Persistent smoothed-curve banner — when the P95 clip is ACTIVE the
+         curve is NOT the raw paper-trade path. The tiny toggle label alone is
+         easy to miss in a shared or embedded screenshot, so surface a visible
+         amber banner whenever smooth mode is on, regardless of whether a cap
+         was computed. */}
+      {smooth && (
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-300">
+          <span aria-hidden="true" className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+          <span>
+            Outlier-smoothed view (P95-clipped) — this is <strong>not</strong> the raw equity path.
+            The top and bottom 5% of trade outcomes are clamped
+            {smoothMeta?.capR != null ? ` to ±${smoothMeta.capR}R` : ''}; raw drawdown is larger.
+            Turn off &ldquo;Smoothed&rdquo; for the unmodified curve.
+          </span>
+        </div>
+      )}
+
       {/* Stats overlay — Total Return and Max Drawdown are presented as a
          barbell, equal weight. Win-rate-only or return-only framing hides
          the path. A +308% return with -67% drawdown is not a flat ride. */}
@@ -539,6 +569,11 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
               <div className="text-xs font-mono font-semibold text-zinc-300 tabular-nums">
                 {summary.sharpeRatio !== null ? summary.sharpeRatio.toFixed(2) : '—'}
               </div>
+              <div className="text-[9px] text-zinc-600 mt-0.5 font-mono">
+                {summary.sharpeRatio !== null
+                  ? `over ${sharpeDays} trading day${sharpeDays === 1 ? '' : 's'}`
+                  : `needs ≥5 days (have ${sharpeDays})`}
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -578,6 +613,19 @@ export function EquityCurve({ period = 'all', scope = 'pro', category = 'all', b
               </div>
             </div>
           </div>
+          {/* R-stat denominator note — avg R per win/loss, expectancy and the
+             break-even win-rate come from the SIZED-TRADE subset (rows with an
+             SL so R is defined), which can differ from resolved signals. Show
+             that N so a thin R-stat isn't mistaken for a deep one. */}
+          {summary.sizedTrades !== undefined && (
+            <p className="text-[10px] text-zinc-600 -mt-2 mb-4 font-mono">
+              R-stats over {summary.sizedTrades.toLocaleString()} sized trade{summary.sizedTrades === 1 ? '' : 's'}
+              {summary.sizedTrades !== summary.totalSignals
+                ? ` (of ${summary.totalSignals.toLocaleString()} resolved — legacy rows without a stop are excluded)`
+                : ''}
+              {rangeLabel ? ` · ${rangeLabel}` : ''}
+            </p>
+          )}
         </>
       )}
 

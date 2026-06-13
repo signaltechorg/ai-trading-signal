@@ -156,6 +156,29 @@ function formatTime(ts: number): string {
   return `${month} ${day}, ${hh}:${mm} ${tz}`;
 }
 
+/** Short "Mon D, YYYY" stamp for the headline "since <date>" provenance. */
+function formatDateStamp(ts: number): string {
+  return new Date(ts).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/** Human window descriptor for the selected period, anchored to the earliest
+ * recorded signal. "All" with no data is unbounded; a fixed window shows the
+ * actual span it covers given how much history exists. */
+function periodWindowLabel(period: Period, earliestTs: number | null): string {
+  const opt = PERIOD_OPTIONS.find(o => o.value === period);
+  if (!opt) return '';
+  if (opt.days === null) {
+    return earliestTs ? `since ${formatDateStamp(earliestTs)}` : 'full archive';
+  }
+  const start = Date.now() - opt.days * 86_400_000;
+  const effectiveStart = earliestTs ? Math.max(start, earliestTs) : start;
+  return `${formatDateStamp(effectiveStart)} – ${formatDateStamp(Date.now())}`;
+}
+
 function HitRateBar({ value }: { value: number }) {
   const color = value >= 60 ? 'bg-emerald-500' : value >= 50 ? 'bg-zinc-500' : 'bg-red-500';
   const textColor = value >= 60 ? 'text-emerald-400' : value >= 50 ? 'text-zinc-400' : 'text-red-400';
@@ -410,6 +433,10 @@ export function TrackRecordClient() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [rollingWinRates, setRollingWinRates] = useState<RollingWinRates | null>(null);
+  // Break-even win-rate for the current scope/period, from the equity summary.
+  // Surfaced at the headline so the headline win-rate reads against the bar the
+  // system needs, not a meaningless flat 50%.
+  const [headlineBreakEven, setHeadlineBreakEven] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // Earliest signal we have data for in the current scope. Used to grey out
   // period buttons whose window pre-dates any recorded signal — a 5Y button
@@ -465,9 +492,13 @@ export function TrackRecordClient() {
         const data = await equityRes.value.json();
         if (isCancelled()) return;
         setRollingWinRates(data.rollingWinRates ?? null);
+        setHeadlineBreakEven(
+          typeof data.summary?.breakEvenWinRate === 'number' ? data.summary.breakEvenWinRate : null,
+        );
       } else {
         if (isCancelled()) return;
         setRollingWinRates(null);
+        setHeadlineBreakEven(null);
       }
     } catch {
       if (isCancelled()) return;
@@ -564,12 +595,19 @@ export function TrackRecordClient() {
                 total return
                 <InfoHint text={STAT_HINTS.totalReturnLinear} label="What total return means" />
               </span>
+              {/* Provenance stamp — the window this headline actually covers,
+                  so a number from 26 days of data doesn't read as "all time". */}
+              <span className="text-[11px] font-mono text-[var(--text-secondary)]">
+                {periodWindowLabel(period, earliestTimestamp)}
+              </span>
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className={`text-xl font-semibold tabular-nums ${
-                stats && stats.winRate >= 55 ? 'text-emerald-400'
-                : stats && stats.winRate >= 45 ? 'text-zinc-400'
-                : stats ? 'text-red-400' : 'text-[var(--foreground)]'
+                headlineBreakEven !== null && stats
+                  ? stats.winRate >= headlineBreakEven ? 'text-emerald-400' : 'text-red-400'
+                  : stats && stats.winRate >= 55 ? 'text-emerald-400'
+                  : stats && stats.winRate >= 45 ? 'text-zinc-400'
+                  : stats ? 'text-red-400' : 'text-[var(--foreground)]'
               }`}>
                 {stats ? `${stats.winRate}%` : '—'}
               </span>
@@ -577,6 +615,14 @@ export function TrackRecordClient() {
                 win rate
                 <InfoHint text={STAT_HINTS.winRate24h} label="What win rate means" />
               </span>
+              {/* Break-even win-rate at the headline (not only in sub-cards):
+                  a sub-50% win-rate above break-even is still profitable. */}
+              {headlineBreakEven !== null && (
+                <span className="text-[11px] font-mono text-[var(--text-secondary)] inline-flex items-center gap-1">
+                  break-even {headlineBreakEven}%
+                  <InfoHint text={STAT_HINTS.breakEvenWinRate} label="What break-even win rate means" />
+                </span>
+              )}
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-semibold tabular-nums text-[var(--foreground)]">
@@ -637,10 +683,23 @@ export function TrackRecordClient() {
                   : snap.winRate >= 45
                     ? 'text-zinc-300'
                     : 'text-red-400';
+                // Actual data span available. When the recorded history is
+                // shorter than the window label, a "90d win rate" really only
+                // covers N days — say so rather than imply 90 days of data.
+                const windowDays = Number(window.replace('d', ''));
+                const dataAgeDays = earliestTimestamp
+                  ? Math.max(1, Math.floor((Date.now() - earliestTimestamp) / 86_400_000))
+                  : null;
+                const isThinWindow = dataAgeDays !== null && dataAgeDays < windowDays;
                 return (
                   <div key={window} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                     <div className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] font-mono">
                       Rolling win rate · {window}
+                      {isThinWindow && (
+                        <span className="ml-1 normal-case text-amber-400/80">
+                          (only {dataAgeDays}d of data)
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex items-end justify-between gap-3">
                       <div className={`text-2xl font-bold tabular-nums ${winTone}`}>
@@ -836,7 +895,7 @@ export function TrackRecordClient() {
                 label="Total P&L"
                 value={`${stats.totalPnlPct >= 0 ? '+' : ''}${stats.totalPnlPct}%`}
                 accent={stats.totalPnlPct >= 0 ? 'emerald' : 'red'}
-                hint="Sum at fixed 1R"
+                hint="Raw sum of per-signal market %"
                 tooltip={STAT_HINTS.totalReturnLinear}
               />
               <StatCard
@@ -957,9 +1016,15 @@ export function TrackRecordClient() {
 
         {/* Per-Symbol Breakdown */}
         <section className="mb-8">
-          <h2 className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-mono font-semibold mb-3">
-            Per-Symbol Performance
-          </h2>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-mono font-semibold">
+              Per-Symbol Performance
+            </h2>
+            {/* Date range the hit-rates below cover, for the selected period. */}
+            <span className="text-[10px] font-mono text-[var(--text-secondary)]">
+              {periodWindowLabel(period, earliestTimestamp)}
+            </span>
+          </div>
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-xs font-mono">
