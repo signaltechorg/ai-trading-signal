@@ -1,6 +1,8 @@
 const { createDefaultPreset } = require("ts-jest");
 
-const tsJestTransformCfg = createDefaultPreset().transform;
+const tsJestPreset = createDefaultPreset({
+  tsconfig: "apps/web/tsconfig.json",
+});
 
 /** @type {import("jest").Config} **/
 module.exports = {
@@ -18,7 +20,7 @@ module.exports = {
     "/.claude/worktrees/",
   ],
   transform: {
-    ...tsJestTransformCfg,
+    ...tsJestPreset.transform,
   },
   transformIgnorePatterns: [
     "/node_modules/(?!@tradeclaw/)",
@@ -33,10 +35,5 @@ module.exports = {
     "^@tradeclaw/core$": "<rootDir>/packages/core/src/index.ts",
     "^@tradeclaw/trading-agents$": "<rootDir>/packages/trading-agents/src/index.ts",
     "^@tradeclaw/strategies$": "<rootDir>/packages/strategies/src/index.ts",
-  },
-  globals: {
-    "ts-jest": {
-      tsconfig: "apps/web/tsconfig.json",
-    },
   },
 };
