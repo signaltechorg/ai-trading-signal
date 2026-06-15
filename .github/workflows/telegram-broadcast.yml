@@ -5,79 +5,28 @@ on:
     - cron: "0 */4 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   broadcast-signals:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Fetch live signals and post to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TRADECLAW_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TRADECLAW_TELEGRAM_CHANNEL_ID }}
+          API_BASE_URL: https://tradeclaw.win
         run: |
           set -euo pipefail
 
           curl -fsSL \
-            -A "TradeClawBot/1.0 (+https://github.com/naimkatiman/tradeclaw)" \
-            https://tradeclaw.win/api/digest/daily \
+            -A "AITradingSignalBot/1.0 (+https://github.com/signaltechorg/ai-trading-signal)" \
+            "${API_BASE_URL}/api/digest/daily" \
             -o /tmp/tradeclaw-digest.json
 
-          python3 - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          bot_token = os.environ['TELEGRAM_BOT_TOKEN']
-          channel_id = os.environ['TELEGRAM_CHANNEL_ID']
-
-          from datetime import datetime, timezone
-
-          with open('/tmp/tradeclaw-digest.json', 'r', encoding='utf-8') as f:
-              digest = json.load(f)
-
-          weekend_skip = {'XAUUSD', 'XAGUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'NZDUSD'}
-          is_weekend = datetime.now(timezone.utc).weekday() >= 5
-
-          signals = digest.get('topSignals', [])
-          if is_weekend:
-              signals = [s for s in signals if s.get('symbol') not in weekend_skip]
-          signals = signals[:3]
-
-          if not signals:
-              print('No weekend-safe fallback digest signals to broadcast.')
-              raise SystemExit(0)
-          else:
-              lines = ['📡 TradeClaw Signal Broadcast', '━━━━━━━━━━━━━━━━━━━━']
-              for i, s in enumerate(signals, 1):
-                  emoji = '📈' if s.get('direction') == 'BUY' else '📉'
-                  lines.extend([
-                      '',
-                      f"{emoji} #{i} {s.get('direction')} {s.get('symbol')}",
-                      f"Confidence: {s.get('confidence')}%",
-                      f"Entry: ${s.get('entry')}",
-                      f"TP1: ${s.get('takeProfit1')}",
-                      f"SL: ${s.get('stopLoss')}",
-                  ])
-              lines.extend(['', '━━━━━━━━━━━━━━━━━━━━', '🤖 TradeClaw | tradeclaw.win', '⚠️ Not financial advice. DYOR.'])
-              text = '\n'.join(lines)
-
-          payload = json.dumps({
-              'chat_id': channel_id,
-              'text': text,
-              'disable_web_page_preview': True,
-          }).encode('utf-8')
-
-          req = urllib.request.Request(
-              f'https://api.telegram.org/bot{bot_token}/sendMessage',
-              data=payload,
-              headers={'Content-Type': 'application/json'},
-              method='POST',
-          )
-
-          with urllib.request.urlopen(req, timeout=20) as resp:
-              result = json.load(resp)
-
-          if not result.get('ok'):
-              raise SystemExit(f"Telegram send failed: {result}")
-
-          print('Sent Telegram message:', result['result']['message_id'])
-          PY
+          npx --yes tsx scripts/cron/telegram-broadcast.ts

@@ -30,7 +30,7 @@ const VALID_REGIMES = new Set<MarketRegime>(['trend', 'volatile', 'range']);
 
 /**
  * Default trailing observation window for Viterbi smoothing (plan D6).
- * Mirrored in scripts/hmm-regime/train_hmm.py (SEQUENCE_LENGTH) — keep in sync.
+ * Keep SEQUENCE_LENGTH aligned with scripts/hmm-regime/models/crypto_hmm.json.
  */
 const DEFAULT_SEQUENCE_LENGTH = 64;
 

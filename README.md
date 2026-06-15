@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="TradeClaw logo" width="72" height="72" />
+<img src="docs/assets/logo.svg" alt="AI Trading Signal logo" width="72" height="72" />
 
-# TradeClaw
+# AI Trading Signal
 
 **Open-source AI trading signals. Every trade verified.**
 
-[![Stars](https://img.shields.io/github/stars/naimkatiman/tradeclaw?style=flat-square&color=10b981)](https://github.com/naimkatiman/tradeclaw/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Demo](https://img.shields.io/badge/Demo-Live-10b981?style=flat-square)](https://tradeclaw.win/dashboard)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square)](https://www.typescriptlang.org/)
+[![Node](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square)](https://nodejs.org/)
 
 **[Track Record](https://tradeclaw.win/track-record)** · **[Live Demo](https://tradeclaw.win/dashboard)** · **[API Docs](https://tradeclaw.win/api-docs)** · **[Pricing](https://tradeclaw.win/pricing)**
 
@@ -22,7 +22,9 @@ Read this in other languages: [日本語](README.ja.md) · [한국어](README.ko
 
 ---
 
-TradeClaw generates BUY/SELL signals using multi-timeframe technical analysis (RSI, MACD, EMA, Bollinger Bands, Stochastic, ADX, Volume). Every signal is recorded in a Postgres database and published on the [track record](https://tradeclaw.win/track-record) — wins **and** losses, no cherry-picking.
+AI Trading Signal generates BUY/SELL signals using multi-timeframe technical analysis (RSI, MACD, EMA, Bollinger Bands, Stochastic, ADX, Volume). Every signal is recorded in a Postgres database and published on the track record — wins **and** losses, no cherry-picking.
+
+> **Stack:** TypeScript monorepo (Next.js, Fastify ws-server, Redis via `ioredis-os`, PostgreSQL). No Python runtime required.
 
 > Status: pre-1.0 (`0.1.0`). The signal engine, dashboard, backtester, and self-host path are usable today; APIs and schema may still change between releases.
 
@@ -43,9 +45,9 @@ TradeClaw generates BUY/SELL signals using multi-timeframe technical analysis (R
 
 Start free at [tradeclaw.win/dashboard](https://tradeclaw.win/dashboard). Upgrade anytime at [tradeclaw.win/pricing](https://tradeclaw.win/pricing).
 
-## Self-hosting vs. TradeClaw Pro (hosted)
+## Self-hosting
 
-TradeClaw is MIT-licensed. You can fork, self-host, and run the entire signal framework for free — the free-tier signal engine (classic TA, RSI + EMA + MACD confluence), backtester, dashboard, paper trading, and public Telegram broadcaster are all in this repo.
+AI Trading Signal is MIT-licensed. You can fork, self-host, and run the entire signal framework for free — the free-tier signal engine (classic TA, RSI + EMA + MACD confluence), backtester, dashboard, paper trading, and public Telegram broadcaster are all in this repo.
 
 The hosted version at **tradeclaw.win** adds features that activate only when the deploy holds the matching credentials:
 
@@ -79,8 +81,8 @@ docker run -p 3000:3000 \
 ### Docker Compose (recommended for production)
 
 ```bash
-git clone https://github.com/naimkatiman/tradeclaw
-cd tradeclaw
+git clone https://github.com/signaltechorg/ai-trading-signal.git
+cd ai-trading-signal
 cp .env.example .env   # edit DATABASE_URL + Telegram tokens
 docker compose up -d   # or: docker-compose up -d on the legacy CLI
 ```
@@ -108,11 +110,11 @@ Then open Grafana at [http://localhost:3001](http://localhost:3001) (default log
 
 ## Local development (from source)
 
-TradeClaw is an npm-workspaces monorepo. You need Node.js 20+, npm, and a PostgreSQL instance. The web app requires `DATABASE_URL` and throws on first DB access if it is unset — there is no bundled SQLite fallback.
+AI Trading Signal is a TypeScript npm-workspaces monorepo. You need Node.js 20+, npm, and a PostgreSQL instance. The web app requires `DATABASE_URL` and throws on first DB access if it is unset — there is no bundled SQLite fallback.
 
 ```bash
-git clone https://github.com/naimkatiman/tradeclaw
-cd tradeclaw
+git clone https://github.com/signaltechorg/ai-trading-signal.git
+cd ai-trading-signal
 npm install            # installs all workspaces
 cp .env.example .env   # set DATABASE_URL and any optional tokens
 
@@ -128,6 +130,7 @@ Common workspace scripts (all defined in the root `package.json`):
 | `npm run build:all` | Build `signals` + `agent` + web + ws-server |
 | `npm run start` | Start the built web app |
 | `npm run lint` | Lint `apps/web` |
+| `npm run typecheck` | Type-check all TypeScript workspaces |
 | `npm test` | Run the Jest unit suite |
 | `npm run test:e2e` | Run the Playwright e2e suite (`apps/web`) |
 | `npm run ws:dev` / `ws:build` / `ws:start` / `ws:test` | Develop, build, run, or test the websocket server (`apps/ws-server`) |
@@ -264,30 +267,12 @@ See `.env.example` for the full, commented list.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [good first issues](https://github.com/naimkatiman/tradeclaw/labels/good%20first%20issue).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Before opening a PR: run `npm install`, make your change, then `npm run lint`, `npm test`, and (for web changes) `npm run test:e2e`.
-
-Hacktoberfest-friendly: PRs against this repo qualify for the `hacktoberfest-accepted` label when they pass review.
-
-## Contributors
-
-Thanks to everyone who has helped build TradeClaw — code, docs, bug reports, translations, or sharing the project.
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<a href="https://github.com/naimkatiman/tradeclaw/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=naimkatiman/tradeclaw" alt="Contributors" />
-</a>
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://allcontributors.org/) specification — contributions of any kind welcome.
+Before opening a PR: run `npm install`, make your change, then `npm run lint`, `npm run typecheck`, `npm test`, and (for web changes) `npm run test:e2e`.
 
 ---
 
 <div align="center">
-<sub>MIT License · <a href="https://tradeclaw.win">tradeclaw.win</a></sub>
+<sub>MIT License · <a href="https://github.com/signaltechorg/ai-trading-signal">github.com/signaltechorg/ai-trading-signal</a></sub>
 </div>

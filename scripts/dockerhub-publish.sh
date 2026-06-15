@@ -148,14 +148,13 @@ if ! $DRY_RUN; then
   info "Pulling manifest to verify..."
   if docker manifest inspect "${IMAGE_NAME}:latest" &>/dev/null; then
     ok "Image verified on Docker Hub"
-    docker manifest inspect "${IMAGE_NAME}:latest" | python3 -c "
-import json, sys
-m = json.load(sys.stdin)
-manifests = m.get('manifests', [])
-for mf in manifests:
-    plat = mf.get('platform', {})
-    size = mf.get('size', 0)
-    print(f'  {plat.get(\"os\",\"?\")} / {plat.get(\"architecture\",\"?\")} — {size // 1024 // 1024} MB')
+    docker manifest inspect "${IMAGE_NAME}:latest" | node -e "
+const m = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+for (const mf of m.manifests ?? []) {
+  const plat = mf.platform ?? {};
+  const size = mf.size ?? 0;
+  console.log('  ' + (plat.os ?? '?') + ' / ' + (plat.architecture ?? '?') + ' — ' + Math.floor(size / 1024 / 1024) + ' MB');
+}
 " 2>/dev/null || true
   else
     info "Manifest check skipped (may take a moment to propagate)"

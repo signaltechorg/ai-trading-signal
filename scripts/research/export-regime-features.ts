@@ -64,9 +64,8 @@ function loadDump(candlesDir: string, symbol: string, timeframe: string): Regime
 }
 
 /**
- * The trainer (scripts/hmm-regime/train_hmm.py) is pinned to exactly these
- * four features. A fifth feature must fail HERE at export time — not only
- * when the trainer rejects the file.
+ * Feature count is pinned to the HMM regime model schema. Keep REGIME_FEATURE_NAMES
+ * aligned with packages/signals/src/regime/features.ts and the committed model JSON.
  */
 const EXPECTED_FEATURE_COUNT = 4;
 
@@ -74,7 +73,7 @@ const EXPECTED_FEATURE_COUNT = 4;
   if (REGIME_FEATURE_NAMES.length !== EXPECTED_FEATURE_COUNT) {
     console.error(
       `REGIME_FEATURE_NAMES has ${REGIME_FEATURE_NAMES.length} entries, expected ${EXPECTED_FEATURE_COUNT} — ` +
-      'update scripts/hmm-regime/train_hmm.py (FEATURE_NAMES + N_FEATURES) and this exporter together',
+      'update packages/signals/src/regime/features.ts and this exporter together',
     );
     process.exit(2);
   }

@@ -23,8 +23,4 @@ apps/web/data/performance-metrics.json
 *.tsbuildinfo
 
 /scripts/.venv
-
-# Python bytecode cache
-__pycache__/
-*.pyc
 apps/web/data/*.db

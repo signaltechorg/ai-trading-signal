@@ -1,8 +1,8 @@
 {
-  "name": "tradeclaw",
+  "name": "ai-trading-signal",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source AI trading agent platform. Self-hosted. Free forever.",
+  "description": "Open-source AI trading signal platform. TypeScript monorepo. Self-hosted.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -31,7 +31,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/naimkatiman/tradeclaw.git"
+    "url": "https://github.com/signaltechorg/ai-trading-signal.git"
   },
   "keywords": [
     "trading",

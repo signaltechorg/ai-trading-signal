@@ -141,11 +141,11 @@ echo -e "${BOLD}4. Running API smoke tests${RESET}"
 
 # /api/health
 HEALTH_RESP=$(curl -sf "${BASE_URL}/api/health" 2>/dev/null || echo "")
-if echo "$HEALTH_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('status') in ('ok','healthy','up')" 2>/dev/null; then
+if node -e "const d=JSON.parse(process.argv[1]); if(!['ok','healthy','up'].includes(d?.status)) process.exit(1)" "$HEALTH_RESP" 2>/dev/null; then
   check "/api/health returns status ok" "ok"
 else
   # Try checking for any status field
-  if echo "$HEALTH_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d)" 2>/dev/null; then
+  if node -e "JSON.parse(process.argv[1]); console.log('ok')" "$HEALTH_RESP" 2>/dev/null; then
     check "/api/health returns valid JSON" "ok"
   else
     check "/api/health" "fail" "Response: ${HEALTH_RESP:0:100}"
@@ -154,8 +154,8 @@ fi
 
 # /api/signals
 SIGNALS_RESP=$(curl -sf "${BASE_URL}/api/signals" 2>/dev/null || echo "")
-if echo "$SIGNALS_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); sigs=d.get('signals',[]); assert isinstance(sigs,list)" 2>/dev/null; then
-  SIG_COUNT=$(echo "$SIGNALS_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('signals',[])))" 2>/dev/null || echo "?")
+if node -e "const d=JSON.parse(process.argv[1]); if(!Array.isArray(d?.signals)) process.exit(1)" "$SIGNALS_RESP" 2>/dev/null; then
+  SIG_COUNT=$(node -e "const d=JSON.parse(process.argv[1]); console.log((d.signals||[]).length)" "$SIGNALS_RESP" 2>/dev/null || echo "?")
   check "/api/signals returns valid signals array (${SIG_COUNT} signals)" "ok"
 else
   check "/api/signals" "fail" "Response: ${SIGNALS_RESP:0:100}"
@@ -163,7 +163,7 @@ fi
 
 # /api/v1/health
 V1_RESP=$(curl -sf "${BASE_URL}/api/v1/health" 2>/dev/null || echo "")
-if echo "$V1_RESP" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+if node -e "JSON.parse(process.argv[1])" "$V1_RESP" 2>/dev/null; then
   check "/api/v1/health returns valid JSON" "ok"
 else
   check "/api/v1/health" "fail" "Response: ${V1_RESP:0:100}"

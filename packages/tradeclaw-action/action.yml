@@ -64,7 +64,7 @@ runs:
           exit 0
         fi
 
-        SIGNAL_COUNT=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('data',d) if isinstance(d,dict) else d))" 2>/dev/null || echo "0")
+        SIGNAL_COUNT=$(node -e "const d=JSON.parse(process.argv[1]); const arr=Array.isArray(d)?d:(d.data??[]); console.log(arr.length)" "$RESPONSE" 2>/dev/null || echo "0")
 
         if [ "$SIGNAL_COUNT" = "0" ]; then
           echo "signal_found=false" >> "$GITHUB_OUTPUT"
@@ -74,9 +74,9 @@ runs:
           exit 0
         fi
 
-        DIRECTION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); arr=d.get('data',d) if isinstance(d,dict) else d; print(arr[0].get('direction',''))" 2>/dev/null)
-        CONFIDENCE=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); arr=d.get('data',d) if isinstance(d,dict) else d; print(int(arr[0].get('confidence',0)*100) if arr[0].get('confidence',0)<=1 else int(arr[0].get('confidence',0)))" 2>/dev/null || echo "0")
-        SIGNAL_JSON=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); arr=d.get('data',d) if isinstance(d,dict) else d; print(json.dumps(arr[0]))" 2>/dev/null || echo "{}")
+        DIRECTION=$(node -e "const d=JSON.parse(process.argv[1]); const arr=Array.isArray(d)?d:(d.data??[]); console.log(arr[0]?.direction??'')" "$RESPONSE" 2>/dev/null)
+        CONFIDENCE=$(node -e "const d=JSON.parse(process.argv[1]); const arr=Array.isArray(d)?d:(d.data??[]); const c=arr[0]?.confidence??0; console.log(c<=1?Math.round(c*100):Math.round(c))" "$RESPONSE" 2>/dev/null || echo "0")
+        SIGNAL_JSON=$(node -e "const d=JSON.parse(process.argv[1]); const arr=Array.isArray(d)?d:(d.data??[]); console.log(JSON.stringify(arr[0]??{}))" "$RESPONSE" 2>/dev/null || echo "{}")
 
         # Filter by direction
         if [ "$TC_DIRECTION" != "ALL" ] && [ "$DIRECTION" != "$TC_DIRECTION" ]; then
