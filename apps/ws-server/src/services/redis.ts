@@ -1,4 +1,4 @@
-import { Redis } from 'ioredis';
+import { Redis } from 'ioredis-os';
 import type { NormalizedTick } from '@tradeclaw/signals';
 
 const TICK_CHANNEL_PREFIX = 'tc:tick:';

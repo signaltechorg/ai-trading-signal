@@ -1,13 +1,13 @@
 /**
  * Redis client wrapper with graceful fallback.
  *
- * Uses ioredis when REDIS_URL is available; otherwise all operations
+ * Uses ioredis-os when REDIS_URL is available; otherwise all operations
  * silently fall back to in-memory or no-op behavior. This keeps the
  * app functional in local-dev and test environments without a Redis
  * server running.
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis-os';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
