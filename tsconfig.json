@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/signals" },
+    { "path": "./packages/strategies" },
+    { "path": "./packages/core" },
+    { "path": "./packages/agent" },
+    { "path": "./packages/trading-agents" },
+    { "path": "./apps/ws-server" },
+    { "path": "./apps/web" }
+  ]
+}

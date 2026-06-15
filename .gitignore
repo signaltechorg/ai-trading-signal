@@ -20,6 +20,7 @@ apps/web/data/performance-metrics.json
 
 # Build output
 **/dist/
+*.tsbuildinfo
 
 /scripts/.venv
 
