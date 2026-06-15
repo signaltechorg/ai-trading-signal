@@ -28,7 +28,7 @@ jobs:
       # @tradeclaw/signals resolves through its dist build; type-check needs it present.
       - run: npm run build:signals
       - run: npm run lint
-      - run: npx tsc --noEmit --project apps/web/tsconfig.json
+      - run: npm run typecheck
 
   unit-tests:
     name: Unit Tests
