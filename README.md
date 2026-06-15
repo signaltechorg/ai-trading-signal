@@ -131,6 +131,7 @@ Common workspace scripts (all defined in the root `package.json`):
 | `npm run start` | Start the built web app |
 | `npm run lint` | Lint `apps/web` |
 | `npm run typecheck` | Type-check all TypeScript workspaces |
+| `npm run pipeline` | Run full CI pipeline locally (lint, typecheck, test, build) |
 | `npm test` | Run the Jest unit suite |
 | `npm run test:e2e` | Run the Playwright e2e suite (`apps/web`) |
 | `npm run ws:dev` / `ws:build` / `ws:start` / `ws:test` | Develop, build, run, or test the websocket server (`apps/ws-server`) |
