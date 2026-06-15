@@ -27,7 +27,8 @@
     "resolve:outcomes": "npx tsx -e \"import { resolveRealOutcomes } from './apps/web/lib/signal-history.ts'; resolveRealOutcomes().then(() => console.log('Done')).catch(e => { console.error(e); process.exit(1); })\"",
     "test": "jest",
     "test:e2e": "npm run test:e2e --workspace=apps/web",
-    "typecheck": "npm run build:signals && tsc --build tsconfig.json --force && tsc --noEmit --project apps/web/tsconfig.json"
+    "typecheck": "npm run build:signals && tsc --noEmit -p packages/strategies/tsconfig.json && tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/agent/tsconfig.json && tsc --noEmit -p packages/trading-agents/tsconfig.json && tsc --noEmit -p apps/ws-server/tsconfig.json && tsc --noEmit --project apps/web/tsconfig.json",
+    "pipeline": "npm run build:signals && npm run lint && npm run typecheck && npm test && npm run build && npm run ws:build && npm run ws:test && npm test --workspace=@tradeclaw/strategies"
   },
   "repository": {
     "type": "git",
